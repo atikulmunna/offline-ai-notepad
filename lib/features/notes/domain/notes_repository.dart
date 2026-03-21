@@ -13,4 +13,8 @@ abstract class NotesRepository {
     String? title,
     required String body,
   });
+  Future<void> togglePin({
+    required String id,
+    required bool value,
+  });
 }

@@ -68,6 +68,7 @@ class NoteRecord {
       title: (title == null || title!.trim().isEmpty) ? 'Untitled note' : title!,
       body: body,
       badge: isPinned ? 'Pinned' : 'Draft',
+      updatedAt: updatedAt,
       isPinned: isPinned,
     );
   }
@@ -79,6 +80,7 @@ class NoteRecord {
       body: body,
       createdAt: createdAt,
       updatedAt: updatedAt,
+      isPinned: isPinned,
     );
   }
 }

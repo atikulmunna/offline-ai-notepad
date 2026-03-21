@@ -120,6 +120,34 @@ class LocalNotesRepository implements NotesRepository {
       id: existing.id,
       title: title,
       body: body,
+      isPinned: existing.isPinned,
+      createdAt: existing.createdAt,
+      updatedAt: DateTime.now(),
+    );
+
+    await _database.update(
+      DatabaseSchema.notesTable,
+      updated.toMap(),
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  @override
+  Future<void> togglePin({
+    required String id,
+    required bool value,
+  }) async {
+    final existing = await getNote(id);
+    if (existing == null) {
+      return;
+    }
+
+    final updated = NoteRecord(
+      id: existing.id,
+      title: existing.title,
+      body: existing.body,
+      isPinned: value,
       createdAt: existing.createdAt,
       updatedAt: DateTime.now(),
     );

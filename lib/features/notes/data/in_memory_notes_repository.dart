@@ -90,4 +90,37 @@ class InMemoryNotesRepository implements NotesRepository {
       deletedAt: current.deletedAt,
     );
   }
+
+  @override
+  Future<void> togglePin({
+    required String id,
+    required bool value,
+  }) async {
+    final index = _notes.indexWhere((note) => note.id == id);
+    if (index == -1) {
+      return;
+    }
+
+    final current = _notes[index];
+    _notes[index] = NoteRecord(
+      id: current.id,
+      title: current.title,
+      body: current.body,
+      summary: current.summary,
+      folderId: current.folderId,
+      isPinned: value,
+      isArchived: current.isArchived,
+      isDeleted: current.isDeleted,
+      createdAt: current.createdAt,
+      updatedAt: DateTime.now(),
+      deletedAt: current.deletedAt,
+    );
+    _notes.sort((a, b) {
+      final pinCompare = (b.isPinned ? 1 : 0).compareTo(a.isPinned ? 1 : 0);
+      if (pinCompare != 0) {
+        return pinCompare;
+      }
+      return b.updatedAt.compareTo(a.updatedAt);
+    });
+  }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/note_preview.dart';
+import '../providers/notes_actions.dart';
 import '../providers/notes_providers.dart';
 import 'note_editor_page.dart';
 
@@ -108,6 +109,12 @@ class NotesHomePage extends ConsumerWidget {
                                       ),
                                     ),
                                   );
+                                },
+                                onTogglePin: () async {
+                                  await ref.read(notesActionsProvider).togglePin(
+                                        id: notes[i].id,
+                                        value: !notes[i].isPinned,
+                                      );
                                 },
                               ),
                               if (i < notes.length - 1)
@@ -467,11 +474,13 @@ class _PreviewCard extends StatelessWidget {
     required this.note,
     required this.onTap,
     required this.accentIndex,
+    required this.onTogglePin,
   });
 
   final NotePreview note;
   final VoidCallback onTap;
   final int accentIndex;
+  final VoidCallback onTogglePin;
 
   @override
   Widget build(BuildContext context) {
@@ -506,11 +515,39 @@ class _PreviewCard extends StatelessWidget {
                   Expanded(
                     child: Text(note.title, style: theme.textTheme.titleMedium),
                   ),
+                  IconButton(
+                    onPressed: onTogglePin,
+                    tooltip: note.isPinned ? 'Unpin note' : 'Pin note',
+                    icon: Icon(
+                      note.isPinned
+                          ? Icons.push_pin_rounded
+                          : Icons.push_pin_outlined,
+                      color: accent,
+                    ),
+                  ),
                   Chip(label: Text(note.badge)),
                 ],
               ),
               const SizedBox(height: 10),
               Text(note.body, style: theme.textTheme.bodyMedium),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(
+                    Icons.schedule_rounded,
+                    size: 16,
+                    color: theme.colorScheme.primary.withValues(alpha: 0.75),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _formatUpdatedLabel(note.updatedAt),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: const Color(0xFF5B6674),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 14),
               Row(
                 children: [
@@ -535,6 +572,25 @@ class _PreviewCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _formatUpdatedLabel(DateTime updatedAt) {
+  final now = DateTime.now();
+  final difference = now.difference(updatedAt);
+
+  if (difference.inMinutes < 1) {
+    return 'Updated just now';
+  }
+  if (difference.inHours < 1) {
+    return 'Updated ${difference.inMinutes}m ago';
+  }
+  if (difference.inDays < 1) {
+    return 'Updated ${difference.inHours}h ago';
+  }
+  if (difference.inDays == 1) {
+    return 'Updated yesterday';
+  }
+  return 'Updated ${difference.inDays}d ago';
 }
 
 class _EmptyNotesCard extends StatelessWidget {

@@ -4,6 +4,7 @@ class NotePreview {
     required this.title,
     required this.body,
     required this.badge,
+    required this.updatedAt,
     this.isPinned = false,
   });
 
@@ -11,5 +12,6 @@ class NotePreview {
   final String title;
   final String body;
   final String badge;
+  final DateTime updatedAt;
   final bool isPinned;
 }

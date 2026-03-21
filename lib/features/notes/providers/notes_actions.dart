@@ -36,4 +36,13 @@ class NotesActions {
     await repository.updateNote(id: id, title: title, body: body);
     _ref.invalidate(notesListProvider);
   }
+
+  Future<void> togglePin({
+    required String id,
+    required bool value,
+  }) async {
+    final repository = _ref.read(notesRepositoryProvider);
+    await repository.togglePin(id: id, value: value);
+    _ref.invalidate(notesListProvider);
+  }
 }
