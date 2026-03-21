@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   static ThemeData light() {
@@ -20,7 +21,7 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: cream,
-      textTheme: const TextTheme(
+      textTheme: GoogleFonts.merriweatherTextTheme(const TextTheme(
         headlineLarge: TextStyle(
           fontSize: 34,
           fontWeight: FontWeight.w800,
@@ -58,7 +59,7 @@ class AppTheme {
           color: ink,
           letterSpacing: 0.2,
         ),
-      ),
+      )),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         foregroundColor: ink,
