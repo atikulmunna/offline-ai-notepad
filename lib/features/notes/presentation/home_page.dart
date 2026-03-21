@@ -108,7 +108,18 @@ class NotesHomePage extends ConsumerWidget {
             data: (notes) => Column(
               children: [
                 for (var i = 0; i < notes.length; i++) ...[
-                  _PreviewCard(note: notes[i]),
+                  _PreviewCard(
+                    note: notes[i],
+                    onTap: () async {
+                      await Navigator.of(context).push<bool>(
+                        MaterialPageRoute(
+                          builder: (context) => NoteEditorPage(
+                            noteId: notes[i].id,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                   if (i < notes.length - 1) const SizedBox(height: 12),
                 ],
               ],
@@ -200,31 +211,37 @@ class _StatusCard extends StatelessWidget {
 class _PreviewCard extends StatelessWidget {
   const _PreviewCard({
     required this.note,
+    required this.onTap,
   });
 
   final NotePreview note;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(note.title, style: theme.textTheme.titleMedium),
-                ),
-                Chip(label: Text(note.badge)),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(note.body, style: theme.textTheme.bodyMedium),
-          ],
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(note.title, style: theme.textTheme.titleMedium),
+                  ),
+                  Chip(label: Text(note.badge)),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(note.body, style: theme.textTheme.bodyMedium),
+            ],
+          ),
         ),
       ),
     );

@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:offline_ai_notepad/app/app.dart';
 import 'package:offline_ai_notepad/features/notes/data/in_memory_notes_repository.dart';
+import 'package:offline_ai_notepad/features/notes/presentation/note_editor_page.dart';
 import 'package:offline_ai_notepad/features/notes/providers/notes_providers.dart';
 
 void main() {
@@ -25,15 +26,35 @@ void main() {
         child: OfflineAiNotepadApp(),
       ),
     );
+    await tester.pumpAndSettle();
 
     expect(find.text('Offline AI Notepad'), findsWidgets);
     expect(find.text('Private notes with on-device AI'), findsOneWidget);
     expect(find.widgetWithText(FloatingActionButton, 'New note'), findsOneWidget);
-
     await tester.tap(find.widgetWithText(FloatingActionButton, 'New note'));
     await tester.pumpAndSettle();
 
     expect(find.text('New note'), findsOneWidget);
     expect(find.text('Capture a note'), findsOneWidget);
+  });
+
+  testWidgets('existing note opens in edit mode', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          notesRepositoryProvider.overrideWithValue(InMemoryNotesRepository()),
+        ],
+        child: const MaterialApp(
+          home: NoteEditorPage(noteId: 'research-ideas'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Edit note'), findsOneWidget);
+    expect(find.text('Keep writing'), findsOneWidget);
+    expect(find.text('Research ideas'), findsOneWidget);
   });
 }

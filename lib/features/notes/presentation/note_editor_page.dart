@@ -1,10 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../domain/note_document.dart';
 import '../providers/notes_actions.dart';
 
 class NoteEditorPage extends ConsumerStatefulWidget {
-  const NoteEditorPage({super.key});
+  const NoteEditorPage({
+    super.key,
+    this.noteId,
+  });
+
+  final String? noteId;
 
   @override
   ConsumerState<NoteEditorPage> createState() => _NoteEditorPageState();
@@ -13,16 +21,76 @@ class NoteEditorPage extends ConsumerStatefulWidget {
 class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   final _titleController = TextEditingController();
   final _bodyController = TextEditingController();
+  Timer? _autosaveTimer;
+  bool _didLoadInitialData = false;
+  bool _isLoading = false;
   bool _isSaving = false;
+  String? _activeNoteId;
+
+  @override
+  void initState() {
+    super.initState();
+    _activeNoteId = widget.noteId;
+    _titleController.addListener(_scheduleAutosave);
+    _bodyController.addListener(_scheduleAutosave);
+    _loadInitialNote();
+  }
+
+  Future<void> _loadInitialNote() async {
+    if (widget.noteId == null) {
+      _didLoadInitialData = true;
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    final note = await ref.read(notesActionsProvider).loadNote(widget.noteId!);
+    if (note != null && mounted) {
+      _applyNote(note);
+    }
+
+    if (mounted) {
+      setState(() {
+        _didLoadInitialData = true;
+        _isLoading = false;
+      });
+    } else {
+      _didLoadInitialData = true;
+    }
+  }
+
+  void _applyNote(NoteDocument note) {
+    _activeNoteId = note.id;
+    _titleController.text = note.title ?? '';
+    _bodyController.text = note.body;
+  }
+
+  void _scheduleAutosave() {
+    if (!_didLoadInitialData || _isLoading) {
+      return;
+    }
+
+    _autosaveTimer?.cancel();
+    _autosaveTimer = Timer(const Duration(milliseconds: 900), () async {
+      await _persist(closeAfterSave: false);
+    });
+  }
 
   @override
   void dispose() {
+    _autosaveTimer?.cancel();
     _titleController.dispose();
     _bodyController.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
+    await _persist(closeAfterSave: true);
+  }
+
+  Future<void> _persist({required bool closeAfterSave}) async {
     final body = _bodyController.text.trim();
     if (body.isEmpty) {
       return;
@@ -33,14 +101,24 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     });
 
     try {
-      await ref.read(notesActionsProvider).createNote(
-            title: _titleController.text.trim().isEmpty
-                ? null
-                : _titleController.text.trim(),
-            body: body,
-          );
+      final title = _titleController.text.trim().isEmpty
+          ? null
+          : _titleController.text.trim();
 
-      if (!mounted) {
+      if (_activeNoteId == null) {
+        _activeNoteId = await ref.read(notesActionsProvider).createNote(
+              title: title,
+              body: body,
+            );
+      } else {
+        await ref.read(notesActionsProvider).updateNote(
+              id: _activeNoteId!,
+              title: title,
+              body: body,
+            );
+      }
+
+      if (!mounted || !closeAfterSave) {
         return;
       }
       Navigator.of(context).pop(true);
@@ -56,10 +134,11 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isEditingExisting = _activeNoteId != null;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New note'),
+        title: Text(isEditingExisting ? 'Edit note' : 'New note'),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
@@ -73,13 +152,19 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          if (_isLoading) ...[
+            const LinearProgressIndicator(),
+            const SizedBox(height: 16),
+          ],
           Text(
-            'Capture a note',
+            isEditingExisting ? 'Keep writing' : 'Capture a note',
             style: theme.textTheme.headlineSmall,
           ),
           const SizedBox(height: 8),
           Text(
-            'This is the first plain-text editing flow. We will layer autosave and richer note states on top of this foundation.',
+            isEditingExisting
+                ? 'Autosave is active while you edit. This is our first pass at a persistent plain-text note workflow.'
+                : 'This is the first plain-text editing flow. We will layer autosave and richer note states on top of this foundation.',
             style: theme.textTheme.bodyMedium,
           ),
           const SizedBox(height: 20),

@@ -2,6 +2,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/database_schema.dart';
+import '../domain/note_document.dart';
 import '../domain/note_preview.dart';
 import '../domain/notes_repository.dart';
 import 'note_record.dart';
@@ -65,19 +66,69 @@ class LocalNotesRepository implements NotesRepository {
   }
 
   @override
-  Future<void> createNote({
+  Future<String> createNote({
     String? title,
     required String body,
-  }) {
+  }) async {
     final now = DateTime.now();
-    return upsert(
+    final id = 'note-${now.microsecondsSinceEpoch}';
+    await upsert(
       NoteRecord(
-        id: 'note-${now.microsecondsSinceEpoch}',
+        id: id,
         title: title,
         body: body,
         createdAt: now,
         updatedAt: now,
       ),
+    );
+    return id;
+  }
+
+  @override
+  Future<NoteDocument?> getNote(String id) async {
+    await _database.seedIfEmpty(
+      table: DatabaseSchema.notesTable,
+      rows: _seedNotes.map((note) => note.toMap()).toList(growable: false),
+    );
+
+    final rows = await _database.query(
+      DatabaseSchema.notesTable,
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+
+    if (rows.isEmpty) {
+      return null;
+    }
+
+    return NoteRecord.fromMap(rows.first).toDocument();
+  }
+
+  @override
+  Future<void> updateNote({
+    required String id,
+    String? title,
+    required String body,
+  }) async {
+    final existing = await getNote(id);
+    if (existing == null) {
+      return;
+    }
+
+    final updated = NoteRecord(
+      id: existing.id,
+      title: title,
+      body: body,
+      createdAt: existing.createdAt,
+      updatedAt: DateTime.now(),
+    );
+
+    await _database.update(
+      DatabaseSchema.notesTable,
+      updated.toMap(),
+      where: 'id = ?',
+      whereArgs: [id],
     );
   }
 }

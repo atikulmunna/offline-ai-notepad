@@ -1,3 +1,4 @@
+import '../domain/note_document.dart';
 import '../domain/note_preview.dart';
 
 class NoteRecord {
@@ -68,6 +69,16 @@ class NoteRecord {
       body: body,
       badge: isPinned ? 'Pinned' : 'Draft',
       isPinned: isPinned,
+    );
+  }
+
+  NoteDocument toDocument() {
+    return NoteDocument(
+      id: id,
+      title: title,
+      body: body,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
     );
   }
 }

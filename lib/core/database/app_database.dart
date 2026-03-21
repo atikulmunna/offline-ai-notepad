@@ -31,10 +31,18 @@ class AppDatabase {
   Future<List<Map<String, Object?>>> query(
     String table, {
     String? orderBy,
+    String? where,
+    List<Object?>? whereArgs,
     int? limit,
   }) async {
     final db = await database();
-    return db.query(table, orderBy: orderBy, limit: limit);
+    return db.query(
+      table,
+      orderBy: orderBy,
+      where: where,
+      whereArgs: whereArgs,
+      limit: limit,
+    );
   }
 
   Future<int> insert(
@@ -48,6 +56,16 @@ class AppDatabase {
       values,
       conflictAlgorithm: conflictAlgorithm,
     );
+  }
+
+  Future<int> update(
+    String table,
+    Map<String, Object?> values, {
+    required String where,
+    required List<Object?> whereArgs,
+  }) async {
+    final db = await database();
+    return db.update(table, values, where: where, whereArgs: whereArgs);
   }
 
   Future<void> seedIfEmpty({

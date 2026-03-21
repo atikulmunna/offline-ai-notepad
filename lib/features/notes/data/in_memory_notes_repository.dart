@@ -1,3 +1,4 @@
+import '../domain/note_document.dart';
 import 'note_record.dart';
 import '../domain/note_preview.dart';
 import '../domain/notes_repository.dart';
@@ -34,20 +35,59 @@ class InMemoryNotesRepository implements NotesRepository {
   }
 
   @override
-  Future<void> createNote({
+  Future<String> createNote({
     String? title,
     required String body,
   }) async {
     final now = DateTime.now();
+    final id = 'note-${now.microsecondsSinceEpoch}';
     _notes.insert(
       0,
       NoteRecord(
-        id: 'note-${now.microsecondsSinceEpoch}',
+        id: id,
         title: title,
         body: body,
         createdAt: now,
         updatedAt: now,
       ),
+    );
+    return id;
+  }
+
+  @override
+  Future<NoteDocument?> getNote(String id) async {
+    for (final note in _notes) {
+      if (note.id == id) {
+        return note.toDocument();
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<void> updateNote({
+    required String id,
+    String? title,
+    required String body,
+  }) async {
+    final index = _notes.indexWhere((note) => note.id == id);
+    if (index == -1) {
+      return;
+    }
+
+    final current = _notes[index];
+    _notes[index] = NoteRecord(
+      id: current.id,
+      title: title,
+      body: body,
+      summary: current.summary,
+      folderId: current.folderId,
+      isPinned: current.isPinned,
+      isArchived: current.isArchived,
+      isDeleted: current.isDeleted,
+      createdAt: current.createdAt,
+      updatedAt: DateTime.now(),
+      deletedAt: current.deletedAt,
     );
   }
 }
