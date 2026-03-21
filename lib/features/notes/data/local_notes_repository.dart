@@ -63,4 +63,21 @@ class LocalNotesRepository implements NotesRepository {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
+
+  @override
+  Future<void> createNote({
+    String? title,
+    required String body,
+  }) {
+    final now = DateTime.now();
+    return upsert(
+      NoteRecord(
+        id: 'note-${now.microsecondsSinceEpoch}',
+        title: title,
+        body: body,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+  }
 }

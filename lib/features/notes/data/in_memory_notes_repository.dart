@@ -32,4 +32,22 @@ class InMemoryNotesRepository implements NotesRepository {
   Future<List<NotePreview>> listNotes() async {
     return _notes.map((note) => note.toPreview()).toList(growable: false);
   }
+
+  @override
+  Future<void> createNote({
+    String? title,
+    required String body,
+  }) async {
+    final now = DateTime.now();
+    _notes.insert(
+      0,
+      NoteRecord(
+        id: 'note-${now.microsecondsSinceEpoch}',
+        title: title,
+        body: body,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+  }
 }

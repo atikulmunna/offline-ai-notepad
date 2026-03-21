@@ -29,5 +29,11 @@ void main() {
     expect(find.text('Offline AI Notepad'), findsWidgets);
     expect(find.text('Private notes with on-device AI'), findsOneWidget);
     expect(find.widgetWithText(FloatingActionButton, 'New note'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FloatingActionButton, 'New note'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('New note'), findsOneWidget);
+    expect(find.text('Capture a note'), findsOneWidget);
   });
 }

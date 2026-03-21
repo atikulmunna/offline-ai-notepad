@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/note_preview.dart';
 import '../providers/notes_providers.dart';
+import 'note_editor_page.dart';
 
 class NotesHomePage extends ConsumerWidget {
   const NotesHomePage({super.key});
@@ -25,7 +26,13 @@ class NotesHomePage extends ConsumerWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {},
+        onPressed: () async {
+          await Navigator.of(context).push<bool>(
+            MaterialPageRoute(
+              builder: (context) => const NoteEditorPage(),
+            ),
+          );
+        },
         icon: const Icon(Icons.add),
         label: const Text('New note'),
       ),
