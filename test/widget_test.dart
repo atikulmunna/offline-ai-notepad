@@ -6,6 +6,7 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:offline_ai_notepad/app/app.dart';
@@ -14,7 +15,11 @@ void main() {
   testWidgets('app shell renders the project home screen', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const OfflineAiNotepadApp());
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: OfflineAiNotepadApp(),
+      ),
+    );
 
     expect(find.text('Offline AI Notepad'), findsWidgets);
     expect(find.text('Private notes with on-device AI'), findsOneWidget);

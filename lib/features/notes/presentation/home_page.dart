@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class NotesHomePage extends StatelessWidget {
+import '../domain/note_preview.dart';
+import '../providers/notes_providers.dart';
+
+class NotesHomePage extends ConsumerWidget {
   const NotesHomePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final notesAsync = ref.watch(notesListProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -92,16 +97,17 @@ class NotesHomePage extends StatelessWidget {
             style: theme.textTheme.headlineSmall,
           ),
           const SizedBox(height: 12),
-          const _PreviewCard(
-            title: 'Research ideas',
-            body: 'Compare local vector search options and keep a graceful fallback when device support gets messy.',
-            badge: 'Pinned',
-          ),
-          const SizedBox(height: 12),
-          const _PreviewCard(
-            title: 'Release checklist',
-            body: 'Finish Android toolchain, scaffold architecture, and start note CRUD before AI integration.',
-            badge: 'Today',
+          notesAsync.when(
+            data: (notes) => Column(
+              children: [
+                for (var i = 0; i < notes.length; i++) ...[
+                  _PreviewCard(note: notes[i]),
+                  if (i < notes.length - 1) const SizedBox(height: 12),
+                ],
+              ],
+            ),
+            error: (error, stackTrace) => _ErrorCard(error: error),
+            loading: () => const _LoadingCard(),
           ),
         ],
       ),
@@ -186,14 +192,10 @@ class _StatusCard extends StatelessWidget {
 
 class _PreviewCard extends StatelessWidget {
   const _PreviewCard({
-    required this.title,
-    required this.body,
-    required this.badge,
+    required this.note,
   });
 
-  final String title;
-  final String body;
-  final String badge;
+  final NotePreview note;
 
   @override
   Widget build(BuildContext context) {
@@ -208,14 +210,60 @@ class _PreviewCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(title, style: theme.textTheme.titleMedium),
+                  child: Text(note.title, style: theme.textTheme.titleMedium),
                 ),
-                Chip(label: Text(badge)),
+                Chip(label: Text(note.badge)),
               ],
             ),
             const SizedBox(height: 10),
-            Text(body, style: theme.textTheme.bodyMedium),
+            Text(note.body, style: theme.textTheme.bodyMedium),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingCard extends StatelessWidget {
+  const _LoadingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Card(
+      child: Padding(
+        padding: EdgeInsets.all(18),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text('Loading note previews...'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorCard extends StatelessWidget {
+  const _ErrorCard({
+    required this.error,
+  });
+
+  final Object error;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Text(
+          'Unable to load note previews: $error',
         ),
       ),
     );
