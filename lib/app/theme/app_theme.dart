@@ -59,11 +59,27 @@ class AppTheme {
           color: ink,
           letterSpacing: 0.2,
         ),
+      ).apply(
+        fontFamily: 'Merriweather',
+        bodyColor: ink,
+        displayColor: ink,
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         foregroundColor: ink,
         elevation: 0,
+        titleTextStyle: TextStyle(
+          fontFamily: 'Merriweather',
+          fontSize: 22,
+          fontWeight: FontWeight.w700,
+          color: ink,
+        ),
+        toolbarTextStyle: TextStyle(
+          fontFamily: 'Merriweather',
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: ink,
+        ),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: Colors.white,
@@ -73,6 +89,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(999),
         ),
         labelStyle: const TextStyle(
+          fontFamily: 'Merriweather',
           color: ink,
           fontWeight: FontWeight.w600,
         ),
@@ -105,6 +122,7 @@ class AppTheme {
           borderSide: const BorderSide(color: accent, width: 1.5),
         ),
         labelStyle: const TextStyle(
+          fontFamily: 'Merriweather',
           color: Color(0xFF55606F),
           fontWeight: FontWeight.w600,
         ),
