@@ -156,25 +156,93 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
             const LinearProgressIndicator(),
             const SizedBox(height: 16),
           ],
-          Text(
-            isEditingExisting ? 'Keep writing' : 'Capture a note',
-            style: theme.textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            isEditingExisting
-                ? 'Autosave is active while you edit. This is our first pass at a persistent plain-text note workflow.'
-                : 'This is the first plain-text editing flow. We will layer autosave and richer note states on top of this foundation.',
-            style: theme.textTheme.bodyMedium,
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: 1),
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, child) {
+              return Opacity(
+                opacity: value,
+                child: Transform.translate(
+                  offset: Offset(0, (1 - value) * 12),
+                  child: child,
+                ),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.all(22),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(28),
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFFFFF0E9),
+                    Color(0xFFEFF9F5),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          isEditingExisting ? 'Autosave active' : 'Fresh note',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        child: Text(
+                          _isSaving ? 'Saving...' : 'Saved locally',
+                          key: ValueKey(_isSaving),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: _isSaving
+                                ? theme.colorScheme.secondary
+                                : theme.colorScheme.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    isEditingExisting ? 'Keep writing' : 'Capture a note',
+                    style: theme.textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    isEditingExisting
+                        ? 'Autosave is active while you edit. This is our first pass at a persistent plain-text note workflow.'
+                        : 'A bright, distraction-light editor for fast capture. We will layer richer workflows on top of this foundation.',
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: 20),
           TextField(
             controller: _titleController,
             textInputAction: TextInputAction.next,
+            style: theme.textTheme.titleLarge,
             decoration: const InputDecoration(
               labelText: 'Title',
               hintText: 'Optional title',
-              border: OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 16),
@@ -183,11 +251,11 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
             minLines: 12,
             maxLines: 20,
             textCapitalization: TextCapitalization.sentences,
+            style: theme.textTheme.bodyLarge,
             decoration: const InputDecoration(
               labelText: 'Body',
               hintText: 'Write your note here...',
               alignLabelWithHint: true,
-              border: OutlineInputBorder(),
             ),
           ),
         ],
