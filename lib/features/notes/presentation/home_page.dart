@@ -1,17 +1,53 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../domain/note_collection.dart';
+import '../domain/note_folder.dart';
 import '../domain/note_preview.dart';
 import '../providers/notes_actions.dart';
 import '../providers/notes_providers.dart';
+import '../providers/notes_view_state.dart';
 import 'note_editor_page.dart';
 
-class NotesHomePage extends ConsumerWidget {
+class NotesHomePage extends ConsumerStatefulWidget {
   const NotesHomePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NotesHomePage> createState() => _NotesHomePageState();
+}
+
+class _NotesHomePageState extends ConsumerState<NotesHomePage> {
+  late final TextEditingController _searchController;
+  Timer? _searchDebounce;
+
+  @override
+  void initState() {
+    super.initState();
+    final initialQuery = ref.read(notesViewStateProvider).searchQuery;
+    _searchController = TextEditingController(text: initialQuery);
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 250), () {
+      ref.read(notesActionsProvider).setSearchQuery(value);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final notesAsync = ref.watch(notesListProvider);
+    final foldersAsync = ref.watch(noteFoldersProvider);
+    final viewState = ref.watch(notesViewStateProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -44,64 +80,66 @@ class NotesHomePage extends ConsumerWidget {
           ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
             children: [
-              _Entrance(
+              const _Entrance(
                 delay: 0,
-                child: const _HeroPanel(),
+                child: _HeroPanel(),
               ),
               const SizedBox(height: 18),
               _Entrance(
-                delay: 80,
-                child: _QuickStats(notesAsync: notesAsync),
+                delay: 70,
+                child: _QuickStats(
+                  notesAsync: notesAsync,
+                  collection: viewState.collection,
+                ),
               ),
               const SizedBox(height: 22),
               _Entrance(
                 delay: 140,
-                child: _SectionHeader(
-                  eyebrow: 'Roadmap',
-                  title: 'Build Focus',
-                  subtitle: 'A calm foundation first, then local AI on top.',
-                ),
-              ),
-              const SizedBox(height: 12),
-              const _Entrance(
-                delay: 180,
-                child: _StatusCard(
-                  title: 'Milestone 1',
-                  body: 'Project shell is ready. Next we wire in the local data model, note creation flow, and plain-text editing experience.',
-                  icon: Icons.foundation_outlined,
-                ),
-              ),
-              const SizedBox(height: 12),
-              const _Entrance(
-                delay: 240,
-                child: _StatusCard(
-                  title: 'Milestone 2',
-                  body: 'On-device summarization and embeddings will plug in behind interfaces so the app remains useful when AI is unavailable.',
-                  icon: Icons.psychology_alt_outlined,
+                child: _ControlDeck(
+                  searchController: _searchController,
+                  onSearchChanged: _onSearchChanged,
+                  foldersAsync: foldersAsync,
+                  viewState: viewState,
                 ),
               ),
               const SizedBox(height: 24),
               _Entrance(
-                delay: 300,
+                delay: 220,
                 child: _SectionHeader(
-                  eyebrow: 'Library',
-                  title: 'Recent Notes',
-                  subtitle: 'Tap a card to keep writing.',
+                  eyebrow: switch (viewState.collection) {
+                    NoteCollection.active => 'Library',
+                    NoteCollection.archived => 'Archive',
+                    NoteCollection.trash => 'Trash',
+                  },
+                  title: switch (viewState.collection) {
+                    NoteCollection.active => 'Recent Notes',
+                    NoteCollection.archived => 'Archived Notes',
+                    NoteCollection.trash => 'Trash Bin',
+                  },
+                  subtitle: switch (viewState.collection) {
+                    NoteCollection.active => 'Keep the current workspace tidy and searchable.',
+                    NoteCollection.archived => 'Older notes stay close without crowding the main list.',
+                    NoteCollection.trash => 'Restore something valuable or remove it permanently.',
+                  },
                 ),
               ),
               const SizedBox(height: 12),
               notesAsync.when(
                 data: (notes) => _Entrance(
-                  delay: 360,
+                  delay: 280,
                   child: notes.isEmpty
-                      ? const _EmptyNotesCard()
+                      ? _EmptyNotesCard(collection: viewState.collection)
                       : Column(
                           children: [
                             for (var i = 0; i < notes.length; i++) ...[
                               _PreviewCard(
                                 note: notes[i],
                                 accentIndex: i,
+                                collection: viewState.collection,
                                 onTap: () async {
+                                  if (viewState.collection == NoteCollection.trash) {
+                                    return;
+                                  }
                                   await Navigator.of(context).push<bool>(
                                     MaterialPageRoute(
                                       builder: (context) => NoteEditorPage(
@@ -115,6 +153,27 @@ class NotesHomePage extends ConsumerWidget {
                                         id: notes[i].id,
                                         value: !notes[i].isPinned,
                                       );
+                                },
+                                onArchiveToggle: () async {
+                                  await ref.read(notesActionsProvider).setArchived(
+                                        id: notes[i].id,
+                                        value: !notes[i].isArchived,
+                                      );
+                                },
+                                onMoveToTrash: () async {
+                                  await ref
+                                      .read(notesActionsProvider)
+                                      .moveToTrash(notes[i].id);
+                                },
+                                onRestore: () async {
+                                  await ref
+                                      .read(notesActionsProvider)
+                                      .restoreFromTrash(notes[i].id);
+                                },
+                                onDeleteForever: () async {
+                                  await ref
+                                      .read(notesActionsProvider)
+                                      .deletePermanently(notes[i].id);
                                 },
                               ),
                               if (i < notes.length - 1)
@@ -250,7 +309,7 @@ class _HeroPanel extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'Bright, fast, and offline-first. We are building the note-taking core first, then layering in local AI without sacrificing trust or speed.',
+            'Folders, archive, trash, and search are now shaping the note library into a calmer workspace instead of a single stream.',
             style: theme.textTheme.bodyLarge?.copyWith(
               color: Colors.white.withValues(alpha: 0.92),
             ),
@@ -260,9 +319,10 @@ class _HeroPanel extends StatelessWidget {
             spacing: 12,
             runSpacing: 12,
             children: const [
-              _FeaturePill(label: 'Encrypted storage'),
-              _FeaturePill(label: 'Autosave'),
-              _FeaturePill(label: 'Semantic search'),
+              _FeaturePill(label: 'Folders'),
+              _FeaturePill(label: 'Archive'),
+              _FeaturePill(label: 'Trash restore'),
+              _FeaturePill(label: 'Search'),
             ],
           ),
         ],
@@ -274,9 +334,11 @@ class _HeroPanel extends StatelessWidget {
 class _QuickStats extends StatelessWidget {
   const _QuickStats({
     required this.notesAsync,
+    required this.collection,
   });
 
   final AsyncValue<List<NotePreview>> notesAsync;
+  final NoteCollection collection;
 
   @override
   Widget build(BuildContext context) {
@@ -286,10 +348,18 @@ class _QuickStats extends StatelessWidget {
       children: [
         Expanded(
           child: _StatCard(
-            label: 'Stored notes',
+            label: switch (collection) {
+              NoteCollection.active => 'Visible notes',
+              NoteCollection.archived => 'Archived',
+              NoteCollection.trash => 'In trash',
+            },
             value: '$count',
             tint: const Color(0xFFEEF7F0),
-            icon: Icons.sticky_note_2_outlined,
+            icon: switch (collection) {
+              NoteCollection.active => Icons.sticky_note_2_outlined,
+              NoteCollection.archived => Icons.archive_outlined,
+              NoteCollection.trash => Icons.delete_outline,
+            },
           ),
         ),
         const SizedBox(width: 12),
@@ -360,6 +430,123 @@ class _StatCard extends StatelessWidget {
   }
 }
 
+class _ControlDeck extends ConsumerWidget {
+  const _ControlDeck({
+    required this.searchController,
+    required this.onSearchChanged,
+    required this.foldersAsync,
+    required this.viewState,
+  });
+
+  final TextEditingController searchController;
+  final ValueChanged<String> onSearchChanged;
+  final AsyncValue<List<NoteFolder>> foldersAsync;
+  final NotesViewState viewState;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0xFFE8DDC7)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x10A56532),
+            blurRadius: 18,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: searchController,
+            onChanged: onSearchChanged,
+            decoration: const InputDecoration(
+              labelText: 'Search notes',
+              hintText: 'Title, body, or ideas you remember',
+              prefixIcon: Icon(Icons.search_rounded),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Text('Views', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 10),
+          SegmentedButton<NoteCollection>(
+            segments: const [
+              ButtonSegment(
+                value: NoteCollection.active,
+                icon: Icon(Icons.home_work_outlined),
+                label: Text('Active'),
+              ),
+              ButtonSegment(
+                value: NoteCollection.archived,
+                icon: Icon(Icons.archive_outlined),
+                label: Text('Archive'),
+              ),
+              ButtonSegment(
+                value: NoteCollection.trash,
+                icon: Icon(Icons.delete_outline),
+                label: Text('Trash'),
+              ),
+            ],
+            selected: {viewState.collection},
+            onSelectionChanged: (selection) {
+              ref
+                  .read(notesActionsProvider)
+                  .showCollection(selection.first);
+            },
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Text('Folders', style: theme.textTheme.titleMedium),
+              const Spacer(),
+              FilterChip(
+                label: const Text('Pinned only'),
+                selected: viewState.pinnedOnly,
+                onSelected: (value) {
+                  ref.read(notesActionsProvider).setPinnedOnly(value);
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              ChoiceChip(
+                label: const Text('All'),
+                selected: viewState.folderId == null,
+                onSelected: (_) {
+                  ref.read(notesActionsProvider).setFolderFilter(null);
+                },
+              ),
+              ...foldersAsync.valueOrNull?.map((folder) {
+                    return ChoiceChip(
+                      label: Text(folder.name),
+                      selected: viewState.folderId == folder.id,
+                      onSelected: (_) {
+                        ref
+                            .read(notesActionsProvider)
+                            .setFolderFilter(folder.id);
+                      },
+                    );
+                  }) ??
+                  [],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({
     required this.eyebrow,
@@ -421,66 +608,28 @@ class _FeaturePill extends StatelessWidget {
   }
 }
 
-class _StatusCard extends StatelessWidget {
-  const _StatusCard({
-    required this.title,
-    required this.body,
-    required this.icon,
-  });
-
-  final String title;
-  final String body;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              height: 44,
-              width: 44,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.secondary.withValues(alpha: 0.35),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, color: theme.colorScheme.primary),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 6),
-                  Text(body, style: theme.textTheme.bodyMedium),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _PreviewCard extends StatelessWidget {
   const _PreviewCard({
     required this.note,
     required this.onTap,
     required this.accentIndex,
+    required this.collection,
     required this.onTogglePin,
+    required this.onArchiveToggle,
+    required this.onMoveToTrash,
+    required this.onRestore,
+    required this.onDeleteForever,
   });
 
   final NotePreview note;
   final VoidCallback onTap;
   final int accentIndex;
+  final NoteCollection collection;
   final VoidCallback onTogglePin;
+  final VoidCallback onArchiveToggle;
+  final VoidCallback onMoveToTrash;
+  final VoidCallback onRestore;
+  final VoidCallback onDeleteForever;
 
   @override
   Widget build(BuildContext context) {
@@ -495,7 +644,7 @@ class _PreviewCard extends StatelessWidget {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(24),
-        onTap: onTap,
+        onTap: collection == NoteCollection.trash ? null : onTap,
         child: Padding(
           padding: const EdgeInsets.all(18),
           child: Column(
@@ -515,21 +664,40 @@ class _PreviewCard extends StatelessWidget {
                   Expanded(
                     child: Text(note.title, style: theme.textTheme.titleMedium),
                   ),
-                  IconButton(
-                    onPressed: onTogglePin,
-                    tooltip: note.isPinned ? 'Unpin note' : 'Pin note',
-                    icon: Icon(
-                      note.isPinned
-                          ? Icons.push_pin_rounded
-                          : Icons.push_pin_outlined,
-                      color: accent,
-                    ),
+                  PopupMenuButton<_CardAction>(
+                    itemBuilder: (context) => _buildActions(),
+                    onSelected: (value) {
+                      switch (value) {
+                        case _CardAction.pin:
+                          onTogglePin();
+                        case _CardAction.archive:
+                          onArchiveToggle();
+                        case _CardAction.trash:
+                          onMoveToTrash();
+                        case _CardAction.restore:
+                          onRestore();
+                        case _CardAction.deleteForever:
+                          onDeleteForever();
+                      }
+                    },
                   ),
-                  Chip(label: Text(note.badge)),
                 ],
               ),
               const SizedBox(height: 10),
               Text(note.body, style: theme.textTheme.bodyMedium),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (note.folderName != null)
+                    Chip(
+                      avatar: const Icon(Icons.folder_open_outlined, size: 16),
+                      label: Text(note.folderName!),
+                    ),
+                  Chip(label: Text(note.badge)),
+                ],
+              ),
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -548,30 +716,84 @@ class _PreviewCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Icon(
-                    Icons.arrow_outward_rounded,
-                    size: 18,
-                    color: accent,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Open note',
-                    style: theme.textTheme.bodyMedium?.copyWith(
+              if (collection != NoteCollection.trash) ...[
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.arrow_outward_rounded,
+                      size: 18,
                       color: accent,
-                      fontWeight: FontWeight.w700,
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(width: 6),
+                    Text(
+                      collection == NoteCollection.archived
+                          ? 'Review archived note'
+                          : 'Open note',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: accent,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
       ),
     );
   }
+
+  List<PopupMenuEntry<_CardAction>> _buildActions() {
+    switch (collection) {
+      case NoteCollection.active:
+        return [
+          PopupMenuItem(
+            value: _CardAction.pin,
+            child: Text(note.isPinned ? 'Unpin note' : 'Pin note'),
+          ),
+          const PopupMenuItem(
+            value: _CardAction.archive,
+            child: Text('Archive'),
+          ),
+          const PopupMenuItem(
+            value: _CardAction.trash,
+            child: Text('Move to trash'),
+          ),
+        ];
+      case NoteCollection.archived:
+        return [
+          const PopupMenuItem(
+            value: _CardAction.archive,
+            child: Text('Move back to active'),
+          ),
+          const PopupMenuItem(
+            value: _CardAction.trash,
+            child: Text('Move to trash'),
+          ),
+        ];
+      case NoteCollection.trash:
+        return const [
+          PopupMenuItem(
+            value: _CardAction.restore,
+            child: Text('Restore'),
+          ),
+          PopupMenuItem(
+            value: _CardAction.deleteForever,
+            child: Text('Delete permanently'),
+          ),
+        ];
+    }
+  }
+}
+
+enum _CardAction {
+  pin,
+  archive,
+  trash,
+  restore,
+  deleteForever,
 }
 
 String _formatUpdatedLabel(DateTime updatedAt) {
@@ -594,11 +816,23 @@ String _formatUpdatedLabel(DateTime updatedAt) {
 }
 
 class _EmptyNotesCard extends StatelessWidget {
-  const _EmptyNotesCard();
+  const _EmptyNotesCard({
+    required this.collection,
+  });
+
+  final NoteCollection collection;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final message = switch (collection) {
+      NoteCollection.active =>
+        'Create a note, pin a few favorites, or narrow the workspace with folder and search filters.',
+      NoteCollection.archived =>
+        'Nothing is archived yet. When a note is done for now, archive it instead of deleting it.',
+      NoteCollection.trash =>
+        'Trash is empty. Deleted notes will wait here until you restore or permanently remove them.',
+    };
 
     return Card(
       child: Padding(
@@ -606,10 +840,10 @@ class _EmptyNotesCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('No notes yet', style: theme.textTheme.titleLarge),
+            Text('Nothing here yet', style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
             Text(
-              'Create your first note and we will keep it local, editable, and ready for future on-device AI features.',
+              message,
               style: theme.textTheme.bodyMedium,
             ),
           ],

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/note_document.dart';
 import '../providers/notes_actions.dart';
+import '../providers/notes_providers.dart';
 
 class NoteEditorPage extends ConsumerStatefulWidget {
   const NoteEditorPage({
@@ -26,6 +27,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   bool _isLoading = false;
   bool _isSaving = false;
   String? _activeNoteId;
+  String? _selectedFolderId;
 
   @override
   void initState() {
@@ -65,6 +67,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     _activeNoteId = note.id;
     _titleController.text = note.title ?? '';
     _bodyController.text = note.body;
+    _selectedFolderId = note.folderId;
   }
 
   void _scheduleAutosave() {
@@ -109,12 +112,14 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
         _activeNoteId = await ref.read(notesActionsProvider).createNote(
               title: title,
               body: body,
+              folderId: _selectedFolderId,
             );
       } else {
         await ref.read(notesActionsProvider).updateNote(
               id: _activeNoteId!,
               title: title,
               body: body,
+              folderId: _selectedFolderId,
             );
       }
 
@@ -135,6 +140,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isEditingExisting = _activeNoteId != null;
+    final foldersAsync = ref.watch(noteFoldersProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -243,6 +249,43 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
             decoration: const InputDecoration(
               labelText: 'Title',
               hintText: 'Optional title',
+            ),
+          ),
+          const SizedBox(height: 16),
+          foldersAsync.when(
+            data: (folders) {
+              return DropdownButtonFormField<String?>(
+                initialValue:
+                    folders.any((folder) => folder.id == _selectedFolderId)
+                    ? _selectedFolderId
+                    : null,
+                decoration: const InputDecoration(
+                  labelText: 'Folder',
+                  hintText: 'Choose a folder',
+                ),
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('No folder'),
+                  ),
+                  ...folders.map(
+                    (folder) => DropdownMenuItem<String?>(
+                      value: folder.id,
+                      child: Text(folder.name),
+                    ),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedFolderId = value;
+                  });
+                },
+              );
+            },
+            error: (_, stackTrace) => const SizedBox.shrink(),
+            loading: () => const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: LinearProgressIndicator(),
             ),
           ),
           const SizedBox(height: 16),
