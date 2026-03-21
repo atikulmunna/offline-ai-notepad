@@ -10,13 +10,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:offline_ai_notepad/app/app.dart';
+import 'package:offline_ai_notepad/features/notes/data/in_memory_notes_repository.dart';
+import 'package:offline_ai_notepad/features/notes/providers/notes_providers.dart';
 
 void main() {
   testWidgets('app shell renders the project home screen', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      const ProviderScope(
+      ProviderScope(
+        overrides: [
+          notesRepositoryProvider.overrideWithValue(InMemoryNotesRepository()),
+        ],
         child: OfflineAiNotepadApp(),
       ),
     );

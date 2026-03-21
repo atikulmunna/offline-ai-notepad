@@ -1,11 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../data/in_memory_notes_repository.dart';
 import '../domain/note_preview.dart';
 import '../domain/notes_repository.dart';
+import 'notes_repository_factory.dart';
 
 final notesRepositoryProvider = Provider<NotesRepository>((ref) {
-  return InMemoryNotesRepository();
+  return createDefaultNotesRepository(ref);
 });
 
 final notesListProvider = FutureProvider<List<NotePreview>>((ref) {
