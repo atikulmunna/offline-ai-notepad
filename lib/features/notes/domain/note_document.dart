@@ -6,6 +6,10 @@ class NoteDocument {
     required this.createdAt,
     required this.updatedAt,
     required this.isPinned,
+    this.folderId,
+    this.isArchived = false,
+    this.isDeleted = false,
+    this.deletedAt,
   });
 
   final String id;
@@ -14,4 +18,8 @@ class NoteDocument {
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isPinned;
+  final String? folderId;
+  final bool isArchived;
+  final bool isDeleted;
+  final DateTime? deletedAt;
 }

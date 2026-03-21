@@ -45,6 +45,14 @@ class AppDatabase {
     );
   }
 
+  Future<List<Map<String, Object?>>> rawQuery(
+    String sql, [
+    List<Object?>? arguments,
+  ]) async {
+    final db = await database();
+    return db.rawQuery(sql, arguments);
+  }
+
   Future<int> insert(
     String table,
     Map<String, Object?> values, {
@@ -66,6 +74,15 @@ class AppDatabase {
   }) async {
     final db = await database();
     return db.update(table, values, where: where, whereArgs: whereArgs);
+  }
+
+  Future<int> delete(
+    String table, {
+    required String where,
+    required List<Object?> whereArgs,
+  }) async {
+    final db = await database();
+    return db.delete(table, where: where, whereArgs: whereArgs);
   }
 
   Future<void> seedIfEmpty({

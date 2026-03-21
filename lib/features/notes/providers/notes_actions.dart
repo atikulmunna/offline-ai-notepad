@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../domain/note_collection.dart';
 import '../domain/note_document.dart';
 import 'notes_providers.dart';
 
@@ -15,9 +16,14 @@ class NotesActions {
   Future<String> createNote({
     String? title,
     required String body,
+    String? folderId,
   }) async {
     final repository = _ref.read(notesRepositoryProvider);
-    final id = await repository.createNote(title: title, body: body);
+    final id = await repository.createNote(
+      title: title,
+      body: body,
+      folderId: folderId,
+    );
     _ref.invalidate(notesListProvider);
     return id;
   }
@@ -31,9 +37,15 @@ class NotesActions {
     required String id,
     String? title,
     required String body,
+    String? folderId,
   }) async {
     final repository = _ref.read(notesRepositoryProvider);
-    await repository.updateNote(id: id, title: title, body: body);
+    await repository.updateNote(
+      id: id,
+      title: title,
+      body: body,
+      folderId: folderId,
+    );
     _ref.invalidate(notesListProvider);
   }
 
@@ -44,5 +56,56 @@ class NotesActions {
     final repository = _ref.read(notesRepositoryProvider);
     await repository.togglePin(id: id, value: value);
     _ref.invalidate(notesListProvider);
+  }
+
+  Future<void> setArchived({
+    required String id,
+    required bool value,
+  }) async {
+    final repository = _ref.read(notesRepositoryProvider);
+    await repository.setArchived(id: id, value: value);
+    _ref.invalidate(notesListProvider);
+  }
+
+  Future<void> moveToTrash(String id) async {
+    final repository = _ref.read(notesRepositoryProvider);
+    await repository.moveToTrash(id);
+    _ref.invalidate(notesListProvider);
+  }
+
+  Future<void> restoreFromTrash(String id) async {
+    final repository = _ref.read(notesRepositoryProvider);
+    await repository.restoreFromTrash(id);
+    _ref.invalidate(notesListProvider);
+  }
+
+  Future<void> deletePermanently(String id) async {
+    final repository = _ref.read(notesRepositoryProvider);
+    await repository.deletePermanently(id);
+    _ref.invalidate(notesListProvider);
+  }
+
+  void showCollection(NoteCollection collection) {
+    _ref.read(notesViewStateProvider.notifier).state = _ref
+        .read(notesViewStateProvider)
+        .copyWith(collection: collection);
+  }
+
+  void setSearchQuery(String value) {
+    _ref.read(notesViewStateProvider.notifier).state = _ref
+        .read(notesViewStateProvider)
+        .copyWith(searchQuery: value);
+  }
+
+  void setFolderFilter(String? folderId) {
+    _ref.read(notesViewStateProvider.notifier).state = _ref
+        .read(notesViewStateProvider)
+        .copyWith(folderId: folderId, clearFolder: folderId == null);
+  }
+
+  void setPinnedOnly(bool value) {
+    _ref.read(notesViewStateProvider.notifier).state = _ref
+        .read(notesViewStateProvider)
+        .copyWith(pinnedOnly: value);
   }
 }

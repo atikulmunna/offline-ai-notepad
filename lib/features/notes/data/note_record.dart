@@ -10,6 +10,7 @@ class NoteRecord {
     required this.updatedAt,
     this.summary,
     this.folderId,
+    this.folderName,
     this.isPinned = false,
     this.isArchived = false,
     this.isDeleted = false,
@@ -21,6 +22,7 @@ class NoteRecord {
   final String body;
   final String? summary;
   final String? folderId;
+  final String? folderName;
   final bool isPinned;
   final bool isArchived;
   final bool isDeleted;
@@ -51,6 +53,7 @@ class NoteRecord {
       body: map['body']! as String,
       summary: map['summary'] as String?,
       folderId: map['folder_id'] as String?,
+      folderName: map['folder_name'] as String?,
       isPinned: (map['is_pinned']! as int) == 1,
       isArchived: (map['is_archived']! as int) == 1,
       isDeleted: (map['is_deleted']! as int) == 1,
@@ -67,9 +70,19 @@ class NoteRecord {
       id: id,
       title: (title == null || title!.trim().isEmpty) ? 'Untitled note' : title!,
       body: body,
-      badge: isPinned ? 'Pinned' : 'Draft',
+      badge: isDeleted
+          ? 'Trash'
+          : isArchived
+              ? 'Archived'
+              : isPinned
+                  ? 'Pinned'
+                  : 'Draft',
       updatedAt: updatedAt,
+      folderId: folderId,
+      folderName: folderName,
       isPinned: isPinned,
+      isArchived: isArchived,
+      isDeleted: isDeleted,
     );
   }
 
@@ -81,6 +94,10 @@ class NoteRecord {
       createdAt: createdAt,
       updatedAt: updatedAt,
       isPinned: isPinned,
+      folderId: folderId,
+      isArchived: isArchived,
+      isDeleted: isDeleted,
+      deletedAt: deletedAt,
     );
   }
 }
