@@ -11,6 +11,11 @@ abstract class NotesRepository {
     bool pinnedOnly = false,
   });
   Future<List<NoteFolder>> listFolders();
+  Future<NoteFolder> createFolder(String name);
+  Future<NoteFolder?> renameFolder({
+    required String id,
+    required String name,
+  });
   Future<String> createNote({
     String? title,
     required String body,

@@ -87,6 +87,58 @@ class InMemoryNotesRepository implements NotesRepository {
   }
 
   @override
+  Future<NoteFolder> createFolder(String name) async {
+    final folder = NoteFolder(
+      id: 'folder-${DateTime.now().microsecondsSinceEpoch}',
+      name: name.trim(),
+      icon: 'folder',
+    );
+    _folders.add(folder);
+    return folder;
+  }
+
+  @override
+  Future<NoteFolder?> renameFolder({
+    required String id,
+    required String name,
+  }) async {
+    final index = _folders.indexWhere((folder) => folder.id == id);
+    if (index == -1) {
+      return null;
+    }
+
+    final updated = NoteFolder(
+      id: _folders[index].id,
+      name: name.trim(),
+      icon: _folders[index].icon,
+    );
+    _folders[index] = updated;
+
+    for (var i = 0; i < _notes.length; i++) {
+      final note = _notes[i];
+      if (note.folderId != id) {
+        continue;
+      }
+      _notes[i] = NoteRecord(
+        id: note.id,
+        title: note.title,
+        body: note.body,
+        summary: note.summary,
+        folderId: note.folderId,
+        folderName: updated.name,
+        isPinned: note.isPinned,
+        isArchived: note.isArchived,
+        isDeleted: note.isDeleted,
+        createdAt: note.createdAt,
+        updatedAt: note.updatedAt,
+        deletedAt: note.deletedAt,
+      );
+    }
+
+    return updated;
+  }
+
+  @override
   Future<String> createNote({
     String? title,
     required String body,

@@ -135,6 +135,55 @@ ON folders.id = notes.folder_id
     return rows.map(FolderRecord.fromMap).map((folder) => folder.toFolder()).toList(growable: false);
   }
 
+  @override
+  Future<NoteFolder> createFolder(String name) async {
+    final now = DateTime.now();
+    final folder = FolderRecord(
+      id: 'folder-${now.microsecondsSinceEpoch}',
+      name: name.trim(),
+      icon: 'folder',
+      createdAt: now,
+    );
+    await _database.insert(
+      DatabaseSchema.foldersTable,
+      folder.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.abort,
+    );
+    return folder.toFolder();
+  }
+
+  @override
+  Future<NoteFolder?> renameFolder({
+    required String id,
+    required String name,
+  }) async {
+    await _seedCoreData();
+    final rows = await _database.query(
+      DatabaseSchema.foldersTable,
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (rows.isEmpty) {
+      return null;
+    }
+
+    final existing = FolderRecord.fromMap(rows.first);
+    final updated = FolderRecord(
+      id: existing.id,
+      name: name.trim(),
+      icon: existing.icon,
+      createdAt: existing.createdAt,
+    );
+    await _database.update(
+      DatabaseSchema.foldersTable,
+      updated.toMap(),
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    return updated.toFolder();
+  }
+
   Future<void> upsert(NoteRecord note) {
     return _database.insert(
       DatabaseSchema.notesTable,

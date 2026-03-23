@@ -506,6 +506,23 @@ class _ControlDeck extends ConsumerWidget {
             children: [
               Text('Folders', style: theme.textTheme.titleMedium),
               const Spacer(),
+              TextButton.icon(
+                onPressed: foldersAsync.valueOrNull == null
+                    ? null
+                    : () async {
+                        await showModalBottomSheet<void>(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) => _FolderManagerSheet(
+                            folders: foldersAsync.valueOrNull ?? const [],
+                          ),
+                        );
+                      },
+                icon: const Icon(Icons.edit_note_rounded),
+                label: const Text('Manage'),
+              ),
+              const SizedBox(width: 8),
               FilterChip(
                 label: const Text('Pinned only'),
                 selected: viewState.pinnedOnly,
@@ -601,6 +618,181 @@ class _FeaturePill extends StatelessWidget {
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FolderManagerSheet extends ConsumerStatefulWidget {
+  const _FolderManagerSheet({
+    required this.folders,
+  });
+
+  final List<NoteFolder> folders;
+
+  @override
+  ConsumerState<_FolderManagerSheet> createState() => _FolderManagerSheetState();
+}
+
+class _FolderManagerSheetState extends ConsumerState<_FolderManagerSheet> {
+  final _createController = TextEditingController();
+  bool _isSaving = false;
+
+  @override
+  void dispose() {
+    _createController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _createFolder() async {
+    final name = _createController.text.trim();
+    if (name.isEmpty || _isSaving) {
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      await ref.read(notesActionsProvider).createFolder(name);
+      _createController.clear();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _renameFolder(NoteFolder folder) async {
+    final controller = TextEditingController(text: folder.name);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Rename folder'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Folder name',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(context).pop(controller.text.trim());
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+
+    if (result == null || result.isEmpty || result == folder.name) {
+      return;
+    }
+
+    await ref.read(notesActionsProvider).renameFolder(
+          id: folder.id,
+          name: result,
+        );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final foldersAsync = ref.watch(noteFoldersProvider);
+    final folders = foldersAsync.valueOrNull ?? widget.folders;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
+      child: Material(
+        color: const Color(0xFFFFFBF4),
+        borderRadius: BorderRadius.circular(28),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Manage folders', style: theme.textTheme.headlineSmall),
+              const SizedBox(height: 8),
+              Text(
+                'Keep your workspace organized without leaving the note flow.',
+                style: theme.textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _createController,
+                      decoration: const InputDecoration(
+                        labelText: 'New folder',
+                        hintText: 'Ideas, Meetings, Reading...',
+                      ),
+                      onSubmitted: (_) => _createFolder(),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  FilledButton(
+                    onPressed: _isSaving ? null : _createFolder,
+                    child: Text(_isSaving ? 'Saving...' : 'Add'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              if (folders.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text('No folders yet. Create one to start grouping notes.'),
+                )
+              else
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 280),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: folders.length,
+                    separatorBuilder: (context, index) =>
+                        const Divider(height: 20),
+                    itemBuilder: (context, index) {
+                      final folder = folders[index];
+                      return Row(
+                        children: [
+                          const Icon(Icons.folder_open_rounded, size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              folder.name,
+                              style: theme.textTheme.titleMedium,
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => _renameFolder(folder),
+                            icon: const Icon(Icons.drive_file_rename_outline),
+                            tooltip: 'Rename folder',
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+            ],
           ),
         ),
       ),

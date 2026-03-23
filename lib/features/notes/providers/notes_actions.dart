@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/note_collection.dart';
 import '../domain/note_document.dart';
+import '../domain/note_folder.dart';
 import 'notes_providers.dart';
 
 final notesActionsProvider = Provider<NotesActions>((ref) {
@@ -25,6 +26,7 @@ class NotesActions {
       folderId: folderId,
     );
     _ref.invalidate(notesListProvider);
+    _ref.invalidate(noteFoldersProvider);
     return id;
   }
 
@@ -47,6 +49,7 @@ class NotesActions {
       folderId: folderId,
     );
     _ref.invalidate(notesListProvider);
+    _ref.invalidate(noteFoldersProvider);
   }
 
   Future<void> togglePin({
@@ -83,6 +86,25 @@ class NotesActions {
     final repository = _ref.read(notesRepositoryProvider);
     await repository.deletePermanently(id);
     _ref.invalidate(notesListProvider);
+  }
+
+  Future<NoteFolder> createFolder(String name) async {
+    final repository = _ref.read(notesRepositoryProvider);
+    final folder = await repository.createFolder(name);
+    _ref.invalidate(noteFoldersProvider);
+    _ref.invalidate(notesListProvider);
+    return folder;
+  }
+
+  Future<NoteFolder?> renameFolder({
+    required String id,
+    required String name,
+  }) async {
+    final repository = _ref.read(notesRepositoryProvider);
+    final folder = await repository.renameFolder(id: id, name: name);
+    _ref.invalidate(noteFoldersProvider);
+    _ref.invalidate(notesListProvider);
+    return folder;
   }
 
   void showCollection(NoteCollection collection) {
