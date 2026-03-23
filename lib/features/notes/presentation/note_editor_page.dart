@@ -3,6 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../ai/domain/embedding_status.dart';
+import '../../ai/domain/note_ai_snapshot.dart';
+import '../../ai/providers/ai_actions.dart';
+import '../../ai/providers/ai_providers.dart';
 import '../domain/note_document.dart';
 import '../providers/notes_actions.dart';
 import '../providers/notes_providers.dart';
@@ -26,8 +30,10 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   bool _didLoadInitialData = false;
   bool _isLoading = false;
   bool _isSaving = false;
+  bool _isGeneratingSummary = false;
   String? _activeNoteId;
   String? _selectedFolderId;
+  String? _summary;
 
   @override
   void initState() {
@@ -68,6 +74,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     _titleController.text = note.title ?? '';
     _bodyController.text = note.body;
     _selectedFolderId = note.folderId;
+    _summary = note.summary;
   }
 
   void _scheduleAutosave() {
@@ -91,6 +98,47 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
 
   Future<void> _save() async {
     await _persist(closeAfterSave: true);
+  }
+
+  Future<void> _generateSummary() async {
+    final body = _bodyController.text.trim();
+    if (body.isEmpty || _isGeneratingSummary) {
+      return;
+    }
+
+    if (_activeNoteId == null) {
+      await _persist(closeAfterSave: false);
+    }
+
+    if (_activeNoteId == null) {
+      return;
+    }
+
+    setState(() {
+      _isGeneratingSummary = true;
+    });
+
+    try {
+      final summary = await ref.read(aiActionsProvider).generateSummary(
+            noteId: _activeNoteId!,
+            title: _titleController.text.trim().isEmpty
+                ? null
+                : _titleController.text.trim(),
+            body: body,
+          );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _summary = summary;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGeneratingSummary = false;
+        });
+      }
+    }
   }
 
   Future<void> _persist({required bool closeAfterSave}) async {
@@ -141,6 +189,9 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     final theme = Theme.of(context);
     final isEditingExisting = _activeNoteId != null;
     final foldersAsync = ref.watch(noteFoldersProvider);
+    final aiSnapshotAsync = _activeNoteId == null
+        ? null
+        : ref.watch(noteAiSnapshotProvider(_activeNoteId!));
 
     return Scaffold(
       appBar: AppBar(
@@ -242,6 +293,13 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
             ),
           ),
           const SizedBox(height: 20),
+          _AiWorkspaceCard(
+            summary: _summary,
+            snapshotAsync: aiSnapshotAsync,
+            isGeneratingSummary: _isGeneratingSummary,
+            onGenerateSummary: _generateSummary,
+          ),
+          const SizedBox(height: 20),
           TextField(
             controller: _titleController,
             textInputAction: TextInputAction.next,
@@ -300,6 +358,106 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
               hintText: 'Write your note here...',
               alignLabelWithHint: true,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AiWorkspaceCard extends StatelessWidget {
+  const _AiWorkspaceCard({
+    required this.summary,
+    required this.snapshotAsync,
+    required this.isGeneratingSummary,
+    required this.onGenerateSummary,
+  });
+
+  final String? summary;
+  final AsyncValue<NoteAiSnapshot?>? snapshotAsync;
+  final bool isGeneratingSummary;
+  final VoidCallback onGenerateSummary;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final snapshot = snapshotAsync?.valueOrNull;
+    final effectiveSummary = (summary != null && summary!.trim().isNotEmpty)
+        ? summary!.trim()
+        : snapshot?.summary;
+    final status = snapshot?.embeddingStatus ?? EmbeddingStatus.missing;
+    final modelVersion = snapshot?.modelVersion;
+
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFFE8F6FF),
+            Color(0xFFFFF4E8),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: const Color(0xFFD8E6EE)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  'Local AI preview',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              FilledButton.tonalIcon(
+                onPressed: isGeneratingSummary ? null : onGenerateSummary,
+                icon: const Icon(Icons.auto_awesome_rounded),
+                label: Text(
+                  isGeneratingSummary ? 'Generating...' : 'Generate summary',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'Summary',
+            style: theme.textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            effectiveSummary ??
+                'No summary yet. Generate one locally to test the AI workflow before we plug in the real on-device model runtime.',
+            style: theme.textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              Chip(
+                avatar: const Icon(Icons.hub_outlined, size: 16),
+                label: Text(status.label),
+              ),
+              Chip(
+                avatar: const Icon(Icons.memory_rounded, size: 16),
+                label: Text(modelVersion ?? 'placeholder stack'),
+              ),
+            ],
           ),
         ],
       ),

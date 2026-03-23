@@ -91,6 +91,7 @@ class NoteRecord {
       id: id,
       title: title,
       body: body,
+      summary: summary,
       createdAt: createdAt,
       updatedAt: updatedAt,
       isPinned: isPinned,
