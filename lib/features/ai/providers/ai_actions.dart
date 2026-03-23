@@ -17,25 +17,19 @@ class AiActions {
     String? title,
     required String body,
   }) async {
-    final summarizer = _ref.read(noteSummarizerProvider);
-    final indexer = _ref.read(noteEmbeddingIndexerProvider);
+    final runtime = _ref.read(aiRuntimeProvider);
     final repository = _ref.read(noteAiRepositoryProvider);
 
-    final summary = await summarizer.summarize(
-      title: title,
-      body: body,
-    );
-    await repository.saveSummary(noteId: noteId, summary: summary);
-
-    final embeddingMetadata = await indexer.indexNote(
+    final result = await runtime.processNote(
       noteId: noteId,
       title: title,
       body: body,
     );
-    await repository.saveEmbeddingMetadata(embeddingMetadata);
+    await repository.saveSummary(noteId: noteId, summary: result.summary);
+    await repository.saveEmbeddingMetadata(result.embeddingMetadata);
 
     _ref.invalidate(noteAiSnapshotProvider(noteId));
     _ref.invalidate(notesListProvider);
-    return summary;
+    return result.summary;
   }
 }

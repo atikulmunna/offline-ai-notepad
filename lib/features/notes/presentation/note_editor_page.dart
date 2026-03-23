@@ -189,6 +189,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     final theme = Theme.of(context);
     final isEditingExisting = _activeNoteId != null;
     final foldersAsync = ref.watch(noteFoldersProvider);
+    final runtimeStatus = ref.watch(aiRuntimeStatusProvider);
     final aiSnapshotAsync = _activeNoteId == null
         ? null
         : ref.watch(noteAiSnapshotProvider(_activeNoteId!));
@@ -296,6 +297,10 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
           _AiWorkspaceCard(
             summary: _summary,
             snapshotAsync: aiSnapshotAsync,
+            runtimeLabel: runtimeStatus.runtimeLabel,
+            runtimeModelVersion: runtimeStatus.modelVersion,
+            runtimeReady: runtimeStatus.isReady,
+            isLocalOnly: runtimeStatus.isLocalOnly,
             isGeneratingSummary: _isGeneratingSummary,
             onGenerateSummary: _generateSummary,
           ),
@@ -369,12 +374,20 @@ class _AiWorkspaceCard extends StatelessWidget {
   const _AiWorkspaceCard({
     required this.summary,
     required this.snapshotAsync,
+    required this.runtimeLabel,
+    required this.runtimeModelVersion,
+    required this.runtimeReady,
+    required this.isLocalOnly,
     required this.isGeneratingSummary,
     required this.onGenerateSummary,
   });
 
   final String? summary;
   final AsyncValue<NoteAiSnapshot?>? snapshotAsync;
+  final String runtimeLabel;
+  final String runtimeModelVersion;
+  final bool runtimeReady;
+  final bool isLocalOnly;
   final bool isGeneratingSummary;
   final VoidCallback onGenerateSummary;
 
@@ -454,9 +467,26 @@ class _AiWorkspaceCard extends StatelessWidget {
                 label: Text(status.label),
               ),
               Chip(
-                avatar: const Icon(Icons.memory_rounded, size: 16),
-                label: Text(modelVersion ?? 'placeholder stack'),
+                avatar: Icon(
+                  runtimeReady ? Icons.offline_bolt_rounded : Icons.error_outline,
+                  size: 16,
+                ),
+                label: Text(runtimeLabel),
               ),
+              Chip(
+                avatar: const Icon(Icons.memory_rounded, size: 16),
+                label: Text(modelVersion ?? runtimeModelVersion),
+              ),
+              if (isLocalOnly)
+                const Chip(
+                  avatar: Icon(Icons.cloud_off_rounded, size: 16),
+                  label: Text('On-device only'),
+                ),
+              if (!runtimeReady)
+                const Chip(
+                  avatar: Icon(Icons.warning_amber_rounded, size: 16),
+                  label: Text('Runtime unavailable'),
+                ),
             ],
           ),
         ],

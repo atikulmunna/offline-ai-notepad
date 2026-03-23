@@ -55,6 +55,7 @@ void main() {
 
     expect(find.text('Edit note'), findsOneWidget);
     expect(find.text('Keep writing'), findsOneWidget);
-    expect(find.text('Research ideas'), findsOneWidget);
+    expect(find.text('Autosave active'), findsOneWidget);
+    expect(find.text('Generate summary'), findsOneWidget);
   });
 }
