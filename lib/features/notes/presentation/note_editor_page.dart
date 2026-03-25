@@ -394,11 +394,15 @@ class _AiWorkspaceCard extends StatelessWidget {
     final status = snapshot?.embeddingStatus ?? EmbeddingStatus.missing;
     final modelVersion = snapshot?.modelVersion ?? runtimeStatus?.modelVersion;
     final runtimeReady = runtimeStatus?.isReady ?? false;
+    final packagedRuntimeReady = runtimeStatus?.packagedRuntimeReady ?? false;
     final isLocalOnly = runtimeStatus?.isLocalOnly ?? true;
     final runtimeLabel = runtimeStatus?.runtimeLabel ?? 'Loading runtime';
     final packagedModels = runtimeStatus == null
         ? null
-        : '${runtimeStatus.packagedModels}/${runtimeStatus.totalModels} packaged';
+        : '${runtimeStatus.packagedModels}/${runtimeStatus.totalModels} planned';
+    final installedModels = runtimeStatus == null
+        ? null
+        : '${runtimeStatus.installedModels}/${runtimeStatus.totalModels} installed';
     final runtimeProfile = runtimeStatus?.runtimeProfile;
     final summaryModelId = runtimeStatus?.summaryModelId;
     final embeddingModelId = runtimeStatus?.embeddingModelId;
@@ -489,10 +493,25 @@ class _AiWorkspaceCard extends StatelessWidget {
                   avatar: Icon(Icons.warning_amber_rounded, size: 16),
                   label: Text('Runtime unavailable'),
                 ),
+              if (packagedRuntimeReady)
+                const Chip(
+                  avatar: Icon(Icons.check_circle_outline, size: 16),
+                  label: Text('Packaged models ready'),
+                )
+              else
+                const Chip(
+                  avatar: Icon(Icons.pending_outlined, size: 16),
+                  label: Text('Packaged models pending'),
+                ),
               if (packagedModels != null)
                 Chip(
                   avatar: const Icon(Icons.inventory_2_outlined, size: 16),
                   label: Text(packagedModels),
+                ),
+              if (installedModels != null)
+                Chip(
+                  avatar: const Icon(Icons.download_done_outlined, size: 16),
+                  label: Text(installedModels),
                 ),
             ],
           ),
