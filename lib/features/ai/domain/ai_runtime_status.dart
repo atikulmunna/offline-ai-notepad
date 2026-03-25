@@ -6,6 +6,11 @@ class AiRuntimeStatus {
     required this.isReady,
     required this.summaryEnabled,
     required this.embeddingEnabled,
+    required this.runtimeProfile,
+    required this.packagedModels,
+    required this.totalModels,
+    this.summaryModelId,
+    this.embeddingModelId,
   });
 
   final String runtimeLabel;
@@ -14,4 +19,9 @@ class AiRuntimeStatus {
   final bool isReady;
   final bool summaryEnabled;
   final bool embeddingEnabled;
+  final String runtimeProfile;
+  final int packagedModels;
+  final int totalModels;
+  final String? summaryModelId;
+  final String? embeddingModelId;
 }

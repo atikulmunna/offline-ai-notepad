@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "runtime_profile": "local-packaged-models",
+  "models": [
+    {
+      "id": "summarizer-en-v1",
+      "task": "summarization",
+      "format": "onnx",
+      "backend": "onnx-runtime",
+      "asset_path": "assets/models/summarizer-en-v1/model.onnx",
+      "tokenizer_asset_path": "assets/models/summarizer-en-v1/tokenizer.json",
+      "packaged": false,
+      "optional_download": false,
+      "max_input_chars": 4000,
+      "notes": "Planned packaged summarization model slot."
+    },
+    {
+      "id": "embedding-en-v1",
+      "task": "embedding",
+      "format": "onnx",
+      "backend": "onnx-runtime",
+      "asset_path": "assets/models/embedding-en-v1/model.onnx",
+      "tokenizer_asset_path": "assets/models/embedding-en-v1/tokenizer.json",
+      "packaged": false,
+      "optional_download": false,
+      "max_input_chars": 4000,
+      "notes": "Planned packaged embedding model slot."
+    }
+  ]
+}

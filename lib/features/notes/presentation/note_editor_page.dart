@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../ai/domain/embedding_status.dart';
+import '../../ai/domain/ai_runtime_status.dart';
 import '../../ai/domain/note_ai_snapshot.dart';
 import '../../ai/providers/ai_actions.dart';
 import '../../ai/providers/ai_providers.dart';
@@ -189,7 +190,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     final theme = Theme.of(context);
     final isEditingExisting = _activeNoteId != null;
     final foldersAsync = ref.watch(noteFoldersProvider);
-    final runtimeStatus = ref.watch(aiRuntimeStatusProvider);
+    final runtimeStatusAsync = ref.watch(aiRuntimeStatusProvider);
     final aiSnapshotAsync = _activeNoteId == null
         ? null
         : ref.watch(noteAiSnapshotProvider(_activeNoteId!));
@@ -297,10 +298,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
           _AiWorkspaceCard(
             summary: _summary,
             snapshotAsync: aiSnapshotAsync,
-            runtimeLabel: runtimeStatus.runtimeLabel,
-            runtimeModelVersion: runtimeStatus.modelVersion,
-            runtimeReady: runtimeStatus.isReady,
-            isLocalOnly: runtimeStatus.isLocalOnly,
+            runtimeStatusAsync: runtimeStatusAsync,
             isGeneratingSummary: _isGeneratingSummary,
             onGenerateSummary: _generateSummary,
           ),
@@ -374,20 +372,14 @@ class _AiWorkspaceCard extends StatelessWidget {
   const _AiWorkspaceCard({
     required this.summary,
     required this.snapshotAsync,
-    required this.runtimeLabel,
-    required this.runtimeModelVersion,
-    required this.runtimeReady,
-    required this.isLocalOnly,
+    required this.runtimeStatusAsync,
     required this.isGeneratingSummary,
     required this.onGenerateSummary,
   });
 
   final String? summary;
   final AsyncValue<NoteAiSnapshot?>? snapshotAsync;
-  final String runtimeLabel;
-  final String runtimeModelVersion;
-  final bool runtimeReady;
-  final bool isLocalOnly;
+  final AsyncValue<AiRuntimeStatus> runtimeStatusAsync;
   final bool isGeneratingSummary;
   final VoidCallback onGenerateSummary;
 
@@ -395,11 +387,21 @@ class _AiWorkspaceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final snapshot = snapshotAsync?.valueOrNull;
+    final runtimeStatus = runtimeStatusAsync.valueOrNull;
     final effectiveSummary = (summary != null && summary!.trim().isNotEmpty)
         ? summary!.trim()
         : snapshot?.summary;
     final status = snapshot?.embeddingStatus ?? EmbeddingStatus.missing;
-    final modelVersion = snapshot?.modelVersion;
+    final modelVersion = snapshot?.modelVersion ?? runtimeStatus?.modelVersion;
+    final runtimeReady = runtimeStatus?.isReady ?? false;
+    final isLocalOnly = runtimeStatus?.isLocalOnly ?? true;
+    final runtimeLabel = runtimeStatus?.runtimeLabel ?? 'Loading runtime';
+    final packagedModels = runtimeStatus == null
+        ? null
+        : '${runtimeStatus.packagedModels}/${runtimeStatus.totalModels} packaged';
+    final runtimeProfile = runtimeStatus?.runtimeProfile;
+    final summaryModelId = runtimeStatus?.summaryModelId;
+    final embeddingModelId = runtimeStatus?.embeddingModelId;
 
     return Container(
       padding: const EdgeInsets.all(22),
@@ -475,7 +477,7 @@ class _AiWorkspaceCard extends StatelessWidget {
               ),
               Chip(
                 avatar: const Icon(Icons.memory_rounded, size: 16),
-                label: Text(modelVersion ?? runtimeModelVersion),
+                label: Text(modelVersion ?? 'runtime pending'),
               ),
               if (isLocalOnly)
                 const Chip(
@@ -487,8 +489,28 @@ class _AiWorkspaceCard extends StatelessWidget {
                   avatar: Icon(Icons.warning_amber_rounded, size: 16),
                   label: Text('Runtime unavailable'),
                 ),
+              if (packagedModels != null)
+                Chip(
+                  avatar: const Icon(Icons.inventory_2_outlined, size: 16),
+                  label: Text(packagedModels),
+                ),
             ],
           ),
+          if (runtimeProfile != null ||
+              summaryModelId != null ||
+              embeddingModelId != null) ...[
+            const SizedBox(height: 14),
+            Text(
+              [
+                if (runtimeProfile != null) 'Profile: $runtimeProfile',
+                if (summaryModelId != null) 'Summary model: $summaryModelId',
+                if (embeddingModelId != null) 'Embedding model: $embeddingModelId',
+              ].join('\n'),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: const Color(0xFF4D5B68),
+              ),
+            ),
+          ],
         ],
       ),
     );
