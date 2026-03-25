@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../domain/onnx_runtime_capability.dart';
+import '../domain/onnx_contract_inspection.dart';
 import '../domain/onnx_session_preparation.dart';
 import '../domain/onnx_summary_response.dart';
 
@@ -171,6 +172,48 @@ class OnnxMethodChannelClient {
             .map((item) => item as String)
             .toList(growable: false),
         message: raw?['message'] as String?,
+      );
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    }
+  }
+
+  Future<OnnxContractInspection?> inspectContract({
+    required String modelPath,
+    List<String> inputNames = const [],
+    List<String> outputNames = const [],
+    int? maxSequenceLength,
+  }) async {
+    if (kIsWeb) {
+      return null;
+    }
+
+    final channel = _channel ?? _defaultChannel;
+    try {
+      final raw = await channel.invokeMapMethod<String, dynamic>(
+        'inspectContract',
+        {
+          'modelPath': modelPath,
+          'inputNames': inputNames,
+          'outputNames': outputNames,
+          'maxSequenceLength': maxSequenceLength,
+        },
+      );
+      if (raw == null) {
+        return null;
+      }
+      return OnnxContractInspection(
+        available: raw['available'] as bool? ?? false,
+        matchesManifest: raw['matchesManifest'] as bool? ?? false,
+        actualInputNames: (raw['actualInputNames'] as List<dynamic>? ?? const [])
+            .map((item) => item as String)
+            .toList(growable: false),
+        actualOutputNames: (raw['actualOutputNames'] as List<dynamic>? ?? const [])
+            .map((item) => item as String)
+            .toList(growable: false),
+        message: raw['message'] as String?,
       );
     } on MissingPluginException {
       return null;

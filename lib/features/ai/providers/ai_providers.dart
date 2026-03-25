@@ -18,6 +18,7 @@ import '../domain/local_model_task.dart';
 import '../domain/note_ai_snapshot.dart';
 import '../domain/note_embedding_indexer.dart';
 import '../domain/note_summarizer.dart';
+import '../domain/onnx_contract_inspection.dart';
 import '../domain/onnx_runtime_capability.dart';
 import '../domain/onnx_session_preparation.dart';
 
@@ -108,6 +109,21 @@ final onnxSummarySessionPreparationProvider =
   );
 });
 
+final onnxSummaryContractInspectionProvider =
+    FutureProvider<OnnxContractInspection?>((ref) async {
+  final stage = await ref.watch(summaryModelStageProvider.future);
+  if (stage == null || !stage.isStaged || stage.stagedModelPath == null) {
+    return null;
+  }
+  final client = ref.watch(onnxMethodChannelClientProvider);
+  return client.inspectContract(
+    modelPath: stage.stagedModelPath!,
+    inputNames: stage.installation.spec.onnxContract?.inputNames ?? const [],
+    outputNames: stage.installation.spec.onnxContract?.outputNames ?? const [],
+    maxSequenceLength: stage.installation.spec.onnxContract?.maxSequenceLength,
+  );
+});
+
 final aiRuntimeStatusProvider = FutureProvider<AiRuntimeStatus>((ref) async {
   final runtime = await ref.watch(aiRuntimeProvider.future);
   final capability = await ref.watch(onnxRuntimeCapabilityProvider.future);
@@ -116,6 +132,8 @@ final aiRuntimeStatusProvider = FutureProvider<AiRuntimeStatus>((ref) async {
   final stages = await ref.watch(localModelStagesProvider.future);
   final sessionPreparation =
       await ref.watch(onnxSummarySessionPreparationProvider.future);
+  final contractInspection =
+      await ref.watch(onnxSummaryContractInspectionProvider.future);
   final summaryModel = manifest.byTask(LocalModelTask.summarization);
   final embeddingModel = manifest.byTask(LocalModelTask.embedding);
   final packagedModels = manifest.packagedCount;
@@ -147,6 +165,7 @@ final aiRuntimeStatusProvider = FutureProvider<AiRuntimeStatus>((ref) async {
     packagedRuntimeReady: packagedRuntimeReady,
     nativeBackendLinked: capability.nativeLibraryLinked,
     nativeSessionReady: sessionPreparation?.ready ?? false,
+    contractMatchesManifest: contractInspection?.matchesManifest ?? false,
     summaryEnabled: summaryModel != null,
     embeddingEnabled: embeddingModel != null,
     runtimeProfile: manifest.runtimeProfile,
@@ -159,6 +178,9 @@ final aiRuntimeStatusProvider = FutureProvider<AiRuntimeStatus>((ref) async {
     runtimeDirectory: runtimeDirectory,
     capabilityMessage: capability.message,
     sessionMessage: sessionPreparation?.message,
+    contractMessage: contractInspection?.message,
+    actualInputNames: contractInspection?.actualInputNames ?? const [],
+    actualOutputNames: contractInspection?.actualOutputNames ?? const [],
   );
 });
 

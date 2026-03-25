@@ -93,6 +93,49 @@ class OnnxSessionManager {
         return listOf(lead, preview, ioHint).where { it.isNotBlank() }.joinToString(" ")
     }
 
+    fun inspectSummaryContract(
+        modelPath: String,
+        expectedInputNames: List<String> = emptyList(),
+        expectedOutputNames: List<String> = emptyList(),
+        maxSequenceLength: Int? = null,
+    ): Map<String, Any> {
+        val ready = ensureSummarySession(
+            modelPath = modelPath,
+            inputNames = expectedInputNames,
+            outputNames = expectedOutputNames,
+            maxSequenceLength = maxSequenceLength,
+        )
+        if (!ready || summarySession == null) {
+            return mapOf(
+                "available" to false,
+                "matchesManifest" to false,
+                "actualInputNames" to emptyList<String>(),
+                "actualOutputNames" to emptyList<String>(),
+                "message" to "Summary session is unavailable for contract inspection.",
+            )
+        }
+
+        val actualInputNames = summarySession!!.inputInfo.keys.toList().sorted()
+        val actualOutputNames = summarySession!!.outputInfo.keys.toList().sorted()
+        val manifestInputs = expectedInputNames.sorted()
+        val manifestOutputs = expectedOutputNames.sorted()
+        val matchesManifest =
+            (manifestInputs.isEmpty() || manifestInputs == actualInputNames) &&
+                (manifestOutputs.isEmpty() || manifestOutputs == actualOutputNames)
+
+        return mapOf(
+            "available" to true,
+            "matchesManifest" to matchesManifest,
+            "actualInputNames" to actualInputNames,
+            "actualOutputNames" to actualOutputNames,
+            "message" to if (matchesManifest) {
+                "Native ONNX session contract matches the manifest."
+            } else {
+                "Native ONNX session contract differs from the manifest."
+            },
+        )
+    }
+
     private fun closeSummarySession() {
         try {
             summarySession?.close()

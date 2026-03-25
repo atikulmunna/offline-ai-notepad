@@ -125,6 +125,30 @@ class MainActivity : FlutterActivity() {
                     }
                 }
 
+                "inspectContract" -> {
+                    val modelPath = call.argument<String>("modelPath")
+                    val inputNames = call.argument<List<String>>("inputNames") ?: emptyList()
+                    val outputNames = call.argument<List<String>>("outputNames") ?: emptyList()
+                    val maxSequenceLength = call.argument<Int>("maxSequenceLength")
+                    if (modelPath.isNullOrBlank()) {
+                        result.error(
+                            "missing_model_path",
+                            "Model path is required for contract inspection.",
+                            null,
+                        )
+                        return@setMethodCallHandler
+                    }
+
+                    result.success(
+                        onnxSessionManager.inspectSummaryContract(
+                            modelPath = modelPath,
+                            expectedInputNames = inputNames,
+                            expectedOutputNames = outputNames,
+                            maxSequenceLength = maxSequenceLength,
+                        ),
+                    )
+                }
+
                 else -> result.notImplemented()
             }
         }

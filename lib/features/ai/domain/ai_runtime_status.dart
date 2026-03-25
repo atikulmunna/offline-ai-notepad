@@ -7,6 +7,7 @@ class AiRuntimeStatus {
     required this.packagedRuntimeReady,
     required this.nativeBackendLinked,
     required this.nativeSessionReady,
+    required this.contractMatchesManifest,
     required this.summaryEnabled,
     required this.embeddingEnabled,
     required this.runtimeProfile,
@@ -19,6 +20,9 @@ class AiRuntimeStatus {
     this.runtimeDirectory,
     this.capabilityMessage,
     this.sessionMessage,
+    this.contractMessage,
+    this.actualInputNames = const [],
+    this.actualOutputNames = const [],
   });
 
   final String runtimeLabel;
@@ -28,6 +32,7 @@ class AiRuntimeStatus {
   final bool packagedRuntimeReady;
   final bool nativeBackendLinked;
   final bool nativeSessionReady;
+  final bool contractMatchesManifest;
   final bool summaryEnabled;
   final bool embeddingEnabled;
   final String runtimeProfile;
@@ -40,4 +45,7 @@ class AiRuntimeStatus {
   final String? runtimeDirectory;
   final String? capabilityMessage;
   final String? sessionMessage;
+  final String? contractMessage;
+  final List<String> actualInputNames;
+  final List<String> actualOutputNames;
 }

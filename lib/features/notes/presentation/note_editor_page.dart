@@ -397,6 +397,8 @@ class _AiWorkspaceCard extends StatelessWidget {
     final packagedRuntimeReady = runtimeStatus?.packagedRuntimeReady ?? false;
     final nativeBackendLinked = runtimeStatus?.nativeBackendLinked ?? false;
     final nativeSessionReady = runtimeStatus?.nativeSessionReady ?? false;
+    final contractMatchesManifest =
+        runtimeStatus?.contractMatchesManifest ?? false;
     final isLocalOnly = runtimeStatus?.isLocalOnly ?? true;
     final runtimeLabel = runtimeStatus?.runtimeLabel ?? 'Loading runtime';
     final packagedModels = runtimeStatus == null
@@ -414,6 +416,10 @@ class _AiWorkspaceCard extends StatelessWidget {
     final runtimeDirectory = runtimeStatus?.runtimeDirectory;
     final capabilityMessage = runtimeStatus?.capabilityMessage;
     final sessionMessage = runtimeStatus?.sessionMessage;
+    final contractMessage = runtimeStatus?.contractMessage;
+    final actualInputNames = runtimeStatus?.actualInputNames ?? const <String>[];
+    final actualOutputNames =
+        runtimeStatus?.actualOutputNames ?? const <String>[];
 
     return Container(
       padding: const EdgeInsets.all(22),
@@ -531,6 +537,16 @@ class _AiWorkspaceCard extends StatelessWidget {
                   avatar: Icon(Icons.pause_circle_outline_rounded, size: 16),
                   label: Text('Session load pending'),
                 ),
+              if (contractMatchesManifest)
+                const Chip(
+                  avatar: Icon(Icons.rule_folder_outlined, size: 16),
+                  label: Text('Contract matches'),
+                )
+              else
+                const Chip(
+                  avatar: Icon(Icons.rule_folder_rounded, size: 16),
+                  label: Text('Contract unchecked'),
+                ),
               if (packagedModels != null)
                 Chip(
                   avatar: const Icon(Icons.inventory_2_outlined, size: 16),
@@ -561,6 +577,11 @@ class _AiWorkspaceCard extends StatelessWidget {
                 if (runtimeDirectory != null) 'Runtime dir: $runtimeDirectory',
                 if (capabilityMessage != null) 'Backend: $capabilityMessage',
                 if (sessionMessage != null) 'Session: $sessionMessage',
+                if (contractMessage != null) 'Contract: $contractMessage',
+                if (actualInputNames.isNotEmpty)
+                  'Actual inputs: ${actualInputNames.join(', ')}',
+                if (actualOutputNames.isNotEmpty)
+                  'Actual outputs: ${actualOutputNames.join(', ')}',
               ].join('\n'),
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: const Color(0xFF4D5B68),
