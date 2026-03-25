@@ -6,6 +6,7 @@ class AiRuntimeStatus {
     required this.isReady,
     required this.packagedRuntimeReady,
     required this.nativeBackendLinked,
+    required this.nativeSessionReady,
     required this.summaryEnabled,
     required this.embeddingEnabled,
     required this.runtimeProfile,
@@ -17,6 +18,7 @@ class AiRuntimeStatus {
     this.embeddingModelId,
     this.runtimeDirectory,
     this.capabilityMessage,
+    this.sessionMessage,
   });
 
   final String runtimeLabel;
@@ -25,6 +27,7 @@ class AiRuntimeStatus {
   final bool isReady;
   final bool packagedRuntimeReady;
   final bool nativeBackendLinked;
+  final bool nativeSessionReady;
   final bool summaryEnabled;
   final bool embeddingEnabled;
   final String runtimeProfile;
@@ -36,4 +39,5 @@ class AiRuntimeStatus {
   final String? embeddingModelId;
   final String? runtimeDirectory;
   final String? capabilityMessage;
+  final String? sessionMessage;
 }
