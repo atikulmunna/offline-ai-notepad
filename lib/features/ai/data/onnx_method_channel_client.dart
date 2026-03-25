@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../domain/onnx_runtime_capability.dart';
 import '../domain/onnx_session_preparation.dart';
+import '../domain/onnx_summary_response.dart';
 
 class OnnxMethodChannelClient {
   const OnnxMethodChannelClient({
@@ -115,6 +116,41 @@ class OnnxMethodChannelClient {
         platform: defaultTargetPlatform.name,
         message: error.message ?? error.code,
       );
+    }
+  }
+
+  Future<OnnxSummaryResponse?> generateSummary({
+    required String modelPath,
+    String? title,
+    required String body,
+  }) async {
+    if (kIsWeb) {
+      return null;
+    }
+
+    final channel = _channel ?? _defaultChannel;
+    try {
+      final raw = await channel.invokeMapMethod<String, dynamic>(
+        'generateSummary',
+        {
+          'modelPath': modelPath,
+          'title': title,
+          'body': body,
+        },
+      );
+      final summary = raw?['summary'] as String?;
+      if (summary == null || summary.trim().isEmpty) {
+        return null;
+      }
+      return OnnxSummaryResponse(
+        summary: summary,
+        engine: raw?['engine'] as String? ?? 'android-onnx',
+        message: raw?['message'] as String?,
+      );
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
     }
   }
 }

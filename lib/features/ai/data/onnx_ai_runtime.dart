@@ -1,8 +1,10 @@
 import '../domain/ai_runtime.dart';
 import '../domain/local_model_stage.dart';
+import '../domain/local_model_task.dart';
 import '../domain/note_embedding_indexer.dart';
 import '../domain/note_summarizer.dart';
 import '../domain/onnx_runtime_capability.dart';
+import 'onnx_method_channel_client.dart';
 
 class OnnxAiRuntime implements AiRuntime {
   const OnnxAiRuntime({
@@ -10,15 +12,18 @@ class OnnxAiRuntime implements AiRuntime {
     required NoteEmbeddingIndexer fallbackEmbeddingIndexer,
     required OnnxRuntimeCapability capability,
     required List<LocalModelStage> stages,
+    required OnnxMethodChannelClient methodChannelClient,
   })  : _fallbackSummarizer = fallbackSummarizer,
         _fallbackEmbeddingIndexer = fallbackEmbeddingIndexer,
         _capability = capability,
-        _stages = stages;
+        _stages = stages,
+        _methodChannelClient = methodChannelClient;
 
   final NoteSummarizer _fallbackSummarizer;
   final NoteEmbeddingIndexer _fallbackEmbeddingIndexer;
   final OnnxRuntimeCapability _capability;
   final List<LocalModelStage> _stages;
+  final OnnxMethodChannelClient _methodChannelClient;
 
   @override
   String get runtimeLabel {
@@ -52,10 +57,25 @@ class OnnxAiRuntime implements AiRuntime {
     String? title,
     required String body,
   }) async {
-    final summary = await _fallbackSummarizer.summarize(
+    var summary = await _fallbackSummarizer.summarize(
       title: title,
       body: body,
     );
+    final summaryStage = _summaryStage();
+    if (_capability.isUsable &&
+        summaryStage != null &&
+        summaryStage.isStaged &&
+        summaryStage.stagedModelPath != null) {
+      final nativeSummary = await _methodChannelClient.generateSummary(
+        modelPath: summaryStage.stagedModelPath!,
+        title: title,
+        body: body,
+      );
+      if (nativeSummary != null && nativeSummary.summary.trim().isNotEmpty) {
+        summary = nativeSummary.summary.trim();
+      }
+    }
+
     final embeddingMetadata = await _fallbackEmbeddingIndexer.indexNote(
       noteId: noteId,
       title: title,
@@ -66,5 +86,14 @@ class OnnxAiRuntime implements AiRuntime {
       summary: summary,
       embeddingMetadata: embeddingMetadata,
     );
+  }
+
+  LocalModelStage? _summaryStage() {
+    for (final stage in _stages) {
+      if (stage.installation.spec.task == LocalModelTask.summarization) {
+        return stage;
+      }
+    }
+    return null;
   }
 }

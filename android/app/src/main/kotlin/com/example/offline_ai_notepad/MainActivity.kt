@@ -8,6 +8,7 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val channelName = "offline_ai_notepad/onnx_runtime"
+    private val onnxSessionManager = OnnxSessionManager()
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -46,6 +47,9 @@ class MainActivity : FlutterActivity() {
                     val nativeLinked = isOnnxRuntimeLinked()
                     val modelExists = modelFile.exists()
                     val tokenizerExists = tokenizerFile?.exists() ?: true
+                    val sessionReady =
+                        nativeLinked && modelExists && tokenizerExists &&
+                            onnxSessionManager.ensureSummarySession(modelFile.absolutePath)
 
                     result.success(
                         mapOf(
@@ -55,15 +59,51 @@ class MainActivity : FlutterActivity() {
                             "modelPath" to modelFile.absolutePath,
                             "tokenizerPath" to tokenizerFile?.absolutePath,
                             "platform" to "android-${Build.VERSION.SDK_INT}",
-                            "ready" to (nativeLinked && modelExists && tokenizerExists),
+                            "ready" to sessionReady,
                             "message" to when {
                                 !nativeLinked -> "ONNX Runtime dependency is not available to the native bridge yet."
                                 !modelExists -> "Staged ONNX model file was not found on disk."
                                 !tokenizerExists -> "Tokenizer asset was expected but not found on disk."
-                                else -> "Native ONNX session prerequisites look ready."
+                                !sessionReady -> "ONNX Runtime is linked, but the summary session could not be opened."
+                                else -> "Native ONNX summary session opened successfully."
                             },
                         ),
                     )
+                }
+
+                "generateSummary" -> {
+                    val modelPath = call.argument<String>("modelPath")
+                    val title = call.argument<String>("title")
+                    val body = call.argument<String>("body")
+                    if (modelPath.isNullOrBlank() || body.isNullOrBlank()) {
+                        result.error(
+                            "missing_arguments",
+                            "Both modelPath and body are required.",
+                            null,
+                        )
+                        return@setMethodCallHandler
+                    }
+
+                    val summary = onnxSessionManager.generateSummaryPlaceholder(
+                        title = title,
+                        body = body,
+                        modelPath = modelPath,
+                    )
+                    if (summary == null) {
+                        result.error(
+                            "session_unavailable",
+                            "ONNX summary session could not be opened for the staged model.",
+                            null,
+                        )
+                    } else {
+                        result.success(
+                            mapOf(
+                                "summary" to summary,
+                                "engine" to "android-onnx-placeholder",
+                                "message" to "Summary generated through the native ONNX bridge placeholder path.",
+                            ),
+                        )
+                    }
                 }
 
                 else -> result.notImplemented()

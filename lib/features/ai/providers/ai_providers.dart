@@ -47,6 +47,7 @@ final aiRuntimeProvider = FutureProvider<AiRuntime>((ref) async {
     fallbackEmbeddingIndexer: ref.watch(noteEmbeddingIndexerProvider),
     capability: capability,
     stages: stages,
+    methodChannelClient: ref.watch(onnxMethodChannelClientProvider),
   );
 });
 
