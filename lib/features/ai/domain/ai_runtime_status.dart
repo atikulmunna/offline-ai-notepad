@@ -5,6 +5,7 @@ class AiRuntimeStatus {
     required this.isLocalOnly,
     required this.isReady,
     required this.packagedRuntimeReady,
+    required this.nativeBackendLinked,
     required this.summaryEnabled,
     required this.embeddingEnabled,
     required this.runtimeProfile,
@@ -15,6 +16,7 @@ class AiRuntimeStatus {
     this.summaryModelId,
     this.embeddingModelId,
     this.runtimeDirectory,
+    this.capabilityMessage,
   });
 
   final String runtimeLabel;
@@ -22,6 +24,7 @@ class AiRuntimeStatus {
   final bool isLocalOnly;
   final bool isReady;
   final bool packagedRuntimeReady;
+  final bool nativeBackendLinked;
   final bool summaryEnabled;
   final bool embeddingEnabled;
   final String runtimeProfile;
@@ -32,4 +35,5 @@ class AiRuntimeStatus {
   final String? summaryModelId;
   final String? embeddingModelId;
   final String? runtimeDirectory;
+  final String? capabilityMessage;
 }

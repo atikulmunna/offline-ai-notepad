@@ -395,6 +395,7 @@ class _AiWorkspaceCard extends StatelessWidget {
     final modelVersion = snapshot?.modelVersion ?? runtimeStatus?.modelVersion;
     final runtimeReady = runtimeStatus?.isReady ?? false;
     final packagedRuntimeReady = runtimeStatus?.packagedRuntimeReady ?? false;
+    final nativeBackendLinked = runtimeStatus?.nativeBackendLinked ?? false;
     final isLocalOnly = runtimeStatus?.isLocalOnly ?? true;
     final runtimeLabel = runtimeStatus?.runtimeLabel ?? 'Loading runtime';
     final packagedModels = runtimeStatus == null
@@ -410,6 +411,7 @@ class _AiWorkspaceCard extends StatelessWidget {
     final summaryModelId = runtimeStatus?.summaryModelId;
     final embeddingModelId = runtimeStatus?.embeddingModelId;
     final runtimeDirectory = runtimeStatus?.runtimeDirectory;
+    final capabilityMessage = runtimeStatus?.capabilityMessage;
 
     return Container(
       padding: const EdgeInsets.all(22),
@@ -507,6 +509,16 @@ class _AiWorkspaceCard extends StatelessWidget {
                   avatar: Icon(Icons.pending_outlined, size: 16),
                   label: Text('Packaged models pending'),
                 ),
+              if (nativeBackendLinked)
+                const Chip(
+                  avatar: Icon(Icons.developer_mode_rounded, size: 16),
+                  label: Text('Native ONNX linked'),
+                )
+              else
+                const Chip(
+                  avatar: Icon(Icons.developer_mode_outlined, size: 16),
+                  label: Text('Native ONNX pending'),
+                ),
               if (packagedModels != null)
                 Chip(
                   avatar: const Icon(Icons.inventory_2_outlined, size: 16),
@@ -535,6 +547,7 @@ class _AiWorkspaceCard extends StatelessWidget {
                 if (summaryModelId != null) 'Summary model: $summaryModelId',
                 if (embeddingModelId != null) 'Embedding model: $embeddingModelId',
                 if (runtimeDirectory != null) 'Runtime dir: $runtimeDirectory',
+                if (capabilityMessage != null) 'Backend: $capabilityMessage',
               ].join('\n'),
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: const Color(0xFF4D5B68),

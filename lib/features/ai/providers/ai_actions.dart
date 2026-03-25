@@ -17,7 +17,7 @@ class AiActions {
     String? title,
     required String body,
   }) async {
-    final runtime = _ref.read(aiRuntimeProvider);
+    final runtime = await _ref.read(aiRuntimeProvider.future);
     final repository = _ref.read(noteAiRepositoryProvider);
 
     final result = await runtime.processNote(
