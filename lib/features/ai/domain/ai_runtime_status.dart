@@ -10,9 +10,11 @@ class AiRuntimeStatus {
     required this.runtimeProfile,
     required this.packagedModels,
     required this.installedModels,
+    required this.stagedModels,
     required this.totalModels,
     this.summaryModelId,
     this.embeddingModelId,
+    this.runtimeDirectory,
   });
 
   final String runtimeLabel;
@@ -25,7 +27,9 @@ class AiRuntimeStatus {
   final String runtimeProfile;
   final int packagedModels;
   final int installedModels;
+  final int stagedModels;
   final int totalModels;
   final String? summaryModelId;
   final String? embeddingModelId;
+  final String? runtimeDirectory;
 }

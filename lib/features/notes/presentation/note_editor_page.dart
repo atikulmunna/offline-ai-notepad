@@ -403,9 +403,13 @@ class _AiWorkspaceCard extends StatelessWidget {
     final installedModels = runtimeStatus == null
         ? null
         : '${runtimeStatus.installedModels}/${runtimeStatus.totalModels} installed';
+    final stagedModels = runtimeStatus == null
+        ? null
+        : '${runtimeStatus.stagedModels}/${runtimeStatus.totalModels} staged';
     final runtimeProfile = runtimeStatus?.runtimeProfile;
     final summaryModelId = runtimeStatus?.summaryModelId;
     final embeddingModelId = runtimeStatus?.embeddingModelId;
+    final runtimeDirectory = runtimeStatus?.runtimeDirectory;
 
     return Container(
       padding: const EdgeInsets.all(22),
@@ -513,17 +517,24 @@ class _AiWorkspaceCard extends StatelessWidget {
                   avatar: const Icon(Icons.download_done_outlined, size: 16),
                   label: Text(installedModels),
                 ),
+              if (stagedModels != null)
+                Chip(
+                  avatar: const Icon(Icons.folder_special_outlined, size: 16),
+                  label: Text(stagedModels),
+                ),
             ],
           ),
           if (runtimeProfile != null ||
               summaryModelId != null ||
-              embeddingModelId != null) ...[
+              embeddingModelId != null ||
+              runtimeDirectory != null) ...[
             const SizedBox(height: 14),
             Text(
               [
                 if (runtimeProfile != null) 'Profile: $runtimeProfile',
                 if (summaryModelId != null) 'Summary model: $summaryModelId',
                 if (embeddingModelId != null) 'Embedding model: $embeddingModelId',
+                if (runtimeDirectory != null) 'Runtime dir: $runtimeDirectory',
               ].join('\n'),
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: const Color(0xFF4D5B68),
