@@ -5,6 +5,7 @@ import '../domain/onnx_runtime_capability.dart';
 import '../domain/onnx_contract_inspection.dart';
 import '../domain/onnx_session_preparation.dart';
 import '../domain/onnx_summary_response.dart';
+import '../domain/onnx_tokenization_preview.dart';
 
 class OnnxMethodChannelClient {
   const OnnxMethodChannelClient({
@@ -213,6 +214,56 @@ class OnnxMethodChannelClient {
         actualOutputNames: (raw['actualOutputNames'] as List<dynamic>? ?? const [])
             .map((item) => item as String)
             .toList(growable: false),
+        message: raw['message'] as String?,
+      );
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    }
+  }
+
+  Future<OnnxTokenizationPreview?> previewTokenization({
+    required String modelPath,
+    required String body,
+    String? title,
+    int? maxSequenceLength,
+    int? padTokenId,
+    int? unkTokenId,
+    int? bosTokenId,
+    int? eosTokenId,
+  }) async {
+    if (kIsWeb) {
+      return null;
+    }
+
+    final channel = _channel ?? _defaultChannel;
+    try {
+      final raw = await channel.invokeMapMethod<String, dynamic>(
+        'previewTokenization',
+        {
+          'modelPath': modelPath,
+          'title': title,
+          'body': body,
+          'maxSequenceLength': maxSequenceLength,
+          'padTokenId': padTokenId,
+          'unkTokenId': unkTokenId,
+          'bosTokenId': bosTokenId,
+          'eosTokenId': eosTokenId,
+        },
+      );
+      if (raw == null) {
+        return null;
+      }
+      return OnnxTokenizationPreview(
+        ready: raw['ready'] as bool? ?? false,
+        inputIds: (raw['inputIds'] as List<dynamic>? ?? const [])
+            .map((item) => item as int)
+            .toList(growable: false),
+        attentionMask: (raw['attentionMask'] as List<dynamic>? ?? const [])
+            .map((item) => item as int)
+            .toList(growable: false),
+        sequenceLength: raw['sequenceLength'] as int? ?? 0,
         message: raw['message'] as String?,
       );
     } on MissingPluginException {

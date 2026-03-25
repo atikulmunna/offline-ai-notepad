@@ -4,12 +4,20 @@ class OnnxModelContract {
     required this.outputNames,
     required this.maxSequenceLength,
     this.tokenizerType,
+    this.padTokenId,
+    this.unkTokenId,
+    this.bosTokenId,
+    this.eosTokenId,
   });
 
   final List<String> inputNames;
   final List<String> outputNames;
   final int maxSequenceLength;
   final String? tokenizerType;
+  final int? padTokenId;
+  final int? unkTokenId;
+  final int? bosTokenId;
+  final int? eosTokenId;
 
   factory OnnxModelContract.fromJson(Map<String, dynamic> json) {
     return OnnxModelContract(
@@ -21,6 +29,10 @@ class OnnxModelContract {
           .toList(growable: false),
       maxSequenceLength: json['max_sequence_length'] as int? ?? 512,
       tokenizerType: json['tokenizer_type'] as String?,
+      padTokenId: json['pad_token_id'] as int?,
+      unkTokenId: json['unk_token_id'] as int?,
+      bosTokenId: json['bos_token_id'] as int?,
+      eosTokenId: json['eos_token_id'] as int?,
     );
   }
 }

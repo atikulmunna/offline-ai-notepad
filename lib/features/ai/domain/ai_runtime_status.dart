@@ -21,8 +21,11 @@ class AiRuntimeStatus {
     this.capabilityMessage,
     this.sessionMessage,
     this.contractMessage,
+    this.tokenizationMessage,
     this.actualInputNames = const [],
     this.actualOutputNames = const [],
+    this.previewInputIds = const [],
+    this.previewAttentionMask = const [],
   });
 
   final String runtimeLabel;
@@ -46,6 +49,9 @@ class AiRuntimeStatus {
   final String? capabilityMessage;
   final String? sessionMessage;
   final String? contractMessage;
+  final String? tokenizationMessage;
   final List<String> actualInputNames;
   final List<String> actualOutputNames;
+  final List<int> previewInputIds;
+  final List<int> previewAttentionMask;
 }

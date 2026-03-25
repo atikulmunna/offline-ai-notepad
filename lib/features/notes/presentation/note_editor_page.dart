@@ -420,6 +420,10 @@ class _AiWorkspaceCard extends StatelessWidget {
     final actualInputNames = runtimeStatus?.actualInputNames ?? const <String>[];
     final actualOutputNames =
         runtimeStatus?.actualOutputNames ?? const <String>[];
+    final tokenizationMessage = runtimeStatus?.tokenizationMessage;
+    final previewInputIds = runtimeStatus?.previewInputIds ?? const <int>[];
+    final previewAttentionMask =
+        runtimeStatus?.previewAttentionMask ?? const <int>[];
 
     return Container(
       padding: const EdgeInsets.all(22),
@@ -578,10 +582,15 @@ class _AiWorkspaceCard extends StatelessWidget {
                 if (capabilityMessage != null) 'Backend: $capabilityMessage',
                 if (sessionMessage != null) 'Session: $sessionMessage',
                 if (contractMessage != null) 'Contract: $contractMessage',
+                if (tokenizationMessage != null) 'Tokenization: $tokenizationMessage',
                 if (actualInputNames.isNotEmpty)
                   'Actual inputs: ${actualInputNames.join(', ')}',
                 if (actualOutputNames.isNotEmpty)
                   'Actual outputs: ${actualOutputNames.join(', ')}',
+                if (previewInputIds.isNotEmpty)
+                  'Preview input_ids: ${previewInputIds.take(12).join(', ')}',
+                if (previewAttentionMask.isNotEmpty)
+                  'Preview attention_mask: ${previewAttentionMask.take(12).join(', ')}',
               ].join('\n'),
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: const Color(0xFF4D5B68),

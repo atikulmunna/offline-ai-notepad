@@ -149,6 +149,38 @@ class MainActivity : FlutterActivity() {
                     )
                 }
 
+                "previewTokenization" -> {
+                    val modelPath = call.argument<String>("modelPath")
+                    val title = call.argument<String>("title")
+                    val body = call.argument<String>("body")
+                    val maxSequenceLength = call.argument<Int>("maxSequenceLength")
+                    val padTokenId = call.argument<Int>("padTokenId")
+                    val unkTokenId = call.argument<Int>("unkTokenId")
+                    val bosTokenId = call.argument<Int>("bosTokenId")
+                    val eosTokenId = call.argument<Int>("eosTokenId")
+                    if (modelPath.isNullOrBlank() || body.isNullOrBlank()) {
+                        result.error(
+                            "missing_arguments",
+                            "Model path and body are required for tokenization preview.",
+                            null,
+                        )
+                        return@setMethodCallHandler
+                    }
+
+                    result.success(
+                        onnxSessionManager.previewTokenization(
+                            modelPath = modelPath,
+                            title = title,
+                            body = body,
+                            maxSequenceLength = maxSequenceLength,
+                            padTokenId = padTokenId,
+                            unkTokenId = unkTokenId,
+                            bosTokenId = bosTokenId,
+                            eosTokenId = eosTokenId,
+                        ),
+                    )
+                }
+
                 else -> result.notImplemented()
             }
         }

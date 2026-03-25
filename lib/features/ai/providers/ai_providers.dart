@@ -21,6 +21,7 @@ import '../domain/note_summarizer.dart';
 import '../domain/onnx_contract_inspection.dart';
 import '../domain/onnx_runtime_capability.dart';
 import '../domain/onnx_session_preparation.dart';
+import '../domain/onnx_tokenization_preview.dart';
 
 final noteSummarizerProvider = Provider<NoteSummarizer>((ref) {
   return LocalNoteSummarizer();
@@ -124,6 +125,25 @@ final onnxSummaryContractInspectionProvider =
   );
 });
 
+final onnxSummaryTokenizationPreviewProvider =
+    FutureProvider<OnnxTokenizationPreview?>((ref) async {
+  final stage = await ref.watch(summaryModelStageProvider.future);
+  if (stage == null || !stage.isStaged || stage.stagedModelPath == null) {
+    return null;
+  }
+  final client = ref.watch(onnxMethodChannelClientProvider);
+  return client.previewTokenization(
+    modelPath: stage.stagedModelPath!,
+    title: 'Preview',
+    body: 'Tokenizer preview for the staged summary model.',
+    maxSequenceLength: stage.installation.spec.onnxContract?.maxSequenceLength,
+    padTokenId: stage.installation.spec.onnxContract?.padTokenId,
+    unkTokenId: stage.installation.spec.onnxContract?.unkTokenId,
+    bosTokenId: stage.installation.spec.onnxContract?.bosTokenId,
+    eosTokenId: stage.installation.spec.onnxContract?.eosTokenId,
+  );
+});
+
 final aiRuntimeStatusProvider = FutureProvider<AiRuntimeStatus>((ref) async {
   final runtime = await ref.watch(aiRuntimeProvider.future);
   final capability = await ref.watch(onnxRuntimeCapabilityProvider.future);
@@ -134,6 +154,8 @@ final aiRuntimeStatusProvider = FutureProvider<AiRuntimeStatus>((ref) async {
       await ref.watch(onnxSummarySessionPreparationProvider.future);
   final contractInspection =
       await ref.watch(onnxSummaryContractInspectionProvider.future);
+  final tokenizationPreview =
+      await ref.watch(onnxSummaryTokenizationPreviewProvider.future);
   final summaryModel = manifest.byTask(LocalModelTask.summarization);
   final embeddingModel = manifest.byTask(LocalModelTask.embedding);
   final packagedModels = manifest.packagedCount;
@@ -179,8 +201,11 @@ final aiRuntimeStatusProvider = FutureProvider<AiRuntimeStatus>((ref) async {
     capabilityMessage: capability.message,
     sessionMessage: sessionPreparation?.message,
     contractMessage: contractInspection?.message,
+    tokenizationMessage: tokenizationPreview?.message,
     actualInputNames: contractInspection?.actualInputNames ?? const [],
     actualOutputNames: contractInspection?.actualOutputNames ?? const [],
+    previewInputIds: tokenizationPreview?.inputIds ?? const [],
+    previewAttentionMask: tokenizationPreview?.attentionMask ?? const [],
   );
 });
 

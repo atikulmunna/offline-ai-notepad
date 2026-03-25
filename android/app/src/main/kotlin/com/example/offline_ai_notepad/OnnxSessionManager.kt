@@ -136,6 +136,79 @@ class OnnxSessionManager {
         )
     }
 
+    fun previewTokenization(
+        modelPath: String,
+        title: String?,
+        body: String,
+        maxSequenceLength: Int? = null,
+        padTokenId: Int? = null,
+        unkTokenId: Int? = null,
+        bosTokenId: Int? = null,
+        eosTokenId: Int? = null,
+    ): Map<String, Any> {
+        if (!ensureSummarySession(modelPath, maxSequenceLength = maxSequenceLength)) {
+            return mapOf(
+                "ready" to false,
+                "inputIds" to emptyList<Int>(),
+                "attentionMask" to emptyList<Int>(),
+                "sequenceLength" to 0,
+                "message" to "Summary session is unavailable for tokenization preview.",
+            )
+        }
+
+        val effectiveMaxLength = (maxSequenceLength ?: 32).coerceAtLeast(4)
+        val content = listOfNotNull(title?.trim(), body.trim())
+            .joinToString(" ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+
+        val tokens = if (content.isBlank()) {
+            emptyList()
+        } else {
+            content.split(" ")
+        }
+
+        val inputIds = mutableListOf<Int>()
+        val attentionMask = mutableListOf<Int>()
+
+        bosTokenId?.let {
+            inputIds.add(it)
+            attentionMask.add(1)
+        }
+
+        val budget = effectiveMaxLength - inputIds.size - if (eosTokenId != null) 1 else 0
+        for (token in tokens.take(budget.coerceAtLeast(0))) {
+            val normalized = token.trim()
+            val tokenId = if (normalized.isBlank()) {
+                unkTokenId ?: 100
+            } else {
+                ((normalized.lowercase().hashCode().toLong() and 0x7fffffff) % 30000).toInt() + 1000
+            }
+            inputIds.add(tokenId)
+            attentionMask.add(1)
+        }
+
+        eosTokenId?.let {
+            if (inputIds.size < effectiveMaxLength) {
+                inputIds.add(it)
+                attentionMask.add(1)
+            }
+        }
+
+        while (inputIds.size < effectiveMaxLength) {
+            inputIds.add(padTokenId ?: 0)
+            attentionMask.add(0)
+        }
+
+        return mapOf(
+            "ready" to true,
+            "inputIds" to inputIds,
+            "attentionMask" to attentionMask,
+            "sequenceLength" to effectiveMaxLength,
+            "message" to "Tokenizer preview generated through the native ONNX placeholder path.",
+        )
+    }
+
     private fun closeSummarySession() {
         try {
             summarySession?.close()
