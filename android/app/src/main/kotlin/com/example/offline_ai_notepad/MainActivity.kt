@@ -37,6 +37,9 @@ class MainActivity : FlutterActivity() {
                 "prepareSession" -> {
                     val modelPath = call.argument<String>("modelPath")
                     val tokenizerPath = call.argument<String>("tokenizerPath")
+                    val inputNames = call.argument<List<String>>("inputNames") ?: emptyList()
+                    val outputNames = call.argument<List<String>>("outputNames") ?: emptyList()
+                    val maxSequenceLength = call.argument<Int>("maxSequenceLength")
                     if (modelPath.isNullOrBlank()) {
                         result.error("missing_model_path", "Model path is required.", null)
                         return@setMethodCallHandler
@@ -49,7 +52,12 @@ class MainActivity : FlutterActivity() {
                     val tokenizerExists = tokenizerFile?.exists() ?: true
                     val sessionReady =
                         nativeLinked && modelExists && tokenizerExists &&
-                            onnxSessionManager.ensureSummarySession(modelFile.absolutePath)
+                            onnxSessionManager.ensureSummarySession(
+                                modelFile.absolutePath,
+                                inputNames,
+                                outputNames,
+                                maxSequenceLength,
+                            )
 
                     result.success(
                         mapOf(
@@ -59,6 +67,9 @@ class MainActivity : FlutterActivity() {
                             "modelPath" to modelFile.absolutePath,
                             "tokenizerPath" to tokenizerFile?.absolutePath,
                             "platform" to "android-${Build.VERSION.SDK_INT}",
+                            "inputNames" to inputNames,
+                            "outputNames" to outputNames,
+                            "maxSequenceLength" to maxSequenceLength,
                             "ready" to sessionReady,
                             "message" to when {
                                 !nativeLinked -> "ONNX Runtime dependency is not available to the native bridge yet."
@@ -75,6 +86,9 @@ class MainActivity : FlutterActivity() {
                     val modelPath = call.argument<String>("modelPath")
                     val title = call.argument<String>("title")
                     val body = call.argument<String>("body")
+                    val inputNames = call.argument<List<String>>("inputNames") ?: emptyList()
+                    val outputNames = call.argument<List<String>>("outputNames") ?: emptyList()
+                    val maxSequenceLength = call.argument<Int>("maxSequenceLength")
                     if (modelPath.isNullOrBlank() || body.isNullOrBlank()) {
                         result.error(
                             "missing_arguments",
@@ -88,6 +102,9 @@ class MainActivity : FlutterActivity() {
                         title = title,
                         body = body,
                         modelPath = modelPath,
+                        inputNames = inputNames,
+                        outputNames = outputNames,
+                        maxSequenceLength = maxSequenceLength,
                     )
                     if (summary == null) {
                         result.error(
@@ -100,6 +117,8 @@ class MainActivity : FlutterActivity() {
                             mapOf(
                                 "summary" to summary,
                                 "engine" to "android-onnx-placeholder",
+                                "usedInputNames" to inputNames,
+                                "usedOutputNames" to outputNames,
                                 "message" to "Summary generated through the native ONNX bridge placeholder path.",
                             ),
                         )

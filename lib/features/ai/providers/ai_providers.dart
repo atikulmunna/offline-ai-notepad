@@ -102,6 +102,9 @@ final onnxSummarySessionPreparationProvider =
   return client.prepareSession(
     modelPath: stage.stagedModelPath!,
     tokenizerPath: stage.stagedTokenizerPath,
+    inputNames: stage.installation.spec.onnxContract?.inputNames ?? const [],
+    outputNames: stage.installation.spec.onnxContract?.outputNames ?? const [],
+    maxSequenceLength: stage.installation.spec.onnxContract?.maxSequenceLength,
   );
 });
 

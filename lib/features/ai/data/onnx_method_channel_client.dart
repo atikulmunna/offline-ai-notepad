@@ -66,6 +66,9 @@ class OnnxMethodChannelClient {
   Future<OnnxSessionPreparation> prepareSession({
     required String modelPath,
     String? tokenizerPath,
+    List<String> inputNames = const [],
+    List<String> outputNames = const [],
+    int? maxSequenceLength,
   }) async {
     if (kIsWeb) {
       return const OnnxSessionPreparation(
@@ -85,6 +88,9 @@ class OnnxMethodChannelClient {
         {
           'modelPath': modelPath,
           'tokenizerPath': tokenizerPath,
+          'inputNames': inputNames,
+          'outputNames': outputNames,
+          'maxSequenceLength': maxSequenceLength,
         },
       );
 
@@ -94,6 +100,13 @@ class OnnxMethodChannelClient {
         tokenizerExists: raw?['tokenizerExists'] as bool? ?? (tokenizerPath == null),
         ready: raw?['ready'] as bool? ?? false,
         platform: raw?['platform'] as String? ?? defaultTargetPlatform.name,
+        inputNames: (raw?['inputNames'] as List<dynamic>? ?? const [])
+            .map((item) => item as String)
+            .toList(growable: false),
+        outputNames: (raw?['outputNames'] as List<dynamic>? ?? const [])
+            .map((item) => item as String)
+            .toList(growable: false),
+        maxSequenceLength: raw?['maxSequenceLength'] as int?,
         modelPath: raw?['modelPath'] as String?,
         tokenizerPath: raw?['tokenizerPath'] as String?,
         message: raw?['message'] as String?,
@@ -123,6 +136,9 @@ class OnnxMethodChannelClient {
     required String modelPath,
     String? title,
     required String body,
+    List<String> inputNames = const [],
+    List<String> outputNames = const [],
+    int? maxSequenceLength,
   }) async {
     if (kIsWeb) {
       return null;
@@ -136,6 +152,9 @@ class OnnxMethodChannelClient {
           'modelPath': modelPath,
           'title': title,
           'body': body,
+          'inputNames': inputNames,
+          'outputNames': outputNames,
+          'maxSequenceLength': maxSequenceLength,
         },
       );
       final summary = raw?['summary'] as String?;
@@ -145,6 +164,12 @@ class OnnxMethodChannelClient {
       return OnnxSummaryResponse(
         summary: summary,
         engine: raw?['engine'] as String? ?? 'android-onnx',
+        usedInputNames: (raw?['usedInputNames'] as List<dynamic>? ?? const [])
+            .map((item) => item as String)
+            .toList(growable: false),
+        usedOutputNames: (raw?['usedOutputNames'] as List<dynamic>? ?? const [])
+            .map((item) => item as String)
+            .toList(growable: false),
         message: raw?['message'] as String?,
       );
     } on MissingPluginException {

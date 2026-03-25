@@ -9,14 +9,28 @@ class OnnxSessionManager {
     private var environment: OrtEnvironment? = null
     private var summarySession: OrtSession? = null
     private var summaryModelPath: String? = null
+    private var summaryInputNames: List<String> = emptyList()
+    private var summaryOutputNames: List<String> = emptyList()
+    private var summaryMaxSequenceLength: Int? = null
 
-    fun ensureSummarySession(modelPath: String): Boolean {
+    fun ensureSummarySession(
+        modelPath: String,
+        inputNames: List<String> = emptyList(),
+        outputNames: List<String> = emptyList(),
+        maxSequenceLength: Int? = null,
+    ): Boolean {
         val modelFile = File(modelPath)
         if (!modelFile.exists()) {
             return false
         }
 
-        if (summarySession != null && summaryModelPath == modelPath) {
+        if (
+            summarySession != null &&
+            summaryModelPath == modelPath &&
+            summaryInputNames == inputNames &&
+            summaryOutputNames == outputNames &&
+            summaryMaxSequenceLength == maxSequenceLength
+        ) {
             return true
         }
 
@@ -32,6 +46,9 @@ class OnnxSessionManager {
                 OrtSession.SessionOptions(),
             )
             summaryModelPath = modelFile.absolutePath
+            summaryInputNames = inputNames
+            summaryOutputNames = outputNames
+            summaryMaxSequenceLength = maxSequenceLength
             true
         } catch (_: OrtException) {
             closeSummarySession()
@@ -43,8 +60,11 @@ class OnnxSessionManager {
         title: String?,
         body: String,
         modelPath: String,
+        inputNames: List<String> = emptyList(),
+        outputNames: List<String> = emptyList(),
+        maxSequenceLength: Int? = null,
     ): String? {
-        if (!ensureSummarySession(modelPath)) {
+        if (!ensureSummarySession(modelPath, inputNames, outputNames, maxSequenceLength)) {
             return null
         }
 
@@ -59,7 +79,18 @@ class OnnxSessionManager {
             "${title.trim()}:"
         }
         val preview = normalized.take(180)
-        return "$lead $preview"
+        val ioHint = buildString {
+            if (inputNames.isNotEmpty()) {
+                append(" Inputs=${inputNames.joinToString(",")}.")
+            }
+            if (outputNames.isNotEmpty()) {
+                append(" Outputs=${outputNames.joinToString(",")}.")
+            }
+            if (maxSequenceLength != null) {
+                append(" MaxSeq=$maxSequenceLength.")
+            }
+        }.trim()
+        return listOf(lead, preview, ioHint).where { it.isNotBlank() }.joinToString(" ")
     }
 
     private fun closeSummarySession() {
@@ -69,6 +100,9 @@ class OnnxSessionManager {
         } finally {
             summarySession = null
             summaryModelPath = null
+            summaryInputNames = emptyList()
+            summaryOutputNames = emptyList()
+            summaryMaxSequenceLength = null
         }
     }
 }
