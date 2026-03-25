@@ -22,10 +22,15 @@ class AiRuntimeStatus {
     this.sessionMessage,
     this.contractMessage,
     this.tokenizationMessage,
+    this.tokenizerMessage,
     this.actualInputNames = const [],
     this.actualOutputNames = const [],
     this.previewInputIds = const [],
     this.previewAttentionMask = const [],
+    this.tokenizerVocabSize = 0,
+    this.tokenizerModelType,
+    this.tokenizerPreTokenizerType,
+    this.tokenizerNormalizerType,
   });
 
   final String runtimeLabel;
@@ -50,8 +55,13 @@ class AiRuntimeStatus {
   final String? sessionMessage;
   final String? contractMessage;
   final String? tokenizationMessage;
+  final String? tokenizerMessage;
   final List<String> actualInputNames;
   final List<String> actualOutputNames;
   final List<int> previewInputIds;
   final List<int> previewAttentionMask;
+  final int tokenizerVocabSize;
+  final String? tokenizerModelType;
+  final String? tokenizerPreTokenizerType;
+  final String? tokenizerNormalizerType;
 }

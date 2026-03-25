@@ -21,6 +21,7 @@ import '../domain/note_summarizer.dart';
 import '../domain/onnx_contract_inspection.dart';
 import '../domain/onnx_runtime_capability.dart';
 import '../domain/onnx_session_preparation.dart';
+import '../domain/onnx_tokenizer_inspection.dart';
 import '../domain/onnx_tokenization_preview.dart';
 
 final noteSummarizerProvider = Provider<NoteSummarizer>((ref) {
@@ -144,6 +145,21 @@ final onnxSummaryTokenizationPreviewProvider =
   );
 });
 
+final onnxSummaryTokenizerInspectionProvider =
+    FutureProvider<OnnxTokenizerInspection?>((ref) async {
+  final stage = await ref.watch(summaryModelStageProvider.future);
+  if (stage == null ||
+      !stage.isStaged ||
+      stage.stagedTokenizerPath == null ||
+      stage.stagedTokenizerPath!.isEmpty) {
+    return null;
+  }
+  final client = ref.watch(onnxMethodChannelClientProvider);
+  return client.inspectTokenizer(
+    tokenizerPath: stage.stagedTokenizerPath!,
+  );
+});
+
 final aiRuntimeStatusProvider = FutureProvider<AiRuntimeStatus>((ref) async {
   final runtime = await ref.watch(aiRuntimeProvider.future);
   final capability = await ref.watch(onnxRuntimeCapabilityProvider.future);
@@ -156,6 +172,8 @@ final aiRuntimeStatusProvider = FutureProvider<AiRuntimeStatus>((ref) async {
       await ref.watch(onnxSummaryContractInspectionProvider.future);
   final tokenizationPreview =
       await ref.watch(onnxSummaryTokenizationPreviewProvider.future);
+  final tokenizerInspection =
+      await ref.watch(onnxSummaryTokenizerInspectionProvider.future);
   final summaryModel = manifest.byTask(LocalModelTask.summarization);
   final embeddingModel = manifest.byTask(LocalModelTask.embedding);
   final packagedModels = manifest.packagedCount;
@@ -202,10 +220,15 @@ final aiRuntimeStatusProvider = FutureProvider<AiRuntimeStatus>((ref) async {
     sessionMessage: sessionPreparation?.message,
     contractMessage: contractInspection?.message,
     tokenizationMessage: tokenizationPreview?.message,
+    tokenizerMessage: tokenizerInspection?.message,
     actualInputNames: contractInspection?.actualInputNames ?? const [],
     actualOutputNames: contractInspection?.actualOutputNames ?? const [],
     previewInputIds: tokenizationPreview?.inputIds ?? const [],
     previewAttentionMask: tokenizationPreview?.attentionMask ?? const [],
+    tokenizerVocabSize: tokenizerInspection?.vocabSize ?? 0,
+    tokenizerModelType: tokenizerInspection?.modelType,
+    tokenizerPreTokenizerType: tokenizerInspection?.preTokenizerType,
+    tokenizerNormalizerType: tokenizerInspection?.normalizerType,
   );
 });
 

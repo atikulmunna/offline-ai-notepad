@@ -4,6 +4,7 @@ import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtException
 import ai.onnxruntime.OrtSession
 import java.io.File
+import org.json.JSONObject
 
 class OnnxSessionManager {
     private var environment: OrtEnvironment? = null
@@ -207,6 +208,42 @@ class OnnxSessionManager {
             "sequenceLength" to effectiveMaxLength,
             "message" to "Tokenizer preview generated through the native ONNX placeholder path.",
         )
+    }
+
+    fun inspectTokenizer(tokenizerPath: String): Map<String, Any> {
+        val tokenizerFile = File(tokenizerPath)
+        if (!tokenizerFile.exists()) {
+            return mapOf(
+                "available" to false,
+                "vocabSize" to 0,
+                "message" to "Tokenizer file was not found on disk.",
+            )
+        }
+
+        return try {
+            val raw = tokenizerFile.readText()
+            val json = JSONObject(raw)
+            val model = json.optJSONObject("model")
+            val vocab = model?.optJSONObject("vocab")
+            val vocabSize = vocab?.length() ?: 0
+            val preTokenizer = json.optJSONObject("pre_tokenizer")
+            val normalizer = json.optJSONObject("normalizer")
+
+            mapOf(
+                "available" to true,
+                "vocabSize" to vocabSize,
+                "modelType" to model?.optString("type"),
+                "preTokenizerType" to preTokenizer?.optString("type"),
+                "normalizerType" to normalizer?.optString("type"),
+                "message" to "Tokenizer metadata loaded successfully.",
+            )
+        } catch (error: Exception) {
+            mapOf(
+                "available" to false,
+                "vocabSize" to 0,
+                "message" to "Tokenizer metadata could not be parsed: ${error.message}",
+            )
+        }
     }
 
     private fun closeSummarySession() {

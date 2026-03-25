@@ -424,6 +424,11 @@ class _AiWorkspaceCard extends StatelessWidget {
     final previewInputIds = runtimeStatus?.previewInputIds ?? const <int>[];
     final previewAttentionMask =
         runtimeStatus?.previewAttentionMask ?? const <int>[];
+    final tokenizerMessage = runtimeStatus?.tokenizerMessage;
+    final tokenizerVocabSize = runtimeStatus?.tokenizerVocabSize ?? 0;
+    final tokenizerModelType = runtimeStatus?.tokenizerModelType;
+    final tokenizerPreTokenizerType = runtimeStatus?.tokenizerPreTokenizerType;
+    final tokenizerNormalizerType = runtimeStatus?.tokenizerNormalizerType;
 
     return Container(
       padding: const EdgeInsets.all(22),
@@ -583,10 +588,17 @@ class _AiWorkspaceCard extends StatelessWidget {
                 if (sessionMessage != null) 'Session: $sessionMessage',
                 if (contractMessage != null) 'Contract: $contractMessage',
                 if (tokenizationMessage != null) 'Tokenization: $tokenizationMessage',
+                if (tokenizerMessage != null) 'Tokenizer: $tokenizerMessage',
                 if (actualInputNames.isNotEmpty)
                   'Actual inputs: ${actualInputNames.join(', ')}',
                 if (actualOutputNames.isNotEmpty)
                   'Actual outputs: ${actualOutputNames.join(', ')}',
+                if (tokenizerVocabSize > 0) 'Tokenizer vocab size: $tokenizerVocabSize',
+                if (tokenizerModelType != null) 'Tokenizer model: $tokenizerModelType',
+                if (tokenizerPreTokenizerType != null)
+                  'Pre-tokenizer: $tokenizerPreTokenizerType',
+                if (tokenizerNormalizerType != null)
+                  'Normalizer: $tokenizerNormalizerType',
                 if (previewInputIds.isNotEmpty)
                   'Preview input_ids: ${previewInputIds.take(12).join(', ')}',
                 if (previewAttentionMask.isNotEmpty)

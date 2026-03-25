@@ -181,6 +181,22 @@ class MainActivity : FlutterActivity() {
                     )
                 }
 
+                "inspectTokenizer" -> {
+                    val tokenizerPath = call.argument<String>("tokenizerPath")
+                    if (tokenizerPath.isNullOrBlank()) {
+                        result.error(
+                            "missing_tokenizer_path",
+                            "Tokenizer path is required for tokenizer inspection.",
+                            null,
+                        )
+                        return@setMethodCallHandler
+                    }
+
+                    result.success(
+                        onnxSessionManager.inspectTokenizer(tokenizerPath),
+                    )
+                }
+
                 else -> result.notImplemented()
             }
         }

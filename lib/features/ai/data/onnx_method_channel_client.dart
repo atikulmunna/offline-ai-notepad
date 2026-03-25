@@ -5,6 +5,7 @@ import '../domain/onnx_runtime_capability.dart';
 import '../domain/onnx_contract_inspection.dart';
 import '../domain/onnx_session_preparation.dart';
 import '../domain/onnx_summary_response.dart';
+import '../domain/onnx_tokenizer_inspection.dart';
 import '../domain/onnx_tokenization_preview.dart';
 
 class OnnxMethodChannelClient {
@@ -264,6 +265,39 @@ class OnnxMethodChannelClient {
             .map((item) => item as int)
             .toList(growable: false),
         sequenceLength: raw['sequenceLength'] as int? ?? 0,
+        message: raw['message'] as String?,
+      );
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    }
+  }
+
+  Future<OnnxTokenizerInspection?> inspectTokenizer({
+    required String tokenizerPath,
+  }) async {
+    if (kIsWeb) {
+      return null;
+    }
+
+    final channel = _channel ?? _defaultChannel;
+    try {
+      final raw = await channel.invokeMapMethod<String, dynamic>(
+        'inspectTokenizer',
+        {
+          'tokenizerPath': tokenizerPath,
+        },
+      );
+      if (raw == null) {
+        return null;
+      }
+      return OnnxTokenizerInspection(
+        available: raw['available'] as bool? ?? false,
+        vocabSize: raw['vocabSize'] as int? ?? 0,
+        modelType: raw['modelType'] as String?,
+        preTokenizerType: raw['preTokenizerType'] as String?,
+        normalizerType: raw['normalizerType'] as String?,
         message: raw['message'] as String?,
       );
     } on MissingPluginException {
