@@ -15,3 +15,9 @@ Thumbs.db
 .flutter-plugins-dependencies
 .packages
 build/
+
+# Local model assets / exports
+local_models/
+.venv-model-export/
+assets/models/flan-t5-small-summarizer-en-v1/*
+!assets/models/flan-t5-small-summarizer-en-v1/README.md

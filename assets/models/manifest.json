@@ -14,15 +14,15 @@
       "decoder_type": "seq2seq_logits",
       "supports_greedy_decode": true,
       "pad_token_id": 0,
-      "unk_token_id": 100,
-      "bos_token_id": 101,
-      "eos_token_id": 102,
+      "unk_token_id": 2,
+      "bos_token_id": 0,
+      "eos_token_id": 1,
       "asset_path": "assets/models/flan-t5-small-summarizer-en-v1/model.onnx",
       "tokenizer_asset_path": "assets/models/flan-t5-small-summarizer-en-v1/tokenizer.json",
-      "packaged": false,
+      "packaged": true,
       "optional_download": false,
       "max_input_chars": 4000,
-      "notes": "Planned Google FLAN-T5 Small ONNX summarization model slot."
+      "notes": "Google FLAN-T5 Small ONNX summarization slot. Local development assets are exported and staged separately to keep model binaries out of Git."
     },
     {
       "id": "embedding-en-v1",

@@ -63,6 +63,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/models/manifest.json
+    - assets/models/flan-t5-small-summarizer-en-v1/
   fonts:
     - family: Merriweather
       fonts:
