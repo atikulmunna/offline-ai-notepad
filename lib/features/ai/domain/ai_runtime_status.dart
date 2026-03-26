@@ -23,11 +23,14 @@ class AiRuntimeStatus {
     this.contractMessage,
     this.tokenizationMessage,
     this.tokenizerMessage,
+    this.runPreviewMessage,
     this.actualInputNames = const [],
     this.actualOutputNames = const [],
     this.previewInputIds = const [],
     this.previewAttentionMask = const [],
     this.previewTokenizerLoaded = false,
+    this.previewOutputNames = const [],
+    this.previewOutputShapes = const [],
     this.tokenizerVocabSize = 0,
     this.tokenizerModelType,
     this.tokenizerPreTokenizerType,
@@ -57,11 +60,14 @@ class AiRuntimeStatus {
   final String? contractMessage;
   final String? tokenizationMessage;
   final String? tokenizerMessage;
+  final String? runPreviewMessage;
   final List<String> actualInputNames;
   final List<String> actualOutputNames;
   final List<int> previewInputIds;
   final List<int> previewAttentionMask;
   final bool previewTokenizerLoaded;
+  final List<String> previewOutputNames;
+  final List<String> previewOutputShapes;
   final int tokenizerVocabSize;
   final String? tokenizerModelType;
   final String? tokenizerPreTokenizerType;

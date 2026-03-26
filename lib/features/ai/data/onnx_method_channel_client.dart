@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../domain/onnx_runtime_capability.dart';
 import '../domain/onnx_contract_inspection.dart';
+import '../domain/onnx_run_preview.dart';
 import '../domain/onnx_session_preparation.dart';
 import '../domain/onnx_summary_response.dart';
 import '../domain/onnx_tokenizer_inspection.dart';
@@ -301,6 +302,61 @@ class OnnxMethodChannelClient {
         modelType: raw['modelType'] as String?,
         preTokenizerType: raw['preTokenizerType'] as String?,
         normalizerType: raw['normalizerType'] as String?,
+        message: raw['message'] as String?,
+      );
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    }
+  }
+
+  Future<OnnxRunPreview?> previewRun({
+    required String modelPath,
+    String? tokenizerPath,
+    String? title,
+    required String body,
+    List<String> inputNames = const [],
+    List<String> outputNames = const [],
+    int? maxSequenceLength,
+    int? padTokenId,
+    int? unkTokenId,
+    int? bosTokenId,
+    int? eosTokenId,
+  }) async {
+    if (kIsWeb) {
+      return null;
+    }
+
+    final channel = _channel ?? _defaultChannel;
+    try {
+      final raw = await channel.invokeMapMethod<String, dynamic>(
+        'previewRun',
+        {
+          'modelPath': modelPath,
+          'tokenizerPath': tokenizerPath,
+          'title': title,
+          'body': body,
+          'inputNames': inputNames,
+          'outputNames': outputNames,
+          'maxSequenceLength': maxSequenceLength,
+          'padTokenId': padTokenId,
+          'unkTokenId': unkTokenId,
+          'bosTokenId': bosTokenId,
+          'eosTokenId': eosTokenId,
+        },
+      );
+      if (raw == null) {
+        return null;
+      }
+      return OnnxRunPreview(
+        ready: raw['ready'] as bool? ?? false,
+        outputNames: (raw['outputNames'] as List<dynamic>? ?? const [])
+            .map((item) => item as String)
+            .toList(growable: false),
+        outputShapes: (raw['outputShapes'] as List<dynamic>? ?? const [])
+            .map((item) => item as String)
+            .toList(growable: false),
         message: raw['message'] as String?,
       );
     } on MissingPluginException {

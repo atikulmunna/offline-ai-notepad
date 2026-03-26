@@ -3,6 +3,8 @@ package com.example.offline_ai_notepad
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtException
 import ai.onnxruntime.OrtSession
+import ai.onnxruntime.OnnxTensor
+import java.nio.LongBuffer
 import java.io.File
 import org.json.JSONObject
 
@@ -220,6 +222,118 @@ class OnnxSessionManager {
                 "Tokenizer preview generated through fallback token hashing."
             },
         )
+    }
+
+    fun previewRun(
+        modelPath: String,
+        tokenizerPath: String?,
+        title: String?,
+        body: String,
+        inputNames: List<String> = emptyList(),
+        outputNames: List<String> = emptyList(),
+        maxSequenceLength: Int? = null,
+        padTokenId: Int? = null,
+        unkTokenId: Int? = null,
+        bosTokenId: Int? = null,
+        eosTokenId: Int? = null,
+    ): Map<String, Any> {
+        val tokenization = previewTokenization(
+            modelPath = modelPath,
+            tokenizerPath = tokenizerPath,
+            title = title,
+            body = body,
+            maxSequenceLength = maxSequenceLength,
+            padTokenId = padTokenId,
+            unkTokenId = unkTokenId,
+            bosTokenId = bosTokenId,
+            eosTokenId = eosTokenId,
+        )
+
+        val ready = tokenization["ready"] as? Boolean ?: false
+        if (!ready || summarySession == null) {
+            return mapOf(
+                "ready" to false,
+                "outputNames" to emptyList<String>(),
+                "outputShapes" to emptyList<String>(),
+                "message" to "Unable to build tensors for ONNX run preview.",
+            )
+        }
+
+        val inputIds = (tokenization["inputIds"] as? List<*>)?.mapNotNull {
+            (it as? Number)?.toLong()
+        } ?: emptyList()
+        val attentionMask = (tokenization["attentionMask"] as? List<*>)?.mapNotNull {
+            (it as? Number)?.toLong()
+        } ?: emptyList()
+        if (inputIds.isEmpty() || attentionMask.isEmpty()) {
+            return mapOf(
+                "ready" to false,
+                "outputNames" to emptyList<String>(),
+                "outputShapes" to emptyList<String>(),
+                "message" to "Tokenization preview did not produce usable tensors.",
+            )
+        }
+
+        val env = environment ?: return mapOf(
+            "ready" to false,
+            "outputNames" to emptyList<String>(),
+            "outputShapes" to emptyList<String>(),
+            "message" to "ONNX environment is unavailable.",
+        )
+
+        return try {
+            val idsTensor = OnnxTensor.createTensor(
+                env,
+                LongBuffer.wrap(inputIds.toLongArray()),
+                longArrayOf(1, inputIds.size.toLong()),
+            )
+            val maskTensor = OnnxTensor.createTensor(
+                env,
+                LongBuffer.wrap(attentionMask.toLongArray()),
+                longArrayOf(1, attentionMask.size.toLong()),
+            )
+
+            idsTensor.use { ids ->
+                maskTensor.use { mask ->
+                    val feed = linkedMapOf<String, OnnxTensor>()
+                    val inputIdName = inputNames.getOrElse(0) { "input_ids" }
+                    val attentionMaskName = inputNames.getOrElse(1) { "attention_mask" }
+                    feed[inputIdName] = ids
+                    feed[attentionMaskName] = mask
+
+                    summarySession!!.run(feed).use { results ->
+                        val actualOutputNames = if (outputNames.isNotEmpty()) {
+                            outputNames
+                        } else {
+                            summarySession!!.outputInfo.keys.toList()
+                        }
+                        val outputShapes = results.mapIndexed { index, value ->
+                            val name = actualOutputNames.getOrElse(index) { "output_$index" }
+                            val shape = if (value is OnnxTensor) {
+                                value.info.shape.joinToString(prefix = "[", postfix = "]")
+                            } else {
+                                "[unknown]"
+                            }
+                            "$name=$shape"
+                        }
+
+                        mapOf(
+                            "ready" to true,
+                            "outputNames" to actualOutputNames,
+                            "outputShapes" to outputShapes,
+                            "message" to "ONNX run preview completed with raw output tensor metadata.",
+                        )
+                    }
+                }
+            }
+        } catch (error: Exception) {
+            mapOf(
+                "ready" to false,
+                "outputNames" to emptyList<String>(),
+                "outputShapes" to emptyList<String>(),
+                "message" to "ONNX run preview failed: ${error.message}",
+            )
+        }
     }
 
     fun inspectTokenizer(tokenizerPath: String): Map<String, Any> {

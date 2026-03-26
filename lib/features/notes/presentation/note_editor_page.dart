@@ -431,6 +431,11 @@ class _AiWorkspaceCard extends StatelessWidget {
     final tokenizerModelType = runtimeStatus?.tokenizerModelType;
     final tokenizerPreTokenizerType = runtimeStatus?.tokenizerPreTokenizerType;
     final tokenizerNormalizerType = runtimeStatus?.tokenizerNormalizerType;
+    final runPreviewMessage = runtimeStatus?.runPreviewMessage;
+    final previewOutputNames =
+        runtimeStatus?.previewOutputNames ?? const <String>[];
+    final previewOutputShapes =
+        runtimeStatus?.previewOutputShapes ?? const <String>[];
 
     return Container(
       padding: const EdgeInsets.all(22),
@@ -591,6 +596,7 @@ class _AiWorkspaceCard extends StatelessWidget {
                 if (contractMessage != null) 'Contract: $contractMessage',
                 if (tokenizationMessage != null) 'Tokenization: $tokenizationMessage',
                 if (tokenizerMessage != null) 'Tokenizer: $tokenizerMessage',
+                if (runPreviewMessage != null) 'Run preview: $runPreviewMessage',
                 if (actualInputNames.isNotEmpty)
                   'Actual inputs: ${actualInputNames.join(', ')}',
                 if (actualOutputNames.isNotEmpty)
@@ -606,6 +612,10 @@ class _AiWorkspaceCard extends StatelessWidget {
                   'Preview input_ids: ${previewInputIds.take(12).join(', ')}',
                 if (previewAttentionMask.isNotEmpty)
                   'Preview attention_mask: ${previewAttentionMask.take(12).join(', ')}',
+                if (previewOutputNames.isNotEmpty)
+                  'Preview outputs: ${previewOutputNames.join(', ')}',
+                if (previewOutputShapes.isNotEmpty)
+                  'Output shapes: ${previewOutputShapes.join(' | ')}',
               ].join('\n'),
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: const Color(0xFF4D5B68),

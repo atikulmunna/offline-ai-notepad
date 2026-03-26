@@ -19,6 +19,7 @@ import '../domain/note_ai_snapshot.dart';
 import '../domain/note_embedding_indexer.dart';
 import '../domain/note_summarizer.dart';
 import '../domain/onnx_contract_inspection.dart';
+import '../domain/onnx_run_preview.dart';
 import '../domain/onnx_runtime_capability.dart';
 import '../domain/onnx_session_preparation.dart';
 import '../domain/onnx_tokenizer_inspection.dart';
@@ -161,6 +162,29 @@ final onnxSummaryTokenizerInspectionProvider =
   );
 });
 
+final onnxSummaryRunPreviewProvider =
+    FutureProvider<OnnxRunPreview?>((ref) async {
+  final stage = await ref.watch(summaryModelStageProvider.future);
+  if (stage == null || !stage.isStaged || stage.stagedModelPath == null) {
+    return null;
+  }
+  final client = ref.watch(onnxMethodChannelClientProvider);
+  final contract = stage.installation.spec.onnxContract;
+  return client.previewRun(
+    modelPath: stage.stagedModelPath!,
+    tokenizerPath: stage.stagedTokenizerPath,
+    title: 'Preview',
+    body: 'Tokenizer preview for the staged summary model.',
+    inputNames: contract?.inputNames ?? const [],
+    outputNames: contract?.outputNames ?? const [],
+    maxSequenceLength: contract?.maxSequenceLength,
+    padTokenId: contract?.padTokenId,
+    unkTokenId: contract?.unkTokenId,
+    bosTokenId: contract?.bosTokenId,
+    eosTokenId: contract?.eosTokenId,
+  );
+});
+
 final aiRuntimeStatusProvider = FutureProvider<AiRuntimeStatus>((ref) async {
   final runtime = await ref.watch(aiRuntimeProvider.future);
   final capability = await ref.watch(onnxRuntimeCapabilityProvider.future);
@@ -175,6 +199,7 @@ final aiRuntimeStatusProvider = FutureProvider<AiRuntimeStatus>((ref) async {
       await ref.watch(onnxSummaryTokenizationPreviewProvider.future);
   final tokenizerInspection =
       await ref.watch(onnxSummaryTokenizerInspectionProvider.future);
+  final runPreview = await ref.watch(onnxSummaryRunPreviewProvider.future);
   final summaryModel = manifest.byTask(LocalModelTask.summarization);
   final embeddingModel = manifest.byTask(LocalModelTask.embedding);
   final packagedModels = manifest.packagedCount;
@@ -222,11 +247,14 @@ final aiRuntimeStatusProvider = FutureProvider<AiRuntimeStatus>((ref) async {
     contractMessage: contractInspection?.message,
     tokenizationMessage: tokenizationPreview?.message,
     tokenizerMessage: tokenizerInspection?.message,
+    runPreviewMessage: runPreview?.message,
     actualInputNames: contractInspection?.actualInputNames ?? const [],
     actualOutputNames: contractInspection?.actualOutputNames ?? const [],
     previewInputIds: tokenizationPreview?.inputIds ?? const [],
     previewAttentionMask: tokenizationPreview?.attentionMask ?? const [],
     previewTokenizerLoaded: tokenizationPreview?.tokenizerLoaded ?? false,
+    previewOutputNames: runPreview?.outputNames ?? const [],
+    previewOutputShapes: runPreview?.outputShapes ?? const [],
     tokenizerVocabSize: tokenizerInspection?.vocabSize ?? 0,
     tokenizerModelType: tokenizerInspection?.modelType,
     tokenizerPreTokenizerType: tokenizerInspection?.preTokenizerType,

@@ -199,6 +199,44 @@ class MainActivity : FlutterActivity() {
                     )
                 }
 
+                "previewRun" -> {
+                    val modelPath = call.argument<String>("modelPath")
+                    val tokenizerPath = call.argument<String>("tokenizerPath")
+                    val title = call.argument<String>("title")
+                    val body = call.argument<String>("body")
+                    val inputNames = call.argument<List<String>>("inputNames") ?: emptyList()
+                    val outputNames = call.argument<List<String>>("outputNames") ?: emptyList()
+                    val maxSequenceLength = call.argument<Int>("maxSequenceLength")
+                    val padTokenId = call.argument<Int>("padTokenId")
+                    val unkTokenId = call.argument<Int>("unkTokenId")
+                    val bosTokenId = call.argument<Int>("bosTokenId")
+                    val eosTokenId = call.argument<Int>("eosTokenId")
+                    if (modelPath.isNullOrBlank() || body.isNullOrBlank()) {
+                        result.error(
+                            "missing_arguments",
+                            "Model path and body are required for run preview.",
+                            null,
+                        )
+                        return@setMethodCallHandler
+                    }
+
+                    result.success(
+                        onnxSessionManager.previewRun(
+                            modelPath = modelPath,
+                            tokenizerPath = tokenizerPath,
+                            title = title,
+                            body = body,
+                            inputNames = inputNames,
+                            outputNames = outputNames,
+                            maxSequenceLength = maxSequenceLength,
+                            padTokenId = padTokenId,
+                            unkTokenId = unkTokenId,
+                            bosTokenId = bosTokenId,
+                            eosTokenId = eosTokenId,
+                        ),
+                    )
+                }
+
                 else -> result.notImplemented()
             }
         }
