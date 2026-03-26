@@ -69,11 +69,16 @@ class OnnxAiRuntime implements AiRuntime {
       final contract = summaryStage.installation.spec.onnxContract;
       final nativeSummary = await _methodChannelClient.generateSummary(
         modelPath: summaryStage.stagedModelPath!,
+        tokenizerPath: summaryStage.stagedTokenizerPath,
         title: title,
         body: body,
         inputNames: contract?.inputNames ?? const [],
         outputNames: contract?.outputNames ?? const [],
         maxSequenceLength: contract?.maxSequenceLength,
+        padTokenId: contract?.padTokenId,
+        unkTokenId: contract?.unkTokenId,
+        bosTokenId: contract?.bosTokenId,
+        eosTokenId: contract?.eosTokenId,
       );
       if (nativeSummary != null && nativeSummary.summary.trim().isNotEmpty) {
         summary = nativeSummary.summary.trim();

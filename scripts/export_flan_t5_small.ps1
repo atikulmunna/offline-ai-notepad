@@ -25,7 +25,8 @@ New-Item -ItemType Directory -Force -Path $AssetDir | Out-Null
     $ExportDir
 
 $copyMap = @{
-    "decoder_model_merged.onnx" = "model.onnx"
+    "decoder_model.onnx" = "model.onnx"
+    "encoder_model.onnx" = "encoder_model.onnx"
     "tokenizer.json" = "tokenizer.json"
     "config.json" = "config.json"
     "tokenizer_config.json" = "tokenizer_config.json"

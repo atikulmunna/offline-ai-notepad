@@ -2,6 +2,7 @@ Local-only FLAN-T5 Small ONNX assets live in this folder during development.
 
 Expected files after running `scripts/export_flan_t5_small.ps1`:
 - `model.onnx`
+- `encoder_model.onnx`
 - `tokenizer.json`
 - `config.json`
 - `tokenizer_config.json`

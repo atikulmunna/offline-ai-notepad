@@ -7,7 +7,7 @@
       "task": "summarization",
       "format": "onnx",
       "backend": "onnx-runtime",
-      "input_names": ["input_ids", "attention_mask"],
+      "input_names": ["encoder_attention_mask", "input_ids", "encoder_hidden_states"],
       "output_names": ["logits"],
       "max_sequence_length": 512,
       "tokenizer_type": "huggingface_json",

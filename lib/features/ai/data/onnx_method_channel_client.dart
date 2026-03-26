@@ -138,11 +138,16 @@ class OnnxMethodChannelClient {
 
   Future<OnnxSummaryResponse?> generateSummary({
     required String modelPath,
+    String? tokenizerPath,
     String? title,
     required String body,
     List<String> inputNames = const [],
     List<String> outputNames = const [],
     int? maxSequenceLength,
+    int? padTokenId,
+    int? unkTokenId,
+    int? bosTokenId,
+    int? eosTokenId,
   }) async {
     if (kIsWeb) {
       return null;
@@ -154,11 +159,16 @@ class OnnxMethodChannelClient {
         'generateSummary',
         {
           'modelPath': modelPath,
+          'tokenizerPath': tokenizerPath,
           'title': title,
           'body': body,
           'inputNames': inputNames,
           'outputNames': outputNames,
           'maxSequenceLength': maxSequenceLength,
+          'padTokenId': padTokenId,
+          'unkTokenId': unkTokenId,
+          'bosTokenId': bosTokenId,
+          'eosTokenId': eosTokenId,
         },
       );
       final summary = raw?['summary'] as String?;

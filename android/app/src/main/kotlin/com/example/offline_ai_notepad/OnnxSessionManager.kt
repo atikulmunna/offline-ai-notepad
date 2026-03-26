@@ -1,22 +1,27 @@
 package com.example.offline_ai_notepad
 
+import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtException
 import ai.onnxruntime.OrtSession
-import ai.onnxruntime.OnnxTensor
-import java.nio.LongBuffer
 import java.io.File
+import java.nio.FloatBuffer
+import java.nio.LongBuffer
+import kotlin.math.min
 import org.json.JSONObject
 
 class OnnxSessionManager {
     private var environment: OrtEnvironment? = null
-    private var summarySession: OrtSession? = null
-    private var summaryModelPath: String? = null
+    private var encoderSession: OrtSession? = null
+    private var decoderSession: OrtSession? = null
+    private var encoderModelPath: String? = null
+    private var decoderModelPath: String? = null
     private var summaryInputNames: List<String> = emptyList()
     private var summaryOutputNames: List<String> = emptyList()
     private var summaryMaxSequenceLength: Int? = null
     private var tokenizerPath: String? = null
-    private var tokenizerVocab: Map<String, Int> = emptyMap()
+    private var tokenToId: Map<String, Int> = emptyMap()
+    private var idToToken: Map<Int, String> = emptyMap()
 
     fun ensureSummarySession(
         modelPath: String,
@@ -24,14 +29,17 @@ class OnnxSessionManager {
         outputNames: List<String> = emptyList(),
         maxSequenceLength: Int? = null,
     ): Boolean {
-        val modelFile = File(modelPath)
-        if (!modelFile.exists()) {
+        val decoderFile = File(modelPath)
+        val encoderFile = File(decoderFile.parentFile, "encoder_model.onnx")
+        if (!decoderFile.exists() || !encoderFile.exists()) {
             return false
         }
 
         if (
-            summarySession != null &&
-            summaryModelPath == modelPath &&
+            decoderSession != null &&
+            encoderSession != null &&
+            decoderModelPath == decoderFile.absolutePath &&
+            encoderModelPath == encoderFile.absolutePath &&
             summaryInputNames == inputNames &&
             summaryOutputNames == outputNames &&
             summaryMaxSequenceLength == maxSequenceLength
@@ -46,11 +54,16 @@ class OnnxSessionManager {
         }
 
         return try {
-            summarySession = env.createSession(
-                modelFile.absolutePath,
+            encoderSession = env.createSession(
+                encoderFile.absolutePath,
                 OrtSession.SessionOptions(),
             )
-            summaryModelPath = modelFile.absolutePath
+            decoderSession = env.createSession(
+                decoderFile.absolutePath,
+                OrtSession.SessionOptions(),
+            )
+            encoderModelPath = encoderFile.absolutePath
+            decoderModelPath = decoderFile.absolutePath
             summaryInputNames = inputNames
             summaryOutputNames = outputNames
             summaryMaxSequenceLength = maxSequenceLength
@@ -61,41 +74,77 @@ class OnnxSessionManager {
         }
     }
 
-    fun generateSummaryPlaceholder(
+    fun generateSummary(
         title: String?,
         body: String,
         modelPath: String,
+        tokenizerPath: String?,
         inputNames: List<String> = emptyList(),
         outputNames: List<String> = emptyList(),
         maxSequenceLength: Int? = null,
+        padTokenId: Int? = null,
+        unkTokenId: Int? = null,
+        bosTokenId: Int? = null,
+        eosTokenId: Int? = null,
     ): String? {
         if (!ensureSummarySession(modelPath, inputNames, outputNames, maxSequenceLength)) {
             return null
         }
 
-        val normalized = body.replace(Regex("\\s+"), " ").trim()
-        if (normalized.isEmpty()) {
-            return "Native ONNX bridge is ready, but this note is still empty."
+        val effectivePadTokenId = padTokenId ?: 0
+        val effectiveUnkTokenId = unkTokenId ?: 2
+        val effectiveBosTokenId = bosTokenId ?: effectivePadTokenId
+        val effectiveEosTokenId = eosTokenId ?: 1
+        loadTokenizer(tokenizerPath)
+
+        val prompt = buildPrompt(title, body)
+        if (prompt.isBlank()) {
+            return "This note is still empty."
         }
 
-        val lead = if (title.isNullOrBlank()) {
-            "Native ONNX session active:"
-        } else {
-            "${title.trim()}:"
+        val encoderTokenIds = tokenizeInput(
+            text = prompt,
+            maxSequenceLength = maxSequenceLength ?: 256,
+            eosTokenId = effectiveEosTokenId,
+            unkTokenId = effectiveUnkTokenId,
+        )
+        if (encoderTokenIds.isEmpty()) {
+            return null
         }
-        val preview = normalized.take(180)
-        val ioHint = buildString {
-            if (inputNames.isNotEmpty()) {
-                append(" Inputs=${inputNames.joinToString(",")}.")
+
+        val attentionMask = LongArray(encoderTokenIds.size) { 1L }
+        val hiddenState = runEncoder(
+            inputIds = encoderTokenIds.map(Int::toLong).toLongArray(),
+            attentionMask = attentionMask,
+        ) ?: return null
+
+        val generatedIds = mutableListOf(effectiveBosTokenId)
+        val maxNewTokens = 64
+
+        repeat(maxNewTokens) {
+            val nextTokenId = runDecoderStep(
+                decoderIds = generatedIds.map(Int::toLong).toLongArray(),
+                attentionMask = attentionMask,
+                encoderHiddenState = hiddenState,
+            ) ?: return@repeat
+
+            if (nextTokenId == effectiveEosTokenId) {
+                return@repeat
             }
-            if (outputNames.isNotEmpty()) {
-                append(" Outputs=${outputNames.joinToString(",")}.")
-            }
-            if (maxSequenceLength != null) {
-                append(" MaxSeq=$maxSequenceLength.")
-            }
-        }.trim()
-        return listOf(lead, preview, ioHint).where { it.isNotBlank() }.joinToString(" ")
+            generatedIds.add(nextTokenId)
+        }
+
+        val decoded = decodeTokenIds(
+            tokenIds = generatedIds,
+            bosTokenId = effectiveBosTokenId,
+            eosTokenId = effectiveEosTokenId,
+            padTokenId = effectivePadTokenId,
+            unkTokenId = effectiveUnkTokenId,
+        )
+
+        return decoded.ifBlank {
+            fallbackSummary(title, body)
+        }
     }
 
     fun inspectSummaryContract(
@@ -110,7 +159,7 @@ class OnnxSessionManager {
             outputNames = expectedOutputNames,
             maxSequenceLength = maxSequenceLength,
         )
-        if (!ready || summarySession == null) {
+        if (!ready || decoderSession == null) {
             return mapOf(
                 "available" to false,
                 "matchesManifest" to false,
@@ -120,8 +169,8 @@ class OnnxSessionManager {
             )
         }
 
-        val actualInputNames = summarySession!!.inputInfo.keys.toList().sorted()
-        val actualOutputNames = summarySession!!.outputInfo.keys.toList().sorted()
+        val actualInputNames = decoderSession!!.inputInfo.keys.toList().sorted()
+        val actualOutputNames = decoderSession!!.outputInfo.keys.toList().sorted()
         val manifestInputs = expectedInputNames.sorted()
         val manifestOutputs = expectedOutputNames.sorted()
         val matchesManifest =
@@ -134,9 +183,9 @@ class OnnxSessionManager {
             "actualInputNames" to actualInputNames,
             "actualOutputNames" to actualOutputNames,
             "message" to if (matchesManifest) {
-                "Native ONNX session contract matches the manifest."
+                "Native ONNX decoder contract matches the manifest."
             } else {
-                "Native ONNX session contract differs from the manifest."
+                "Native ONNX decoder contract differs from the manifest."
             },
         )
     }
@@ -163,48 +212,20 @@ class OnnxSessionManager {
         }
 
         val tokenizerLoaded = loadTokenizer(tokenizerPath)
-        val effectiveMaxLength = (maxSequenceLength ?: 32).coerceAtLeast(4)
-        val content = listOfNotNull(title?.trim(), body.trim())
-            .joinToString(" ")
-            .replace(Regex("\\s+"), " ")
-            .trim()
+        val prompt = buildPrompt(title, body)
+        val effectiveMaxLength = (maxSequenceLength ?: 128).coerceAtLeast(8)
+        val inputIds = tokenizeInput(
+            text = prompt,
+            maxSequenceLength = effectiveMaxLength,
+            eosTokenId = eosTokenId ?: 1,
+            unkTokenId = unkTokenId ?: 2,
+        ).toMutableList()
 
-        val tokens = if (content.isBlank()) {
-            emptyList()
-        } else {
-            content.split(" ")
+        if (bosTokenId != null && inputIds.isEmpty()) {
+            inputIds.add(bosTokenId)
         }
 
-        val inputIds = mutableListOf<Int>()
-        val attentionMask = mutableListOf<Int>()
-
-        bosTokenId?.let {
-            inputIds.add(it)
-            attentionMask.add(1)
-        }
-
-        val budget = effectiveMaxLength - inputIds.size - if (eosTokenId != null) 1 else 0
-        for (token in tokens.take(budget.coerceAtLeast(0))) {
-            val normalized = token.trim()
-            val tokenId = if (normalized.isBlank()) {
-                unkTokenId ?: 100
-            } else {
-                resolveTokenId(
-                    token = normalized,
-                    unkTokenId = unkTokenId ?: 100,
-                )
-            }
-            inputIds.add(tokenId)
-            attentionMask.add(1)
-        }
-
-        eosTokenId?.let {
-            if (inputIds.size < effectiveMaxLength) {
-                inputIds.add(it)
-                attentionMask.add(1)
-            }
-        }
-
+        val attentionMask = MutableList(inputIds.size) { 1 }
         while (inputIds.size < effectiveMaxLength) {
             inputIds.add(padTokenId ?: 0)
             attentionMask.add(0)
@@ -250,7 +271,7 @@ class OnnxSessionManager {
         )
 
         val ready = tokenization["ready"] as? Boolean ?: false
-        if (!ready || summarySession == null) {
+        if (!ready || encoderSession == null || decoderSession == null) {
             return mapOf(
                 "ready" to false,
                 "outputNames" to emptyList<String>(),
@@ -274,62 +295,30 @@ class OnnxSessionManager {
             )
         }
 
-        val env = environment ?: return mapOf(
+        val hiddenState = runEncoder(
+            inputIds = inputIds.toLongArray(),
+            attentionMask = attentionMask.toLongArray(),
+        ) ?: return mapOf(
             "ready" to false,
             "outputNames" to emptyList<String>(),
             "outputShapes" to emptyList<String>(),
-            "message" to "ONNX environment is unavailable.",
+            "message" to "Encoder session could not produce hidden states.",
         )
 
         return try {
-            val idsTensor = OnnxTensor.createTensor(
-                env,
-                LongBuffer.wrap(inputIds.toLongArray()),
-                longArrayOf(1, inputIds.size.toLong()),
+            val decoderIds = longArrayOf(bosTokenId?.toLong() ?: 0L)
+            val (shapes, sample) = runDecoderPreview(
+                decoderIds = decoderIds,
+                attentionMask = attentionMask.toLongArray(),
+                encoderHiddenState = hiddenState,
             )
-            val maskTensor = OnnxTensor.createTensor(
-                env,
-                LongBuffer.wrap(attentionMask.toLongArray()),
-                longArrayOf(1, attentionMask.size.toLong()),
+            mapOf(
+                "ready" to true,
+                "outputNames" to if (outputNames.isNotEmpty()) outputNames else listOf("logits"),
+                "outputShapes" to shapes,
+                "outputValueSample" to sample,
+                "message" to "ONNX encoder-decoder run preview completed with raw output tensor metadata.",
             )
-
-            idsTensor.use { ids ->
-                maskTensor.use { mask ->
-                    val feed = linkedMapOf<String, OnnxTensor>()
-                    val inputIdName = inputNames.getOrElse(0) { "input_ids" }
-                    val attentionMaskName = inputNames.getOrElse(1) { "attention_mask" }
-                    feed[inputIdName] = ids
-                    feed[attentionMaskName] = mask
-
-                    summarySession!!.run(feed).use { results ->
-                        val actualOutputNames = if (outputNames.isNotEmpty()) {
-                            outputNames
-                        } else {
-                            summarySession!!.outputInfo.keys.toList()
-                        }
-                        val outputShapes = results.mapIndexed { index, value ->
-                            val name = actualOutputNames.getOrElse(index) { "output_$index" }
-                            val shape = if (value is OnnxTensor) {
-                                value.info.shape.joinToString(prefix = "[", postfix = "]")
-                            } else {
-                                "[unknown]"
-                            }
-                            "$name=$shape"
-                        }
-                        val outputValueSample = results.flatMap { value ->
-                            extractValueSample(value)
-                        }.take(12)
-
-                        mapOf(
-                            "ready" to true,
-                            "outputNames" to actualOutputNames,
-                            "outputShapes" to outputShapes,
-                            "outputValueSample" to outputValueSample,
-                            "message" to "ONNX run preview completed with raw output tensor metadata.",
-                        )
-                    }
-                }
-            }
         } catch (error: Exception) {
             mapOf(
                 "ready" to false,
@@ -338,6 +327,362 @@ class OnnxSessionManager {
                 "message" to "ONNX run preview failed: ${error.message}",
             )
         }
+    }
+
+    fun inspectTokenizer(tokenizerPath: String): Map<String, Any> {
+        val tokenizerFile = File(tokenizerPath)
+        if (!tokenizerFile.exists()) {
+            return mapOf(
+                "available" to false,
+                "vocabSize" to 0,
+                "message" to "Tokenizer file was not found on disk.",
+            )
+        }
+
+        return try {
+            val raw = tokenizerFile.readText()
+            val json = JSONObject(raw)
+            val model = json.optJSONObject("model")
+            val vocab = model?.optJSONArray("vocab")
+            val vocabSize = vocab?.length() ?: 0
+            val preTokenizer = json.optJSONObject("pre_tokenizer")
+            val normalizer = json.optJSONObject("normalizer")
+
+            mapOf(
+                "available" to true,
+                "vocabSize" to vocabSize,
+                "modelType" to (model?.optString("type") ?: ""),
+                "preTokenizerType" to (preTokenizer?.optString("type") ?: ""),
+                "normalizerType" to (normalizer?.optString("type") ?: ""),
+                "message" to "Tokenizer metadata loaded successfully.",
+            )
+        } catch (error: Exception) {
+            mapOf(
+                "available" to false,
+                "vocabSize" to 0,
+                "message" to "Tokenizer metadata could not be parsed: ${error.message}",
+            )
+        }
+    }
+
+    private fun buildPrompt(title: String?, body: String): String {
+        val normalizedBody = body.replace(Regex("\\s+"), " ").trim()
+        val normalizedTitle = title?.replace(Regex("\\s+"), " ")?.trim()
+        return buildString {
+            append("summarize: ")
+            if (!normalizedTitle.isNullOrBlank()) {
+                append(normalizedTitle)
+                append(". ")
+            }
+            append(normalizedBody)
+        }.trim()
+    }
+
+    private fun loadTokenizer(path: String?): Boolean {
+        if (path.isNullOrBlank()) {
+            tokenizerPath = null
+            tokenToId = emptyMap()
+            idToToken = emptyMap()
+            return false
+        }
+
+        if (tokenizerPath == path && tokenToId.isNotEmpty() && idToToken.isNotEmpty()) {
+            return true
+        }
+
+        val tokenizerFile = File(path)
+        if (!tokenizerFile.exists()) {
+            tokenizerPath = path
+            tokenToId = emptyMap()
+            idToToken = emptyMap()
+            return false
+        }
+
+        return try {
+            val raw = tokenizerFile.readText()
+            val json = JSONObject(raw)
+            val model = json.optJSONObject("model")
+            val vocab = model?.optJSONArray("vocab")
+            val parsedTokenToId = mutableMapOf<String, Int>()
+            val parsedIdToToken = mutableMapOf<Int, String>()
+            if (vocab != null) {
+                for (index in 0 until vocab.length()) {
+                    val entry = vocab.optJSONArray(index) ?: continue
+                    val token = entry.optString(0)
+                    parsedTokenToId[token] = index
+                    parsedIdToToken[index] = token
+                }
+            }
+            tokenizerPath = path
+            tokenToId = parsedTokenToId
+            idToToken = parsedIdToToken
+            parsedTokenToId.isNotEmpty()
+        } catch (_: Exception) {
+            tokenizerPath = path
+            tokenToId = emptyMap()
+            idToToken = emptyMap()
+            false
+        }
+    }
+
+    private fun tokenizeInput(
+        text: String,
+        maxSequenceLength: Int,
+        eosTokenId: Int,
+        unkTokenId: Int,
+    ): List<Int> {
+        val normalized = text.replace(Regex("\\s+"), " ").trim()
+        if (normalized.isBlank()) {
+            return emptyList()
+        }
+
+        val pieces = mutableListOf<Int>()
+        val words = normalized.split(" ")
+        for (word in words) {
+            if (pieces.size >= maxSequenceLength - 1) {
+                break
+            }
+            val tokenIds = tokenizeWord(word, unkTokenId)
+            val remainingBudget = maxSequenceLength - 1 - pieces.size
+            pieces.addAll(tokenIds.take(remainingBudget))
+        }
+
+        if (pieces.size < maxSequenceLength) {
+            pieces.add(eosTokenId)
+        }
+        return pieces
+    }
+
+    private fun tokenizeWord(word: String, unkTokenId: Int): List<Int> {
+        if (word.isBlank()) {
+            return emptyList()
+        }
+        if (tokenToId.isEmpty()) {
+            return listOf(resolveFallbackTokenId("▁$word", unkTokenId))
+        }
+
+        val encoded = mutableListOf<Int>()
+        var remaining = "▁$word"
+        while (remaining.isNotEmpty()) {
+            val match = findLongestTokenPrefix(remaining)
+            if (match == null) {
+                encoded.add(unkTokenId)
+                break
+            }
+            encoded.add(match.second)
+            remaining = remaining.substring(match.first.length)
+        }
+        return encoded.ifEmpty { listOf(unkTokenId) }
+    }
+
+    private fun findLongestTokenPrefix(source: String): Pair<String, Int>? {
+        for (end in source.length downTo 1) {
+            val candidate = source.substring(0, end)
+            val id = tokenToId[candidate]
+            if (id != null) {
+                return candidate to id
+            }
+        }
+        return null
+    }
+
+    private fun resolveFallbackTokenId(token: String, unkTokenId: Int): Int {
+        return ((token.lowercase().hashCode().toLong() and 0x7fffffff) % 30000).toInt() + unkTokenId
+    }
+
+    private fun runEncoder(
+        inputIds: LongArray,
+        attentionMask: LongArray,
+    ): EncoderHiddenState? {
+        val env = environment ?: return null
+        val currentEncoderSession = encoderSession ?: return null
+        return try {
+            val idsTensor = OnnxTensor.createTensor(
+                env,
+                LongBuffer.wrap(inputIds),
+                longArrayOf(1, inputIds.size.toLong()),
+            )
+            val maskTensor = OnnxTensor.createTensor(
+                env,
+                LongBuffer.wrap(attentionMask),
+                longArrayOf(1, attentionMask.size.toLong()),
+            )
+            idsTensor.use { ids ->
+                maskTensor.use { mask ->
+                    val feed = linkedMapOf<String, OnnxTensor>()
+                    feed["input_ids"] = ids
+                    feed["attention_mask"] = mask
+                    currentEncoderSession.run(feed).use { results ->
+                        val hidden = results[0] as? OnnxTensor ?: return null
+                        val shape = hidden.info.shape
+                        val flat = FloatArray(hidden.floatBuffer.remaining())
+                        hidden.floatBuffer.get(flat)
+                        EncoderHiddenState(
+                            values = flat,
+                            shape = shape,
+                        )
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun runDecoderStep(
+        decoderIds: LongArray,
+        attentionMask: LongArray,
+        encoderHiddenState: EncoderHiddenState,
+    ): Int? {
+        val env = environment ?: return null
+        val currentDecoderSession = decoderSession ?: return null
+        return try {
+            val decoderTensor = OnnxTensor.createTensor(
+                env,
+                LongBuffer.wrap(decoderIds),
+                longArrayOf(1, decoderIds.size.toLong()),
+            )
+            val maskTensor = OnnxTensor.createTensor(
+                env,
+                LongBuffer.wrap(attentionMask),
+                longArrayOf(1, attentionMask.size.toLong()),
+            )
+            val hiddenTensor = OnnxTensor.createTensor(
+                env,
+                FloatBuffer.wrap(encoderHiddenState.values),
+                encoderHiddenState.shape,
+            )
+
+            decoderTensor.use { decoderInput ->
+                maskTensor.use { encoderMask ->
+                    hiddenTensor.use { encoderHidden ->
+                        val feed = linkedMapOf<String, OnnxTensor>()
+                        feed["encoder_attention_mask"] = encoderMask
+                        feed["input_ids"] = decoderInput
+                        feed["encoder_hidden_states"] = encoderHidden
+                        currentDecoderSession.run(feed).use { results ->
+                            val logits = results[0] as? OnnxTensor ?: return null
+                            val shape = logits.info.shape
+                            val vocabSize = shape.lastOrNull()?.toInt() ?: return null
+                            val values = FloatArray(logits.floatBuffer.remaining())
+                            logits.floatBuffer.get(values)
+                            val offset = maxOf(0, values.size - vocabSize)
+                            argmax(values, offset, vocabSize)
+                        }
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun runDecoderPreview(
+        decoderIds: LongArray,
+        attentionMask: LongArray,
+        encoderHiddenState: EncoderHiddenState,
+    ): Pair<List<String>, List<String>> {
+        val env = environment ?: throw IllegalStateException("ONNX environment unavailable.")
+        val currentDecoderSession = decoderSession ?: throw IllegalStateException("Decoder session unavailable.")
+
+        val decoderTensor = OnnxTensor.createTensor(
+            env,
+            LongBuffer.wrap(decoderIds),
+            longArrayOf(1, decoderIds.size.toLong()),
+        )
+        val maskTensor = OnnxTensor.createTensor(
+            env,
+            LongBuffer.wrap(attentionMask),
+            longArrayOf(1, attentionMask.size.toLong()),
+        )
+        val hiddenTensor = OnnxTensor.createTensor(
+            env,
+            FloatBuffer.wrap(encoderHiddenState.values),
+            encoderHiddenState.shape,
+        )
+
+        decoderTensor.use { decoderInput ->
+            maskTensor.use { encoderMask ->
+                hiddenTensor.use { encoderHidden ->
+                    val feed = linkedMapOf<String, OnnxTensor>()
+                    feed["encoder_attention_mask"] = encoderMask
+                    feed["input_ids"] = decoderInput
+                    feed["encoder_hidden_states"] = encoderHidden
+                    currentDecoderSession.run(feed).use { results ->
+                        val shapes = results.mapIndexed { index, value ->
+                            val shape = if (value is OnnxTensor) {
+                                value.info.shape.joinToString(prefix = "[", postfix = "]")
+                            } else {
+                                "[unknown]"
+                            }
+                            val name = if (index == 0) "logits" else "output_$index"
+                            "$name=$shape"
+                        }
+                        val sample = results.flatMap { extractValueSample(it) }.take(12)
+                        return shapes to sample
+                    }
+                }
+            }
+        }
+    }
+
+    private fun decodeTokenIds(
+        tokenIds: List<Int>,
+        bosTokenId: Int,
+        eosTokenId: Int,
+        padTokenId: Int,
+        unkTokenId: Int,
+    ): String {
+        if (idToToken.isEmpty()) {
+            return ""
+        }
+
+        val builder = StringBuilder()
+        for (tokenId in tokenIds) {
+            if (tokenId == bosTokenId || tokenId == eosTokenId || tokenId == padTokenId) {
+                continue
+            }
+            if (tokenId == unkTokenId) {
+                continue
+            }
+            val token = idToToken[tokenId] ?: continue
+            if (token.startsWith("<extra_id_") || token.startsWith("<")) {
+                continue
+            }
+            builder.append(token)
+        }
+
+        return builder.toString()
+            .replace("▁", " ")
+            .replace(Regex("\\s+([,.!?;:])"), "$1")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+    }
+
+    private fun fallbackSummary(title: String?, body: String): String {
+        val normalized = body.replace(Regex("\\s+"), " ").trim()
+        if (normalized.isEmpty()) {
+            return "This note is still empty."
+        }
+        val lead = if (title.isNullOrBlank()) {
+            ""
+        } else {
+            "${title.trim()}: "
+        }
+        return "$lead${normalized.take(180)}".trim()
+    }
+
+    private fun argmax(values: FloatArray, offset: Int, size: Int): Int {
+        var bestIndex = 0
+        var bestValue = Float.NEGATIVE_INFINITY
+        for (index in 0 until min(size, values.size - offset)) {
+            val value = values[offset + index]
+            if (value > bestValue) {
+                bestValue = value
+                bestIndex = index
+            }
+        }
+        return bestIndex
     }
 
     private fun extractValueSample(value: Any?): List<String> {
@@ -362,104 +707,30 @@ class OnnxSessionManager {
         }
     }
 
-    fun inspectTokenizer(tokenizerPath: String): Map<String, Any> {
-        val tokenizerFile = File(tokenizerPath)
-        if (!tokenizerFile.exists()) {
-            return mapOf(
-                "available" to false,
-                "vocabSize" to 0,
-                "message" to "Tokenizer file was not found on disk.",
-            )
-        }
-
-        return try {
-            val raw = tokenizerFile.readText()
-            val json = JSONObject(raw)
-            val model = json.optJSONObject("model")
-            val vocab = model?.optJSONObject("vocab")
-            val vocabSize = vocab?.length() ?: 0
-            val preTokenizer = json.optJSONObject("pre_tokenizer")
-            val normalizer = json.optJSONObject("normalizer")
-
-            mapOf(
-                "available" to true,
-                "vocabSize" to vocabSize,
-                "modelType" to model?.optString("type"),
-                "preTokenizerType" to preTokenizer?.optString("type"),
-                "normalizerType" to normalizer?.optString("type"),
-                "message" to "Tokenizer metadata loaded successfully.",
-            )
-        } catch (error: Exception) {
-            mapOf(
-                "available" to false,
-                "vocabSize" to 0,
-                "message" to "Tokenizer metadata could not be parsed: ${error.message}",
-            )
-        }
-    }
-
-    private fun loadTokenizer(path: String?): Boolean {
-        if (path.isNullOrBlank()) {
-            tokenizerPath = null
-            tokenizerVocab = emptyMap()
-            return false
-        }
-
-        if (tokenizerPath == path && tokenizerVocab.isNotEmpty()) {
-            return true
-        }
-
-        val tokenizerFile = File(path)
-        if (!tokenizerFile.exists()) {
-            tokenizerPath = path
-            tokenizerVocab = emptyMap()
-            return false
-        }
-
-        return try {
-            val raw = tokenizerFile.readText()
-            val json = JSONObject(raw)
-            val model = json.optJSONObject("model")
-            val vocab = model?.optJSONObject("vocab")
-            val parsed = mutableMapOf<String, Int>()
-            if (vocab != null) {
-                val keys = vocab.keys()
-                while (keys.hasNext()) {
-                    val key = keys.next()
-                    parsed[key] = vocab.optInt(key)
-                }
-            }
-            tokenizerPath = path
-            tokenizerVocab = parsed
-            parsed.isNotEmpty()
-        } catch (_: Exception) {
-            tokenizerPath = path
-            tokenizerVocab = emptyMap()
-            false
-        }
-    }
-
-    private fun resolveTokenId(token: String, unkTokenId: Int): Int {
-        if (tokenizerVocab.isNotEmpty()) {
-            tokenizerVocab[token]?.let { return it }
-            tokenizerVocab[token.lowercase()]?.let { return it }
-            return unkTokenId
-        }
-        return ((token.lowercase().hashCode().toLong() and 0x7fffffff) % 30000).toInt() + 1000
-    }
-
     private fun closeSummarySession() {
         try {
-            summarySession?.close()
+            encoderSession?.close()
+        } catch (_: Exception) {
+        }
+        try {
+            decoderSession?.close()
         } catch (_: Exception) {
         } finally {
-            summarySession = null
-            summaryModelPath = null
+            encoderSession = null
+            decoderSession = null
+            encoderModelPath = null
+            decoderModelPath = null
             summaryInputNames = emptyList()
             summaryOutputNames = emptyList()
             summaryMaxSequenceLength = null
             tokenizerPath = null
-            tokenizerVocab = emptyMap()
+            tokenToId = emptyMap()
+            idToToken = emptyMap()
         }
     }
+
+    private data class EncoderHiddenState(
+        val values: FloatArray,
+        val shape: LongArray,
+    )
 }

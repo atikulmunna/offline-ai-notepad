@@ -46,12 +46,14 @@ class MainActivity : FlutterActivity() {
                     }
 
                     val modelFile = File(modelPath)
+                    val encoderFile = File(modelFile.parentFile, "encoder_model.onnx")
                     val tokenizerFile = tokenizerPath?.let { File(it) }
                     val nativeLinked = isOnnxRuntimeLinked()
                     val modelExists = modelFile.exists()
+                    val encoderExists = encoderFile.exists()
                     val tokenizerExists = tokenizerFile?.exists() ?: true
                     val sessionReady =
-                        nativeLinked && modelExists && tokenizerExists &&
+                        nativeLinked && modelExists && encoderExists && tokenizerExists &&
                             onnxSessionManager.ensureSummarySession(
                                 modelFile.absolutePath,
                                 inputNames,
@@ -63,8 +65,10 @@ class MainActivity : FlutterActivity() {
                         mapOf(
                             "nativeLibraryLinked" to nativeLinked,
                             "modelExists" to modelExists,
+                            "encoderExists" to encoderExists,
                             "tokenizerExists" to tokenizerExists,
                             "modelPath" to modelFile.absolutePath,
+                            "encoderModelPath" to encoderFile.absolutePath,
                             "tokenizerPath" to tokenizerFile?.absolutePath,
                             "platform" to "android-${Build.VERSION.SDK_INT}",
                             "inputNames" to inputNames,
@@ -74,9 +78,10 @@ class MainActivity : FlutterActivity() {
                             "message" to when {
                                 !nativeLinked -> "ONNX Runtime dependency is not available to the native bridge yet."
                                 !modelExists -> "Staged ONNX model file was not found on disk."
+                                !encoderExists -> "Paired encoder_model.onnx was not found beside the staged decoder model."
                                 !tokenizerExists -> "Tokenizer asset was expected but not found on disk."
                                 !sessionReady -> "ONNX Runtime is linked, but the summary session could not be opened."
-                                else -> "Native ONNX summary session opened successfully."
+                                else -> "Native ONNX encoder-decoder summary sessions opened successfully."
                             },
                         ),
                     )
@@ -84,11 +89,16 @@ class MainActivity : FlutterActivity() {
 
                 "generateSummary" -> {
                     val modelPath = call.argument<String>("modelPath")
+                    val tokenizerPath = call.argument<String>("tokenizerPath")
                     val title = call.argument<String>("title")
                     val body = call.argument<String>("body")
                     val inputNames = call.argument<List<String>>("inputNames") ?: emptyList()
                     val outputNames = call.argument<List<String>>("outputNames") ?: emptyList()
                     val maxSequenceLength = call.argument<Int>("maxSequenceLength")
+                    val padTokenId = call.argument<Int>("padTokenId")
+                    val unkTokenId = call.argument<Int>("unkTokenId")
+                    val bosTokenId = call.argument<Int>("bosTokenId")
+                    val eosTokenId = call.argument<Int>("eosTokenId")
                     if (modelPath.isNullOrBlank() || body.isNullOrBlank()) {
                         result.error(
                             "missing_arguments",
@@ -98,13 +108,18 @@ class MainActivity : FlutterActivity() {
                         return@setMethodCallHandler
                     }
 
-                    val summary = onnxSessionManager.generateSummaryPlaceholder(
+                    val summary = onnxSessionManager.generateSummary(
                         title = title,
                         body = body,
                         modelPath = modelPath,
+                        tokenizerPath = tokenizerPath,
                         inputNames = inputNames,
                         outputNames = outputNames,
                         maxSequenceLength = maxSequenceLength,
+                        padTokenId = padTokenId,
+                        unkTokenId = unkTokenId,
+                        bosTokenId = bosTokenId,
+                        eosTokenId = eosTokenId,
                     )
                     if (summary == null) {
                         result.error(
@@ -116,10 +131,10 @@ class MainActivity : FlutterActivity() {
                         result.success(
                             mapOf(
                                 "summary" to summary,
-                                "engine" to "android-onnx-placeholder",
+                                "engine" to "android-onnx-greedy",
                                 "usedInputNames" to inputNames,
                                 "usedOutputNames" to outputNames,
-                                "message" to "Summary generated through the native ONNX bridge placeholder path.",
+                                "message" to "Summary generated through the native ONNX encoder-decoder greedy path.",
                             ),
                         )
                     }
