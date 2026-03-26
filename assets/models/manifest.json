@@ -3,7 +3,7 @@
   "runtime_profile": "local-packaged-models",
   "models": [
     {
-      "id": "summarizer-en-v1",
+      "id": "flan-t5-small-summarizer-en-v1",
       "task": "summarization",
       "format": "onnx",
       "backend": "onnx-runtime",
@@ -17,12 +17,12 @@
       "unk_token_id": 100,
       "bos_token_id": 101,
       "eos_token_id": 102,
-      "asset_path": "assets/models/summarizer-en-v1/model.onnx",
-      "tokenizer_asset_path": "assets/models/summarizer-en-v1/tokenizer.json",
+      "asset_path": "assets/models/flan-t5-small-summarizer-en-v1/model.onnx",
+      "tokenizer_asset_path": "assets/models/flan-t5-small-summarizer-en-v1/tokenizer.json",
       "packaged": false,
       "optional_download": false,
       "max_input_chars": 4000,
-      "notes": "Planned packaged summarization model slot."
+      "notes": "Planned Google FLAN-T5 Small ONNX summarization model slot."
     },
     {
       "id": "embedding-en-v1",

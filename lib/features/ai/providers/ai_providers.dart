@@ -208,8 +208,8 @@ final onnxSummaryOutputInterpretationProvider =
     canAttemptDecode: canAttemptDecode,
     message: switch (decoderType) {
       'seq2seq_logits' => canAttemptDecode
-          ? 'Output preview is compatible with a greedy seq2seq decode path.'
-          : 'Seq2seq decode is configured but not ready to run yet.',
+          ? 'Output preview is compatible with a FLAN-T5-style greedy seq2seq decode path.'
+          : 'FLAN-T5-style seq2seq decode is configured but not ready to run yet.',
       'embedding_vector' =>
         'Output preview looks like an embedding path, not a text decoder path.',
       _ => 'Output decoder strategy is not configured yet.',

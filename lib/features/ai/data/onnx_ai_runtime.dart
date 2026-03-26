@@ -45,7 +45,7 @@ class OnnxAiRuntime implements AiRuntime {
     if (stagedIds.isNotEmpty) {
       return stagedIds;
     }
-    return 'onnx-planned-fallback-v1';
+    return 'flan-t5-small-onnx-planned';
   }
 
   @override
