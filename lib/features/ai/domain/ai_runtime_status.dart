@@ -31,6 +31,7 @@ class AiRuntimeStatus {
     this.previewTokenizerLoaded = false,
     this.previewOutputNames = const [],
     this.previewOutputShapes = const [],
+    this.previewOutputValueSample = const [],
     this.tokenizerVocabSize = 0,
     this.tokenizerModelType,
     this.tokenizerPreTokenizerType,
@@ -68,6 +69,7 @@ class AiRuntimeStatus {
   final bool previewTokenizerLoaded;
   final List<String> previewOutputNames;
   final List<String> previewOutputShapes;
+  final List<String> previewOutputValueSample;
   final int tokenizerVocabSize;
   final String? tokenizerModelType;
   final String? tokenizerPreTokenizerType;

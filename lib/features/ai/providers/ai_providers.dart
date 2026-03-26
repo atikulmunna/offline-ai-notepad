@@ -255,6 +255,7 @@ final aiRuntimeStatusProvider = FutureProvider<AiRuntimeStatus>((ref) async {
     previewTokenizerLoaded: tokenizationPreview?.tokenizerLoaded ?? false,
     previewOutputNames: runPreview?.outputNames ?? const [],
     previewOutputShapes: runPreview?.outputShapes ?? const [],
+    previewOutputValueSample: runPreview?.outputValueSample ?? const [],
     tokenizerVocabSize: tokenizerInspection?.vocabSize ?? 0,
     tokenizerModelType: tokenizerInspection?.modelType,
     tokenizerPreTokenizerType: tokenizerInspection?.preTokenizerType,

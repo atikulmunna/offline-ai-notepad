@@ -316,11 +316,15 @@ class OnnxSessionManager {
                             }
                             "$name=$shape"
                         }
+                        val outputValueSample = results.flatMap { value ->
+                            extractValueSample(value)
+                        }.take(12)
 
                         mapOf(
                             "ready" to true,
                             "outputNames" to actualOutputNames,
                             "outputShapes" to outputShapes,
+                            "outputValueSample" to outputValueSample,
                             "message" to "ONNX run preview completed with raw output tensor metadata.",
                         )
                     }
@@ -333,6 +337,28 @@ class OnnxSessionManager {
                 "outputShapes" to emptyList<String>(),
                 "message" to "ONNX run preview failed: ${error.message}",
             )
+        }
+    }
+
+    private fun extractValueSample(value: Any?): List<String> {
+        val tensor = value as? OnnxTensor ?: return emptyList()
+        return try {
+            flattenSample(tensor.value).take(12)
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun flattenSample(value: Any?): List<String> {
+        return when (value) {
+            null -> emptyList()
+            is FloatArray -> value.map { it.toString() }
+            is LongArray -> value.map { it.toString() }
+            is IntArray -> value.map { it.toString() }
+            is DoubleArray -> value.map { it.toString() }
+            is Array<*> -> value.flatMap { flattenSample(it) }
+            is Iterable<*> -> value.flatMap { flattenSample(it) }
+            else -> listOf(value.toString())
         }
     }
 

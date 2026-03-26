@@ -357,6 +357,9 @@ class OnnxMethodChannelClient {
         outputShapes: (raw['outputShapes'] as List<dynamic>? ?? const [])
             .map((item) => item as String)
             .toList(growable: false),
+        outputValueSample: (raw['outputValueSample'] as List<dynamic>? ?? const [])
+            .map((item) => item.toString())
+            .toList(growable: false),
         message: raw['message'] as String?,
       );
     } on MissingPluginException {

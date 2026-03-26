@@ -436,6 +436,8 @@ class _AiWorkspaceCard extends StatelessWidget {
         runtimeStatus?.previewOutputNames ?? const <String>[];
     final previewOutputShapes =
         runtimeStatus?.previewOutputShapes ?? const <String>[];
+    final previewOutputValueSample =
+        runtimeStatus?.previewOutputValueSample ?? const <String>[];
 
     return Container(
       padding: const EdgeInsets.all(22),
@@ -616,6 +618,8 @@ class _AiWorkspaceCard extends StatelessWidget {
                   'Preview outputs: ${previewOutputNames.join(', ')}',
                 if (previewOutputShapes.isNotEmpty)
                   'Output shapes: ${previewOutputShapes.join(' | ')}',
+                if (previewOutputValueSample.isNotEmpty)
+                  'Output sample: ${previewOutputValueSample.join(', ')}',
               ].join('\n'),
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: const Color(0xFF4D5B68),
