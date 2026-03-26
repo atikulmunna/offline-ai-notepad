@@ -27,6 +27,7 @@ class AiRuntimeStatus {
     this.actualOutputNames = const [],
     this.previewInputIds = const [],
     this.previewAttentionMask = const [],
+    this.previewTokenizerLoaded = false,
     this.tokenizerVocabSize = 0,
     this.tokenizerModelType,
     this.tokenizerPreTokenizerType,
@@ -60,6 +61,7 @@ class AiRuntimeStatus {
   final List<String> actualOutputNames;
   final List<int> previewInputIds;
   final List<int> previewAttentionMask;
+  final bool previewTokenizerLoaded;
   final int tokenizerVocabSize;
   final String? tokenizerModelType;
   final String? tokenizerPreTokenizerType;

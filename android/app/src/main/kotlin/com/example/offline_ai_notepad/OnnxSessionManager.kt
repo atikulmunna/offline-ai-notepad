@@ -13,6 +13,8 @@ class OnnxSessionManager {
     private var summaryInputNames: List<String> = emptyList()
     private var summaryOutputNames: List<String> = emptyList()
     private var summaryMaxSequenceLength: Int? = null
+    private var tokenizerPath: String? = null
+    private var tokenizerVocab: Map<String, Int> = emptyMap()
 
     fun ensureSummarySession(
         modelPath: String,
@@ -139,6 +141,7 @@ class OnnxSessionManager {
 
     fun previewTokenization(
         modelPath: String,
+        tokenizerPath: String?,
         title: String?,
         body: String,
         maxSequenceLength: Int? = null,
@@ -157,6 +160,7 @@ class OnnxSessionManager {
             )
         }
 
+        val tokenizerLoaded = loadTokenizer(tokenizerPath)
         val effectiveMaxLength = (maxSequenceLength ?: 32).coerceAtLeast(4)
         val content = listOfNotNull(title?.trim(), body.trim())
             .joinToString(" ")
@@ -183,7 +187,10 @@ class OnnxSessionManager {
             val tokenId = if (normalized.isBlank()) {
                 unkTokenId ?: 100
             } else {
-                ((normalized.lowercase().hashCode().toLong() and 0x7fffffff) % 30000).toInt() + 1000
+                resolveTokenId(
+                    token = normalized,
+                    unkTokenId = unkTokenId ?: 100,
+                )
             }
             inputIds.add(tokenId)
             attentionMask.add(1)
@@ -206,7 +213,12 @@ class OnnxSessionManager {
             "inputIds" to inputIds,
             "attentionMask" to attentionMask,
             "sequenceLength" to effectiveMaxLength,
-            "message" to "Tokenizer preview generated through the native ONNX placeholder path.",
+            "tokenizerLoaded" to tokenizerLoaded,
+            "message" to if (tokenizerLoaded) {
+                "Tokenizer preview generated with staged tokenizer vocab lookup."
+            } else {
+                "Tokenizer preview generated through fallback token hashing."
+            },
         )
     }
 
@@ -246,6 +258,56 @@ class OnnxSessionManager {
         }
     }
 
+    private fun loadTokenizer(path: String?): Boolean {
+        if (path.isNullOrBlank()) {
+            tokenizerPath = null
+            tokenizerVocab = emptyMap()
+            return false
+        }
+
+        if (tokenizerPath == path && tokenizerVocab.isNotEmpty()) {
+            return true
+        }
+
+        val tokenizerFile = File(path)
+        if (!tokenizerFile.exists()) {
+            tokenizerPath = path
+            tokenizerVocab = emptyMap()
+            return false
+        }
+
+        return try {
+            val raw = tokenizerFile.readText()
+            val json = JSONObject(raw)
+            val model = json.optJSONObject("model")
+            val vocab = model?.optJSONObject("vocab")
+            val parsed = mutableMapOf<String, Int>()
+            if (vocab != null) {
+                val keys = vocab.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    parsed[key] = vocab.optInt(key)
+                }
+            }
+            tokenizerPath = path
+            tokenizerVocab = parsed
+            parsed.isNotEmpty()
+        } catch (_: Exception) {
+            tokenizerPath = path
+            tokenizerVocab = emptyMap()
+            false
+        }
+    }
+
+    private fun resolveTokenId(token: String, unkTokenId: Int): Int {
+        if (tokenizerVocab.isNotEmpty()) {
+            tokenizerVocab[token]?.let { return it }
+            tokenizerVocab[token.lowercase()]?.let { return it }
+            return unkTokenId
+        }
+        return ((token.lowercase().hashCode().toLong() and 0x7fffffff) % 30000).toInt() + 1000
+    }
+
     private fun closeSummarySession() {
         try {
             summarySession?.close()
@@ -256,6 +318,8 @@ class OnnxSessionManager {
             summaryInputNames = emptyList()
             summaryOutputNames = emptyList()
             summaryMaxSequenceLength = null
+            tokenizerPath = null
+            tokenizerVocab = emptyMap()
         }
     }
 }

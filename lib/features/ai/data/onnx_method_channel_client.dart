@@ -227,6 +227,7 @@ class OnnxMethodChannelClient {
   Future<OnnxTokenizationPreview?> previewTokenization({
     required String modelPath,
     required String body,
+    String? tokenizerPath,
     String? title,
     int? maxSequenceLength,
     int? padTokenId,
@@ -244,6 +245,7 @@ class OnnxMethodChannelClient {
         'previewTokenization',
         {
           'modelPath': modelPath,
+          'tokenizerPath': tokenizerPath,
           'title': title,
           'body': body,
           'maxSequenceLength': maxSequenceLength,
@@ -258,6 +260,7 @@ class OnnxMethodChannelClient {
       }
       return OnnxTokenizationPreview(
         ready: raw['ready'] as bool? ?? false,
+        tokenizerLoaded: raw['tokenizerLoaded'] as bool? ?? false,
         inputIds: (raw['inputIds'] as List<dynamic>? ?? const [])
             .map((item) => item as int)
             .toList(growable: false),

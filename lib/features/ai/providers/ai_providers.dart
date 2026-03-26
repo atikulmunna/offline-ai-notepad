@@ -135,6 +135,7 @@ final onnxSummaryTokenizationPreviewProvider =
   final client = ref.watch(onnxMethodChannelClientProvider);
   return client.previewTokenization(
     modelPath: stage.stagedModelPath!,
+    tokenizerPath: stage.stagedTokenizerPath,
     title: 'Preview',
     body: 'Tokenizer preview for the staged summary model.',
     maxSequenceLength: stage.installation.spec.onnxContract?.maxSequenceLength,
@@ -225,6 +226,7 @@ final aiRuntimeStatusProvider = FutureProvider<AiRuntimeStatus>((ref) async {
     actualOutputNames: contractInspection?.actualOutputNames ?? const [],
     previewInputIds: tokenizationPreview?.inputIds ?? const [],
     previewAttentionMask: tokenizationPreview?.attentionMask ?? const [],
+    previewTokenizerLoaded: tokenizationPreview?.tokenizerLoaded ?? false,
     tokenizerVocabSize: tokenizerInspection?.vocabSize ?? 0,
     tokenizerModelType: tokenizerInspection?.modelType,
     tokenizerPreTokenizerType: tokenizerInspection?.preTokenizerType,

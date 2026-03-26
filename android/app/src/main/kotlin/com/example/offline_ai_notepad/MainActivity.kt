@@ -151,6 +151,7 @@ class MainActivity : FlutterActivity() {
 
                 "previewTokenization" -> {
                     val modelPath = call.argument<String>("modelPath")
+                    val tokenizerPath = call.argument<String>("tokenizerPath")
                     val title = call.argument<String>("title")
                     val body = call.argument<String>("body")
                     val maxSequenceLength = call.argument<Int>("maxSequenceLength")
@@ -170,6 +171,7 @@ class MainActivity : FlutterActivity() {
                     result.success(
                         onnxSessionManager.previewTokenization(
                             modelPath = modelPath,
+                            tokenizerPath = tokenizerPath,
                             title = title,
                             body = body,
                             maxSequenceLength = maxSequenceLength,

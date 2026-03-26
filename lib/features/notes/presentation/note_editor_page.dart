@@ -424,6 +424,8 @@ class _AiWorkspaceCard extends StatelessWidget {
     final previewInputIds = runtimeStatus?.previewInputIds ?? const <int>[];
     final previewAttentionMask =
         runtimeStatus?.previewAttentionMask ?? const <int>[];
+    final previewTokenizerLoaded =
+        runtimeStatus?.previewTokenizerLoaded ?? false;
     final tokenizerMessage = runtimeStatus?.tokenizerMessage;
     final tokenizerVocabSize = runtimeStatus?.tokenizerVocabSize ?? 0;
     final tokenizerModelType = runtimeStatus?.tokenizerModelType;
@@ -594,6 +596,7 @@ class _AiWorkspaceCard extends StatelessWidget {
                 if (actualOutputNames.isNotEmpty)
                   'Actual outputs: ${actualOutputNames.join(', ')}',
                 if (tokenizerVocabSize > 0) 'Tokenizer vocab size: $tokenizerVocabSize',
+                'Preview tokenizer loaded: $previewTokenizerLoaded',
                 if (tokenizerModelType != null) 'Tokenizer model: $tokenizerModelType',
                 if (tokenizerPreTokenizerType != null)
                   'Pre-tokenizer: $tokenizerPreTokenizerType',
