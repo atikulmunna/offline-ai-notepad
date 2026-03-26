@@ -19,6 +19,7 @@ import '../domain/note_ai_snapshot.dart';
 import '../domain/note_embedding_indexer.dart';
 import '../domain/note_summarizer.dart';
 import '../domain/onnx_contract_inspection.dart';
+import '../domain/onnx_output_interpretation.dart';
 import '../domain/onnx_run_preview.dart';
 import '../domain/onnx_runtime_capability.dart';
 import '../domain/onnx_session_preparation.dart';
@@ -185,6 +186,37 @@ final onnxSummaryRunPreviewProvider =
   );
 });
 
+final onnxSummaryOutputInterpretationProvider =
+    FutureProvider<OnnxOutputInterpretation?>((ref) async {
+  final stage = await ref.watch(summaryModelStageProvider.future);
+  final runPreview = await ref.watch(onnxSummaryRunPreviewProvider.future);
+  if (stage == null || runPreview == null) {
+    return null;
+  }
+
+  final decoderType =
+      stage.installation.spec.onnxContract?.decoderType ?? 'unknown';
+  final canAttemptDecode =
+      runPreview.ready &&
+      stage.installation.spec.onnxContract?.supportsGreedyDecode == true &&
+      decoderType == 'seq2seq_logits' &&
+      runPreview.outputShapes.isNotEmpty;
+
+  return OnnxOutputInterpretation(
+    available: runPreview.ready,
+    decoderType: decoderType,
+    canAttemptDecode: canAttemptDecode,
+    message: switch (decoderType) {
+      'seq2seq_logits' => canAttemptDecode
+          ? 'Output preview is compatible with a greedy seq2seq decode path.'
+          : 'Seq2seq decode is configured but not ready to run yet.',
+      'embedding_vector' =>
+        'Output preview looks like an embedding path, not a text decoder path.',
+      _ => 'Output decoder strategy is not configured yet.',
+    },
+  );
+});
+
 final aiRuntimeStatusProvider = FutureProvider<AiRuntimeStatus>((ref) async {
   final runtime = await ref.watch(aiRuntimeProvider.future);
   final capability = await ref.watch(onnxRuntimeCapabilityProvider.future);
@@ -200,6 +232,8 @@ final aiRuntimeStatusProvider = FutureProvider<AiRuntimeStatus>((ref) async {
   final tokenizerInspection =
       await ref.watch(onnxSummaryTokenizerInspectionProvider.future);
   final runPreview = await ref.watch(onnxSummaryRunPreviewProvider.future);
+  final outputInterpretation =
+      await ref.watch(onnxSummaryOutputInterpretationProvider.future);
   final summaryModel = manifest.byTask(LocalModelTask.summarization);
   final embeddingModel = manifest.byTask(LocalModelTask.embedding);
   final packagedModels = manifest.packagedCount;
@@ -248,6 +282,7 @@ final aiRuntimeStatusProvider = FutureProvider<AiRuntimeStatus>((ref) async {
     tokenizationMessage: tokenizationPreview?.message,
     tokenizerMessage: tokenizerInspection?.message,
     runPreviewMessage: runPreview?.message,
+    outputInterpretationMessage: outputInterpretation?.message,
     actualInputNames: contractInspection?.actualInputNames ?? const [],
     actualOutputNames: contractInspection?.actualOutputNames ?? const [],
     previewInputIds: tokenizationPreview?.inputIds ?? const [],
@@ -256,6 +291,8 @@ final aiRuntimeStatusProvider = FutureProvider<AiRuntimeStatus>((ref) async {
     previewOutputNames: runPreview?.outputNames ?? const [],
     previewOutputShapes: runPreview?.outputShapes ?? const [],
     previewOutputValueSample: runPreview?.outputValueSample ?? const [],
+    decoderType: outputInterpretation?.decoderType,
+    canAttemptDecode: outputInterpretation?.canAttemptDecode ?? false,
     tokenizerVocabSize: tokenizerInspection?.vocabSize ?? 0,
     tokenizerModelType: tokenizerInspection?.modelType,
     tokenizerPreTokenizerType: tokenizerInspection?.preTokenizerType,

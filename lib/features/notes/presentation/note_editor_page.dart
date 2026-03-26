@@ -438,6 +438,10 @@ class _AiWorkspaceCard extends StatelessWidget {
         runtimeStatus?.previewOutputShapes ?? const <String>[];
     final previewOutputValueSample =
         runtimeStatus?.previewOutputValueSample ?? const <String>[];
+    final outputInterpretationMessage =
+        runtimeStatus?.outputInterpretationMessage;
+    final decoderType = runtimeStatus?.decoderType;
+    final canAttemptDecode = runtimeStatus?.canAttemptDecode ?? false;
 
     return Container(
       padding: const EdgeInsets.all(22),
@@ -599,6 +603,8 @@ class _AiWorkspaceCard extends StatelessWidget {
                 if (tokenizationMessage != null) 'Tokenization: $tokenizationMessage',
                 if (tokenizerMessage != null) 'Tokenizer: $tokenizerMessage',
                 if (runPreviewMessage != null) 'Run preview: $runPreviewMessage',
+                if (outputInterpretationMessage != null)
+                  'Decode: $outputInterpretationMessage',
                 if (actualInputNames.isNotEmpty)
                   'Actual inputs: ${actualInputNames.join(', ')}',
                 if (actualOutputNames.isNotEmpty)
@@ -620,6 +626,8 @@ class _AiWorkspaceCard extends StatelessWidget {
                   'Output shapes: ${previewOutputShapes.join(' | ')}',
                 if (previewOutputValueSample.isNotEmpty)
                   'Output sample: ${previewOutputValueSample.join(', ')}',
+                if (decoderType != null) 'Decoder type: $decoderType',
+                'Can attempt decode: $canAttemptDecode',
               ].join('\n'),
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: const Color(0xFF4D5B68),

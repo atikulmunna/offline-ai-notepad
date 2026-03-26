@@ -4,6 +4,8 @@ class OnnxModelContract {
     required this.outputNames,
     required this.maxSequenceLength,
     this.tokenizerType,
+    this.decoderType,
+    this.supportsGreedyDecode = false,
     this.padTokenId,
     this.unkTokenId,
     this.bosTokenId,
@@ -14,6 +16,8 @@ class OnnxModelContract {
   final List<String> outputNames;
   final int maxSequenceLength;
   final String? tokenizerType;
+  final String? decoderType;
+  final bool supportsGreedyDecode;
   final int? padTokenId;
   final int? unkTokenId;
   final int? bosTokenId;
@@ -29,6 +33,8 @@ class OnnxModelContract {
           .toList(growable: false),
       maxSequenceLength: json['max_sequence_length'] as int? ?? 512,
       tokenizerType: json['tokenizer_type'] as String?,
+      decoderType: json['decoder_type'] as String?,
+      supportsGreedyDecode: json['supports_greedy_decode'] as bool? ?? false,
       padTokenId: json['pad_token_id'] as int?,
       unkTokenId: json['unk_token_id'] as int?,
       bosTokenId: json['bos_token_id'] as int?,
