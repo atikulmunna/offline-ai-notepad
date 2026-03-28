@@ -120,13 +120,18 @@ class OnnxSessionManager {
         ) ?: return null
 
         val generatedIds = mutableListOf(effectiveBosTokenId)
-        val maxNewTokens = 64
+        val minNewTokens = 12
+        val maxNewTokens = 72
 
         repeat(maxNewTokens) {
             val nextTokenId = runDecoderStep(
                 decoderIds = generatedIds.map(Int::toLong).toLongArray(),
                 attentionMask = attentionMask,
                 encoderHiddenState = hiddenState,
+                generatedIds = generatedIds,
+                eosTokenId = effectiveEosTokenId,
+                minGeneratedTokens = minNewTokens,
+                unkTokenId = effectiveUnkTokenId,
             ) ?: return@repeat
 
             if (nextTokenId == effectiveEosTokenId) {
@@ -586,6 +591,10 @@ class OnnxSessionManager {
         decoderIds: LongArray,
         attentionMask: LongArray,
         encoderHiddenState: EncoderHiddenState,
+        generatedIds: List<Int>,
+        eosTokenId: Int,
+        minGeneratedTokens: Int,
+        unkTokenId: Int,
     ): Int? {
         val env = environment ?: return null
         val currentDecoderSession = decoderSession ?: return null
@@ -620,7 +629,15 @@ class OnnxSessionManager {
                             val values = FloatArray(logits.floatBuffer.remaining())
                             logits.floatBuffer.get(values)
                             val offset = maxOf(0, values.size - vocabSize)
-                            argmax(values, offset, vocabSize)
+                            selectNextToken(
+                                values = values,
+                                offset = offset,
+                                vocabSize = vocabSize,
+                                generatedIds = generatedIds,
+                                eosTokenId = eosTokenId,
+                                minGeneratedTokens = minGeneratedTokens,
+                                unkTokenId = unkTokenId,
+                            )
                         }
                     }
                 }
@@ -736,6 +753,74 @@ class OnnxSessionManager {
             }
         }
         return bestIndex
+    }
+
+    private fun selectNextToken(
+        values: FloatArray,
+        offset: Int,
+        vocabSize: Int,
+        generatedIds: List<Int>,
+        eosTokenId: Int,
+        minGeneratedTokens: Int,
+        unkTokenId: Int,
+    ): Int {
+        val adjusted = FloatArray(vocabSize)
+        for (index in 0 until vocabSize) {
+            adjusted[index] = values[offset + index]
+        }
+
+        if (generatedIds.size <= minGeneratedTokens) {
+            adjusted[eosTokenId] = Float.NEGATIVE_INFINITY
+        }
+        adjusted[unkTokenId] = Float.NEGATIVE_INFINITY
+
+        val seenCounts = generatedIds.groupingBy { it }.eachCount()
+        for ((tokenId, count) in seenCounts) {
+            if (tokenId in 0 until vocabSize) {
+                adjusted[tokenId] -= 0.6f * count
+            }
+        }
+
+        val repeatPenaltyIds = recentRepeatCandidates(generatedIds)
+        for (tokenId in repeatPenaltyIds) {
+            if (tokenId in 0 until vocabSize) {
+                adjusted[tokenId] -= 2.5f
+            }
+        }
+
+        val blockedTokenId = blockedNGramToken(generatedIds, 3)
+        if (blockedTokenId != null && blockedTokenId in 0 until vocabSize) {
+            adjusted[blockedTokenId] = Float.NEGATIVE_INFINITY
+        }
+
+        return argmax(adjusted, 0, adjusted.size)
+    }
+
+    private fun recentRepeatCandidates(generatedIds: List<Int>): Set<Int> {
+        val blocked = mutableSetOf<Int>()
+        if (generatedIds.size >= 1) {
+            blocked.add(generatedIds.last())
+        }
+        if (generatedIds.size >= 2 && generatedIds.last() == generatedIds[generatedIds.lastIndex - 1]) {
+            blocked.add(generatedIds.last())
+        }
+        return blocked
+    }
+
+    private fun blockedNGramToken(generatedIds: List<Int>, ngramSize: Int): Int? {
+        if (ngramSize < 2 || generatedIds.size < ngramSize - 1) {
+            return null
+        }
+
+        val prefixLength = ngramSize - 1
+        val currentPrefix = generatedIds.takeLast(prefixLength)
+        for (index in 0..generatedIds.size - ngramSize) {
+            val window = generatedIds.subList(index, index + ngramSize)
+            if (window.take(prefixLength) == currentPrefix) {
+                return window.last()
+            }
+        }
+        return null
     }
 
     private fun extractValueSample(value: Any?): List<String> {
