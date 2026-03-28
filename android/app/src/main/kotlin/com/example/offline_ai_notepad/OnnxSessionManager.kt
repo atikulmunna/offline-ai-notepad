@@ -21,6 +21,7 @@ class OnnxSessionManager {
     private var summaryMaxSequenceLength: Int? = null
     private var tokenizerPath: String? = null
     private var tokenToId: Map<String, Int> = emptyMap()
+    private var tokenScores: Map<String, Double> = emptyMap()
     private var idToToken: Map<Int, String> = emptyMap()
 
     fun ensureSummarySession(
@@ -382,6 +383,7 @@ class OnnxSessionManager {
         if (path.isNullOrBlank()) {
             tokenizerPath = null
             tokenToId = emptyMap()
+            tokenScores = emptyMap()
             idToToken = emptyMap()
             return false
         }
@@ -394,6 +396,7 @@ class OnnxSessionManager {
         if (!tokenizerFile.exists()) {
             tokenizerPath = path
             tokenToId = emptyMap()
+            tokenScores = emptyMap()
             idToToken = emptyMap()
             return false
         }
@@ -404,22 +407,27 @@ class OnnxSessionManager {
             val model = json.optJSONObject("model")
             val vocab = model?.optJSONArray("vocab")
             val parsedTokenToId = mutableMapOf<String, Int>()
+            val parsedTokenScores = mutableMapOf<String, Double>()
             val parsedIdToToken = mutableMapOf<Int, String>()
             if (vocab != null) {
                 for (index in 0 until vocab.length()) {
                     val entry = vocab.optJSONArray(index) ?: continue
                     val token = entry.optString(0)
+                    val score = entry.optDouble(1, Double.NEGATIVE_INFINITY)
                     parsedTokenToId[token] = index
+                    parsedTokenScores[token] = score
                     parsedIdToToken[index] = token
                 }
             }
             tokenizerPath = path
             tokenToId = parsedTokenToId
+            tokenScores = parsedTokenScores
             idToToken = parsedIdToToken
             parsedTokenToId.isNotEmpty()
         } catch (_: Exception) {
             tokenizerPath = path
             tokenToId = emptyMap()
+            tokenScores = emptyMap()
             idToToken = emptyMap()
             false
         }
@@ -436,15 +444,21 @@ class OnnxSessionManager {
             return emptyList()
         }
 
-        val pieces = mutableListOf<Int>()
-        val words = normalized.split(" ")
-        for (word in words) {
-            if (pieces.size >= maxSequenceLength - 1) {
-                break
+        val metaspaceText = normalized
+            .split(" ")
+            .filter { it.isNotBlank() }
+            .joinToString(separator = "") { "▁$it" }
+
+        val pieces = if (tokenToId.isEmpty() || tokenScores.isEmpty()) {
+            metaspaceText.chunked(12).map { resolveFallbackTokenId(it, unkTokenId) }.toMutableList()
+        } else {
+            segmentUnigramText(metaspaceText, unkTokenId).toMutableList()
+        }
+
+        if (pieces.size > maxSequenceLength - 1) {
+            while (pieces.size > maxSequenceLength - 1) {
+                pieces.removeAt(pieces.lastIndex)
             }
-            val tokenIds = tokenizeWord(word, unkTokenId)
-            val remainingBudget = maxSequenceLength - 1 - pieces.size
-            pieces.addAll(tokenIds.take(remainingBudget))
         }
 
         if (pieces.size < maxSequenceLength) {
@@ -453,37 +467,76 @@ class OnnxSessionManager {
         return pieces
     }
 
-    private fun tokenizeWord(word: String, unkTokenId: Int): List<Int> {
-        if (word.isBlank()) {
+    private fun segmentUnigramText(source: String, unkTokenId: Int): List<Int> {
+        if (source.isBlank()) {
             return emptyList()
         }
-        if (tokenToId.isEmpty()) {
-            return listOf(resolveFallbackTokenId("▁$word", unkTokenId))
+
+        val bestScore = DoubleArray(source.length + 1) { Double.NEGATIVE_INFINITY }
+        val bestPrevious = IntArray(source.length + 1) { -1 }
+        val bestTokenId = IntArray(source.length + 1) { -1 }
+        bestScore[0] = 0.0
+
+        for (start in source.indices) {
+            if (bestScore[start] == Double.NEGATIVE_INFINITY) {
+                continue
+            }
+
+            for (end in start + 1..source.length) {
+                val candidate = source.substring(start, end)
+                val tokenId = tokenToId[candidate] ?: continue
+                val tokenScore = tokenScores[candidate] ?: continue
+                val nextScore = bestScore[start] + tokenScore
+                if (nextScore > bestScore[end]) {
+                    bestScore[end] = nextScore
+                    bestPrevious[end] = start
+                    bestTokenId[end] = tokenId
+                }
+            }
+        }
+
+        if (bestPrevious[source.length] == -1) {
+            return fallbackSegment(source, unkTokenId)
         }
 
         val encoded = mutableListOf<Int>()
-        var remaining = "▁$word"
-        while (remaining.isNotEmpty()) {
-            val match = findLongestTokenPrefix(remaining)
-            if (match == null) {
-                encoded.add(unkTokenId)
-                break
+        var index = source.length
+        while (index > 0) {
+            val tokenId = bestTokenId[index]
+            val previous = bestPrevious[index]
+            if (tokenId == -1 || previous == -1) {
+                return fallbackSegment(source, unkTokenId)
             }
-            encoded.add(match.second)
-            remaining = remaining.substring(match.first.length)
+            encoded.add(tokenId)
+            index = previous
         }
-        return encoded.ifEmpty { listOf(unkTokenId) }
+        encoded.reverse()
+        return encoded
     }
 
-    private fun findLongestTokenPrefix(source: String): Pair<String, Int>? {
-        for (end in source.length downTo 1) {
-            val candidate = source.substring(0, end)
-            val id = tokenToId[candidate]
-            if (id != null) {
-                return candidate to id
+    private fun fallbackSegment(source: String, unkTokenId: Int): List<Int> {
+        val encoded = mutableListOf<Int>()
+        var cursor = 0
+        while (cursor < source.length) {
+            var matched = false
+            for (end in source.length downTo cursor + 1) {
+                val candidate = source.substring(cursor, end)
+                val tokenId = tokenToId[candidate]
+                if (tokenId != null) {
+                    encoded.add(tokenId)
+                    cursor = end
+                    matched = true
+                    break
+                }
+            }
+
+            if (!matched) {
+                val nextChar = source[cursor].toString()
+                encoded.add(tokenToId[nextChar] ?: unkTokenId)
+                cursor += 1
             }
         }
-        return null
+        return encoded
     }
 
     private fun resolveFallbackTokenId(token: String, unkTokenId: Int): Int {
@@ -725,6 +778,7 @@ class OnnxSessionManager {
             summaryMaxSequenceLength = null
             tokenizerPath = null
             tokenToId = emptyMap()
+            tokenScores = emptyMap()
             idToToken = emptyMap()
         }
     }
