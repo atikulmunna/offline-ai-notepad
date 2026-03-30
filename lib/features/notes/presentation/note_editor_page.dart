@@ -497,10 +497,23 @@ class _AiWorkspaceCard extends StatelessWidget {
             style: theme.textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
-          Text(
-            effectiveSummary ??
-                'No summary yet. Generate one locally to test the AI workflow before we plug in the real on-device model runtime.',
-            style: theme.textTheme.bodyMedium,
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.78),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFFD8E6EE),
+              ),
+            ),
+            child: Text(
+              effectiveSummary ??
+                  'No summary yet. Generate one locally to test the AI workflow before we plug in the real on-device model runtime.',
+              style: theme.textTheme.bodyLarge?.copyWith(
+                height: 1.45,
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           Wrap(
@@ -594,47 +607,84 @@ class _AiWorkspaceCard extends StatelessWidget {
               embeddingModelId != null ||
               runtimeDirectory != null) ...[
             const SizedBox(height: 14),
-            Text(
-              [
-                if (runtimeProfile != null) 'Profile: $runtimeProfile',
-                if (summaryModelId != null) 'Summary model: $summaryModelId',
-                if (embeddingModelId != null) 'Embedding model: $embeddingModelId',
-                if (runtimeDirectory != null) 'Runtime dir: $runtimeDirectory',
-                if (capabilityMessage != null) 'Backend: $capabilityMessage',
-                if (sessionMessage != null) 'Session: $sessionMessage',
-                if (contractMessage != null) 'Contract: $contractMessage',
-                if (tokenizationMessage != null) 'Tokenization: $tokenizationMessage',
-                if (tokenizerMessage != null) 'Tokenizer: $tokenizerMessage',
-                if (runPreviewMessage != null) 'Run preview: $runPreviewMessage',
-                if (outputInterpretationMessage != null)
-                  'Decode: $outputInterpretationMessage',
-                if (actualInputNames.isNotEmpty)
-                  'Actual inputs: ${actualInputNames.join(', ')}',
-                if (actualOutputNames.isNotEmpty)
-                  'Actual outputs: ${actualOutputNames.join(', ')}',
-                if (tokenizerVocabSize > 0) 'Tokenizer vocab size: $tokenizerVocabSize',
-                'Preview tokenizer loaded: $previewTokenizerLoaded',
-                if (tokenizerModelType != null) 'Tokenizer model: $tokenizerModelType',
-                if (tokenizerPreTokenizerType != null)
-                  'Pre-tokenizer: $tokenizerPreTokenizerType',
-                if (tokenizerNormalizerType != null)
-                  'Normalizer: $tokenizerNormalizerType',
-                if (previewInputIds.isNotEmpty)
-                  'Preview input_ids: ${previewInputIds.take(12).join(', ')}',
-                if (previewAttentionMask.isNotEmpty)
-                  'Preview attention_mask: ${previewAttentionMask.take(12).join(', ')}',
-                if (previewOutputNames.isNotEmpty)
-                  'Preview outputs: ${previewOutputNames.join(', ')}',
-                if (previewOutputShapes.isNotEmpty)
-                  'Output shapes: ${previewOutputShapes.join(' | ')}',
-                if (previewOutputValueSample.isNotEmpty)
-                  'Output sample: ${previewOutputValueSample.join(', ')}',
-                if (decoderType != null) 'Decoder type: $decoderType',
-                'Can attempt decode: $canAttemptDecode',
-              ].join('\n'),
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: const Color(0xFF4D5B68),
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: EdgeInsets.zero,
+              shape: const Border(),
+              collapsedShape: const Border(),
+              title: Text(
+                'Runtime details',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: const Color(0xFF4D5B68),
+                ),
               ),
+              subtitle: Text(
+                'Expand for model, tokenizer, and ONNX session diagnostics.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF6B7785),
+                ),
+              ),
+              children: [
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.56),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: const Color(0xFFD8E6EE),
+                    ),
+                  ),
+                  child: Text(
+                    [
+                      if (runtimeProfile != null) 'Profile: $runtimeProfile',
+                      if (summaryModelId != null) 'Summary model: $summaryModelId',
+                      if (embeddingModelId != null)
+                        'Embedding model: $embeddingModelId',
+                      if (runtimeDirectory != null) 'Runtime dir: $runtimeDirectory',
+                      if (capabilityMessage != null) 'Backend: $capabilityMessage',
+                      if (sessionMessage != null) 'Session: $sessionMessage',
+                      if (contractMessage != null) 'Contract: $contractMessage',
+                      if (tokenizationMessage != null)
+                        'Tokenization: $tokenizationMessage',
+                      if (tokenizerMessage != null) 'Tokenizer: $tokenizerMessage',
+                      if (runPreviewMessage != null)
+                        'Run preview: $runPreviewMessage',
+                      if (outputInterpretationMessage != null)
+                        'Decode: $outputInterpretationMessage',
+                      if (actualInputNames.isNotEmpty)
+                        'Actual inputs: ${actualInputNames.join(', ')}',
+                      if (actualOutputNames.isNotEmpty)
+                        'Actual outputs: ${actualOutputNames.join(', ')}',
+                      if (tokenizerVocabSize > 0)
+                        'Tokenizer vocab size: $tokenizerVocabSize',
+                      'Preview tokenizer loaded: $previewTokenizerLoaded',
+                      if (tokenizerModelType != null)
+                        'Tokenizer model: $tokenizerModelType',
+                      if (tokenizerPreTokenizerType != null)
+                        'Pre-tokenizer: $tokenizerPreTokenizerType',
+                      if (tokenizerNormalizerType != null)
+                        'Normalizer: $tokenizerNormalizerType',
+                      if (previewInputIds.isNotEmpty)
+                        'Preview input_ids: ${previewInputIds.take(12).join(', ')}',
+                      if (previewAttentionMask.isNotEmpty)
+                        'Preview attention_mask: ${previewAttentionMask.take(12).join(', ')}',
+                      if (previewOutputNames.isNotEmpty)
+                        'Preview outputs: ${previewOutputNames.join(', ')}',
+                      if (previewOutputShapes.isNotEmpty)
+                        'Output shapes: ${previewOutputShapes.join(' | ')}',
+                      if (previewOutputValueSample.isNotEmpty)
+                        'Output sample: ${previewOutputValueSample.join(', ')}',
+                      if (decoderType != null) 'Decoder type: $decoderType',
+                      'Can attempt decode: $canAttemptDecode',
+                    ].join('\n'),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: const Color(0xFF4D5B68),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ],
