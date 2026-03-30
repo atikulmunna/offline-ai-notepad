@@ -18,13 +18,7 @@ import '../domain/local_model_task.dart';
 import '../domain/note_ai_snapshot.dart';
 import '../domain/note_embedding_indexer.dart';
 import '../domain/note_summarizer.dart';
-import '../domain/onnx_contract_inspection.dart';
-import '../domain/onnx_output_interpretation.dart';
-import '../domain/onnx_run_preview.dart';
 import '../domain/onnx_runtime_capability.dart';
-import '../domain/onnx_session_preparation.dart';
-import '../domain/onnx_tokenizer_inspection.dart';
-import '../domain/onnx_tokenization_preview.dart';
 
 final noteSummarizerProvider = Provider<NoteSummarizer>((ref) {
   return LocalNoteSummarizer();
@@ -87,185 +81,36 @@ final localModelStagesProvider = FutureProvider<List<LocalModelStage>>((ref) asy
   return stager.stageAll(installations);
 });
 
-final summaryModelStageProvider = FutureProvider<LocalModelStage?>((ref) async {
-  final stages = await ref.watch(localModelStagesProvider.future);
-  for (final stage in stages) {
-    if (stage.installation.spec.task == LocalModelTask.summarization) {
-      return stage;
-    }
-  }
-  return null;
-});
-
-final onnxSummarySessionPreparationProvider =
-    FutureProvider<OnnxSessionPreparation?>((ref) async {
-  final stage = await ref.watch(summaryModelStageProvider.future);
-  if (stage == null || !stage.isStaged || stage.stagedModelPath == null) {
-    return null;
-  }
-  final client = ref.watch(onnxMethodChannelClientProvider);
-  return client.prepareSession(
-    modelPath: stage.stagedModelPath!,
-    tokenizerPath: stage.stagedTokenizerPath,
-    inputNames: stage.installation.spec.onnxContract?.inputNames ?? const [],
-    outputNames: stage.installation.spec.onnxContract?.outputNames ?? const [],
-    maxSequenceLength: stage.installation.spec.onnxContract?.maxSequenceLength,
-  );
-});
-
-final onnxSummaryContractInspectionProvider =
-    FutureProvider<OnnxContractInspection?>((ref) async {
-  final stage = await ref.watch(summaryModelStageProvider.future);
-  if (stage == null || !stage.isStaged || stage.stagedModelPath == null) {
-    return null;
-  }
-  final client = ref.watch(onnxMethodChannelClientProvider);
-  return client.inspectContract(
-    modelPath: stage.stagedModelPath!,
-    inputNames: stage.installation.spec.onnxContract?.inputNames ?? const [],
-    outputNames: stage.installation.spec.onnxContract?.outputNames ?? const [],
-    maxSequenceLength: stage.installation.spec.onnxContract?.maxSequenceLength,
-  );
-});
-
-final onnxSummaryTokenizationPreviewProvider =
-    FutureProvider<OnnxTokenizationPreview?>((ref) async {
-  final stage = await ref.watch(summaryModelStageProvider.future);
-  if (stage == null || !stage.isStaged || stage.stagedModelPath == null) {
-    return null;
-  }
-  final client = ref.watch(onnxMethodChannelClientProvider);
-  return client.previewTokenization(
-    modelPath: stage.stagedModelPath!,
-    tokenizerPath: stage.stagedTokenizerPath,
-    title: 'Preview',
-    body: 'Tokenizer preview for the staged summary model.',
-    maxSequenceLength: stage.installation.spec.onnxContract?.maxSequenceLength,
-    padTokenId: stage.installation.spec.onnxContract?.padTokenId,
-    unkTokenId: stage.installation.spec.onnxContract?.unkTokenId,
-    bosTokenId: stage.installation.spec.onnxContract?.bosTokenId,
-    eosTokenId: stage.installation.spec.onnxContract?.eosTokenId,
-  );
-});
-
-final onnxSummaryTokenizerInspectionProvider =
-    FutureProvider<OnnxTokenizerInspection?>((ref) async {
-  final stage = await ref.watch(summaryModelStageProvider.future);
-  if (stage == null ||
-      !stage.isStaged ||
-      stage.stagedTokenizerPath == null ||
-      stage.stagedTokenizerPath!.isEmpty) {
-    return null;
-  }
-  final client = ref.watch(onnxMethodChannelClientProvider);
-  return client.inspectTokenizer(
-    tokenizerPath: stage.stagedTokenizerPath!,
-  );
-});
-
-final onnxSummaryRunPreviewProvider =
-    FutureProvider<OnnxRunPreview?>((ref) async {
-  final stage = await ref.watch(summaryModelStageProvider.future);
-  if (stage == null || !stage.isStaged || stage.stagedModelPath == null) {
-    return null;
-  }
-  final client = ref.watch(onnxMethodChannelClientProvider);
-  final contract = stage.installation.spec.onnxContract;
-  return client.previewRun(
-    modelPath: stage.stagedModelPath!,
-    tokenizerPath: stage.stagedTokenizerPath,
-    title: 'Preview',
-    body: 'Tokenizer preview for the staged summary model.',
-    inputNames: contract?.inputNames ?? const [],
-    outputNames: contract?.outputNames ?? const [],
-    maxSequenceLength: contract?.maxSequenceLength,
-    padTokenId: contract?.padTokenId,
-    unkTokenId: contract?.unkTokenId,
-    bosTokenId: contract?.bosTokenId,
-    eosTokenId: contract?.eosTokenId,
-  );
-});
-
-final onnxSummaryOutputInterpretationProvider =
-    FutureProvider<OnnxOutputInterpretation?>((ref) async {
-  final stage = await ref.watch(summaryModelStageProvider.future);
-  final runPreview = await ref.watch(onnxSummaryRunPreviewProvider.future);
-  if (stage == null || runPreview == null) {
-    return null;
-  }
-
-  final decoderType =
-      stage.installation.spec.onnxContract?.decoderType ?? 'unknown';
-  final canAttemptDecode =
-      runPreview.ready &&
-      stage.installation.spec.onnxContract?.supportsGreedyDecode == true &&
-      decoderType == 'seq2seq_logits' &&
-      runPreview.outputShapes.isNotEmpty;
-
-  return OnnxOutputInterpretation(
-    available: runPreview.ready,
-    decoderType: decoderType,
-    canAttemptDecode: canAttemptDecode,
-    message: switch (decoderType) {
-      'seq2seq_logits' => canAttemptDecode
-          ? 'Output preview is compatible with a FLAN-T5-style greedy seq2seq decode path.'
-          : 'FLAN-T5-style seq2seq decode is configured but not ready to run yet.',
-      'embedding_vector' =>
-        'Output preview looks like an embedding path, not a text decoder path.',
-      _ => 'Output decoder strategy is not configured yet.',
-    },
-  );
-});
-
 final aiRuntimeStatusProvider = FutureProvider<AiRuntimeStatus>((ref) async {
-  final runtime = await ref.watch(aiRuntimeProvider.future);
   final capability = await ref.watch(onnxRuntimeCapabilityProvider.future);
   final manifest = await ref.watch(localModelManifestProvider.future);
   final installations = await ref.watch(localModelInstallationsProvider.future);
-  final stages = await ref.watch(localModelStagesProvider.future);
-  final sessionPreparation =
-      await ref.watch(onnxSummarySessionPreparationProvider.future);
-  final contractInspection =
-      await ref.watch(onnxSummaryContractInspectionProvider.future);
-  final tokenizationPreview =
-      await ref.watch(onnxSummaryTokenizationPreviewProvider.future);
-  final tokenizerInspection =
-      await ref.watch(onnxSummaryTokenizerInspectionProvider.future);
-  final runPreview = await ref.watch(onnxSummaryRunPreviewProvider.future);
-  final outputInterpretation =
-      await ref.watch(onnxSummaryOutputInterpretationProvider.future);
   final summaryModel = manifest.byTask(LocalModelTask.summarization);
   final embeddingModel = manifest.byTask(LocalModelTask.embedding);
   final packagedModels = manifest.packagedCount;
   final installedModels = installations.where((item) => item.isInstalled).length;
-  final stagedModels = stages.where((item) => item.isStaged).length;
   final totalModels = manifest.models.length;
-  final packagedRuntimeReady =
-      summaryModel != null &&
-      embeddingModel != null &&
-      stages.any(
-        (item) => item.installation.spec.id == summaryModel.id && item.isStaged,
-      ) &&
-      stages.any(
-        (item) => item.installation.spec.id == embeddingModel.id && item.isStaged,
-      );
-  String? runtimeDirectory;
-  for (final stage in stages) {
-    if (stage.runtimeDirectory != null) {
-      runtimeDirectory = stage.runtimeDirectory;
-      break;
-    }
-  }
+  final stagedModels = 0;
+  final packagedRuntimeReady = false;
+  final runtimeLabel = capability.nativeLibraryLinked
+      ? 'ONNX runtime ready on demand'
+      : capability.bridgeAvailable
+      ? 'ONNX bridge registered'
+      : 'Fallback local runtime';
+  final modelVersion = [
+    if (summaryModel != null) summaryModel.id,
+    if (embeddingModel != null) embeddingModel.id,
+  ].join('+');
 
   return AiRuntimeStatus(
-    runtimeLabel: runtime.runtimeLabel,
-    modelVersion: runtime.modelVersion,
-    isLocalOnly: runtime.isLocalOnly,
+    runtimeLabel: runtimeLabel,
+    modelVersion: modelVersion.isEmpty ? 'local-ai-planned' : modelVersion,
+    isLocalOnly: true,
     isReady: true,
     packagedRuntimeReady: packagedRuntimeReady,
     nativeBackendLinked: capability.nativeLibraryLinked,
-    nativeSessionReady: sessionPreparation?.ready ?? false,
-    contractMatchesManifest: contractInspection?.matchesManifest ?? false,
+    nativeSessionReady: false,
+    contractMatchesManifest: false,
     summaryEnabled: summaryModel != null,
     embeddingEnabled: embeddingModel != null,
     runtimeProfile: manifest.runtimeProfile,
@@ -275,28 +120,33 @@ final aiRuntimeStatusProvider = FutureProvider<AiRuntimeStatus>((ref) async {
     totalModels: totalModels,
     summaryModelId: summaryModel?.id,
     embeddingModelId: embeddingModel?.id,
-    runtimeDirectory: runtimeDirectory,
+    runtimeDirectory: null,
     capabilityMessage: capability.message,
-    sessionMessage: sessionPreparation?.message,
-    contractMessage: contractInspection?.message,
-    tokenizationMessage: tokenizationPreview?.message,
-    tokenizerMessage: tokenizerInspection?.message,
-    runPreviewMessage: runPreview?.message,
-    outputInterpretationMessage: outputInterpretation?.message,
-    actualInputNames: contractInspection?.actualInputNames ?? const [],
-    actualOutputNames: contractInspection?.actualOutputNames ?? const [],
-    previewInputIds: tokenizationPreview?.inputIds ?? const [],
-    previewAttentionMask: tokenizationPreview?.attentionMask ?? const [],
-    previewTokenizerLoaded: tokenizationPreview?.tokenizerLoaded ?? false,
-    previewOutputNames: runPreview?.outputNames ?? const [],
-    previewOutputShapes: runPreview?.outputShapes ?? const [],
-    previewOutputValueSample: runPreview?.outputValueSample ?? const [],
-    decoderType: outputInterpretation?.decoderType,
-    canAttemptDecode: outputInterpretation?.canAttemptDecode ?? false,
-    tokenizerVocabSize: tokenizerInspection?.vocabSize ?? 0,
-    tokenizerModelType: tokenizerInspection?.modelType,
-    tokenizerPreTokenizerType: tokenizerInspection?.preTokenizerType,
-    tokenizerNormalizerType: tokenizerInspection?.normalizerType,
+    sessionMessage:
+        'Model staging and native session prep now run only when you tap Generate summary.',
+    contractMessage:
+        'Contract inspection is deferred until an explicit summary attempt.',
+    tokenizationMessage:
+        'Tokenizer preview is deferred until an explicit summary attempt.',
+    tokenizerMessage: 'Tokenizer inspection is deferred until summary generation.',
+    runPreviewMessage:
+        'ONNX run preview is deferred until an explicit summary attempt.',
+    outputInterpretationMessage:
+        'Decode path is configured but no heavy runtime work is performed on editor open.',
+    actualInputNames: const [],
+    actualOutputNames: const [],
+    previewInputIds: const [],
+    previewAttentionMask: const [],
+    previewTokenizerLoaded: false,
+    previewOutputNames: const [],
+    previewOutputShapes: const [],
+    previewOutputValueSample: const [],
+    decoderType: summaryModel?.onnxContract?.decoderType,
+    canAttemptDecode: false,
+    tokenizerVocabSize: 0,
+    tokenizerModelType: null,
+    tokenizerPreTokenizerType: null,
+    tokenizerNormalizerType: null,
   );
 });
 
