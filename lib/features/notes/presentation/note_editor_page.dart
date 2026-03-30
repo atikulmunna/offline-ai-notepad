@@ -256,7 +256,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
-                          isEditingExisting ? 'Autosave active' : 'Fresh note',
+                          isEditingExisting ? 'Editing' : 'Draft',
                           style: theme.textTheme.labelLarge?.copyWith(
                             color: theme.colorScheme.primary,
                           ),
@@ -266,7 +266,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 220),
                         child: Text(
-                          _isSaving ? 'Saving...' : 'Saved locally',
+                          _isSaving ? 'Saving...' : 'Saved',
                           key: ValueKey(_isSaving),
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: _isSaving
@@ -286,8 +286,8 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                   const SizedBox(height: 8),
                   Text(
                     isEditingExisting
-                        ? 'Autosave is active while you edit. This is our first pass at a persistent plain-text note workflow.'
-                        : 'A bright, distraction-light editor for fast capture. We will layer richer workflows on top of this foundation.',
+                        ? 'Changes save locally as you go.'
+                        : 'A clean space for quick capture.',
                     style: theme.textTheme.bodyMedium,
                   ),
                 ],
@@ -399,8 +399,7 @@ class _AiWorkspaceCard extends StatelessWidget {
     final nativeSessionReady = runtimeStatus?.nativeSessionReady ?? false;
     final contractMatchesManifest =
         runtimeStatus?.contractMatchesManifest ?? false;
-    final isLocalOnly = runtimeStatus?.isLocalOnly ?? true;
-    final runtimeLabel = runtimeStatus?.runtimeLabel ?? 'Loading runtime';
+    final runtimeLabel = runtimeStatus?.runtimeLabel ?? 'AI status';
     final packagedModels = runtimeStatus == null
         ? null
         : '${runtimeStatus.packagedModels}/${runtimeStatus.totalModels} planned';
@@ -476,7 +475,7 @@ class _AiWorkspaceCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  'Local AI preview',
+                  'AI Summary',
                   style: theme.textTheme.labelLarge?.copyWith(
                     color: theme.colorScheme.primary,
                   ),
@@ -509,7 +508,7 @@ class _AiWorkspaceCard extends StatelessWidget {
             ),
             child: Text(
               effectiveSummary ??
-                  'No summary yet. Generate one locally to test the AI workflow before we plug in the real on-device model runtime.',
+                  'No summary yet.',
               style: theme.textTheme.bodyLarge?.copyWith(
                 height: 1.45,
               ),
@@ -533,47 +532,42 @@ class _AiWorkspaceCard extends StatelessWidget {
               ),
               Chip(
                 avatar: const Icon(Icons.memory_rounded, size: 16),
-                label: Text(modelVersion ?? 'runtime pending'),
+                label: Text(modelVersion ?? 'AI'),
               ),
-              if (isLocalOnly)
-                const Chip(
-                  avatar: Icon(Icons.cloud_off_rounded, size: 16),
-                  label: Text('On-device only'),
-                ),
               if (!runtimeReady)
                 const Chip(
                   avatar: Icon(Icons.warning_amber_rounded, size: 16),
-                  label: Text('Runtime unavailable'),
+                  label: Text('Unavailable'),
                 ),
               if (packagedRuntimeReady)
                 const Chip(
                   avatar: Icon(Icons.check_circle_outline, size: 16),
-                  label: Text('Packaged models ready'),
+                  label: Text('Models ready'),
                 )
               else
                 const Chip(
                   avatar: Icon(Icons.pending_outlined, size: 16),
-                  label: Text('Packaged models pending'),
+                  label: Text('Models pending'),
                 ),
               if (nativeBackendLinked)
                 const Chip(
                   avatar: Icon(Icons.developer_mode_rounded, size: 16),
-                  label: Text('Native ONNX linked'),
+                  label: Text('ONNX linked'),
                 )
               else
                 const Chip(
                   avatar: Icon(Icons.developer_mode_outlined, size: 16),
-                  label: Text('Native ONNX pending'),
+                  label: Text('ONNX pending'),
                 ),
               if (nativeSessionReady)
                 const Chip(
                   avatar: Icon(Icons.play_circle_outline_rounded, size: 16),
-                  label: Text('Session load ready'),
+                  label: Text('Session ready'),
                 )
               else
                 const Chip(
                   avatar: Icon(Icons.pause_circle_outline_rounded, size: 16),
-                  label: Text('Session load pending'),
+                  label: Text('Session idle'),
                 ),
               if (contractMatchesManifest)
                 const Chip(
@@ -583,7 +577,7 @@ class _AiWorkspaceCard extends StatelessWidget {
               else
                 const Chip(
                   avatar: Icon(Icons.rule_folder_rounded, size: 16),
-                  label: Text('Contract unchecked'),
+                  label: Text('Contract idle'),
                 ),
               if (packagedModels != null)
                 Chip(
@@ -613,13 +607,13 @@ class _AiWorkspaceCard extends StatelessWidget {
               shape: const Border(),
               collapsedShape: const Border(),
               title: Text(
-                'Runtime details',
+                'AI details',
                 style: theme.textTheme.titleSmall?.copyWith(
                   color: const Color(0xFF4D5B68),
                 ),
               ),
               subtitle: Text(
-                'Expand for model, tokenizer, and ONNX session diagnostics.',
+                'Model and runtime info.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: const Color(0xFF6B7785),
                 ),

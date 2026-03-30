@@ -123,17 +123,16 @@ final aiRuntimeStatusProvider = FutureProvider<AiRuntimeStatus>((ref) async {
     runtimeDirectory: null,
     capabilityMessage: capability.message,
     sessionMessage:
-        'Preflight only: model staging and native session prep run when you tap Generate summary.',
+        'Runs when you generate a summary.',
     contractMessage:
-        'Preflight only: contract inspection is deferred until an explicit summary attempt.',
+        'Checked during generation.',
     tokenizationMessage:
-        'Preflight only: tokenizer preview is deferred until an explicit summary attempt.',
-    tokenizerMessage:
-        'Preflight only: tokenizer inspection is deferred until summary generation.',
+        'Prepared during generation.',
+    tokenizerMessage: 'Loaded during generation.',
     runPreviewMessage:
-        'Preflight only: ONNX run preview is deferred until an explicit summary attempt.',
+        'Available during generation.',
     outputInterpretationMessage:
-        'Decode path is configured, but this panel shows preflight state rather than the last generation attempt.',
+        'This panel shows setup state, not the last result.',
     actualInputNames: const [],
     actualOutputNames: const [],
     previewInputIds: const [],
