@@ -460,7 +460,11 @@ class _AiWorkspaceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 12,
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -478,7 +482,6 @@ class _AiWorkspaceCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const Spacer(),
               FilledButton.tonalIcon(
                 onPressed: isGeneratingSummary ? null : onGenerateSummary,
                 icon: const Icon(Icons.auto_awesome_rounded),
