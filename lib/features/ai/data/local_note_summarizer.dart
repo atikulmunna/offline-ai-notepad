@@ -90,7 +90,14 @@ class LocalNoteSummarizer implements NoteSummarizer {
       chosen.add(sentences.first);
     }
 
-    return chosen.join(' ').trim();
+    final opener = _compressSentence(chosen.first);
+    final followUp = chosen.length > 1 ? _compressSentence(chosen[1]) : null;
+
+    if (followUp == null || _isTooSimilar(opener, followUp)) {
+      return opener;
+    }
+
+    return '$opener $followUp'.trim();
   }
 
   String _normalize(String input) {
@@ -147,5 +154,28 @@ class LocalNoteSummarizer implements NoteSummarizer {
         ? leftTerms.length
         : rightTerms.length;
     return smaller > 0 && overlap / smaller >= 0.8;
+  }
+
+  String _compressSentence(String sentence) {
+    final cleaned = sentence.trim();
+    if (cleaned.length <= 160) {
+      return cleaned;
+    }
+
+    final parts = cleaned.split(RegExp(r'(?<=[,;:])\s+'));
+    final buffer = StringBuffer();
+    for (final part in parts) {
+      final candidate = buffer.isEmpty ? part : '${buffer.toString()} $part';
+      if (candidate.length > 160) {
+        break;
+      }
+      if (buffer.isNotEmpty) {
+        buffer.write(' ');
+      }
+      buffer.write(part);
+    }
+
+    final compressed = buffer.isEmpty ? cleaned.substring(0, 160) : buffer.toString();
+    return compressed.replaceAll(RegExp(r'[,;:]\s*$'), '.').trim();
   }
 }

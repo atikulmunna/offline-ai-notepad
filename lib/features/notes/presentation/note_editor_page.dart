@@ -459,24 +459,12 @@ class _AiWorkspaceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 12,
-            runSpacing: 12,
+          Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(999),
-                ),
+              Expanded(
                 child: Text(
                   'AI Summary',
-                  style: theme.textTheme.labelLarge?.copyWith(
+                  style: theme.textTheme.titleLarge?.copyWith(
                     color: theme.colorScheme.primary,
                   ),
                 ),
@@ -485,17 +473,19 @@ class _AiWorkspaceCard extends StatelessWidget {
                 onPressed: isGeneratingSummary ? null : onGenerateSummary,
                 icon: const Icon(Icons.auto_awesome_rounded),
                 label: Text(
-                  isGeneratingSummary ? 'Generating...' : 'Generate summary',
+                  isGeneratingSummary ? 'Generating...' : 'Refresh',
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 18),
-          Text(
-            'Summary',
-            style: theme.textTheme.titleMedium,
-          ),
           const SizedBox(height: 8),
+          Text(
+            'A short local recap of the current note.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: const Color(0xFF5F6E79),
+            ),
+          ),
+          const SizedBox(height: 14),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
