@@ -12,12 +12,14 @@ What the script does:
 
 1. Creates a local export output under `local_models/flan_t5_small/onnx`
 2. Exports `google/flan-t5-small` to ONNX with `optimum-cli`
-3. Copies the decoder export to `assets/models/flan-t5-small-summarizer-en-v1/model.onnx`
-4. Copies the paired `encoder_model.onnx` beside it
-5. Copies tokenizer/config files needed for local runtime inspection
+3. Quantizes the decoder and encoder ONNX weights to dynamic int8
+4. Copies the quantized decoder export to `assets/models/flan-t5-small-summarizer-en-v1/model.onnx`
+5. Copies the quantized `encoder_model.onnx` beside it
+6. Copies tokenizer/config files needed for local runtime inspection
 
 Notes:
 
 - The exported model files under `local_models/` and `assets/models/flan-t5-small-summarizer-en-v1/` are git-ignored.
 - The repo currently expects the summarizer decoder asset at `assets/models/flan-t5-small-summarizer-en-v1/model.onnx` and the paired encoder at `assets/models/flan-t5-small-summarizer-en-v1/encoder_model.onnx`.
+- The current local test path uses quantized ONNX files because the float32 exports are too heavy for stable Android emulator testing.
 - After staging assets, run `flutter pub get` and rebuild the app so Flutter bundles the local model assets.

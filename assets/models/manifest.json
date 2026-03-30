@@ -9,7 +9,7 @@
       "backend": "onnx-runtime",
       "input_names": ["encoder_attention_mask", "input_ids", "encoder_hidden_states"],
       "output_names": ["logits"],
-      "max_sequence_length": 512,
+      "max_sequence_length": 256,
       "tokenizer_type": "huggingface_json",
       "decoder_type": "seq2seq_logits",
       "supports_greedy_decode": true,
@@ -21,7 +21,7 @@
       "tokenizer_asset_path": "assets/models/flan-t5-small-summarizer-en-v1/tokenizer.json",
       "packaged": true,
       "optional_download": false,
-      "max_input_chars": 4000,
+      "max_input_chars": 2000,
       "notes": "Google FLAN-T5 Small ONNX summarization slot. Local development assets are exported and staged separately to keep model binaries out of Git."
     },
     {
