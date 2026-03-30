@@ -47,7 +47,7 @@ class LocalNoteSummarizer implements NoteSummarizer {
         .toList(growable: false);
 
     if (sentences.isEmpty) {
-      return _truncate(normalized, 160);
+      return normalized;
     }
 
     final titleTerms = _keywords(cleanedTitle);
@@ -90,7 +90,7 @@ class LocalNoteSummarizer implements NoteSummarizer {
       chosen.add(sentences.first);
     }
 
-    return _truncate(chosen.join(' '), 220);
+    return chosen.join(' ').trim();
   }
 
   String _normalize(String input) {
@@ -147,12 +147,5 @@ class LocalNoteSummarizer implements NoteSummarizer {
         ? leftTerms.length
         : rightTerms.length;
     return smaller > 0 && overlap / smaller >= 0.8;
-  }
-
-  String _truncate(String input, int maxLength) {
-    if (input.length <= maxLength) {
-      return input;
-    }
-    return '${input.substring(0, maxLength).trimRight()}...';
   }
 }

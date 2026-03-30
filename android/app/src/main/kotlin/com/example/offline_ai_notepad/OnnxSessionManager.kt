@@ -734,12 +734,38 @@ class OnnxSessionManager {
         if (normalized.isEmpty()) {
             return "This note is still empty."
         }
-        val lead = if (title.isNullOrBlank()) {
-            ""
-        } else {
-            "${title.trim()}: "
+        val sentences = normalized
+            .split(Regex("(?<=[.!?])\\s+"))
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+        if (sentences.isEmpty()) {
+            return normalized
         }
-        return "$lead${normalized.take(180)}".trim()
+
+        val chosen = mutableListOf<String>()
+        for (sentence in sentences) {
+            if (title != null && title.trim().isNotEmpty()) {
+                val titleTerms = title.lowercase().split(Regex("[^a-z0-9]+")).filter { it.length > 2 }.toSet()
+                val sentenceTerms = sentence.lowercase().split(Regex("[^a-z0-9]+")).filter { it.length > 2 }.toSet()
+                if (titleTerms.isNotEmpty() && sentenceTerms.isNotEmpty()) {
+                    val overlap = titleTerms.intersect(sentenceTerms).size
+                    if (overlap > 0 && overlap == sentenceTerms.size) {
+                        continue
+                    }
+                }
+            }
+
+            chosen.add(sentence)
+            if (chosen.size == 2) {
+                break
+            }
+        }
+
+        return if (chosen.isNotEmpty()) {
+            chosen.joinToString(" ")
+        } else {
+            sentences.first()
+        }
     }
 
     private fun argmax(values: FloatArray, offset: Int, size: Int): Int {
