@@ -83,6 +83,11 @@ class LocalModelAssetStager {
           targetDirectory: modelDir,
         );
       }
+      await _copyCompanionAssets(
+        bundle: bundle,
+        installation: installation,
+        targetDirectory: modelDir,
+      );
 
       return LocalModelStage(
         installation: installation,
@@ -96,6 +101,39 @@ class LocalModelAssetStager {
         runtimeDirectory: modelDir,
         errorMessage: '$error',
       );
+    }
+  }
+
+  Future<void> _copyCompanionAssets({
+    required AssetBundle bundle,
+    required LocalModelInstallation installation,
+    required String targetDirectory,
+  }) async {
+    final modelAssetDirectory = p.dirname(installation.spec.assetPath);
+    final companionAssetPaths = <String>{
+      p.join(modelAssetDirectory, 'encoder_model.onnx'),
+      p.join(modelAssetDirectory, 'config.json'),
+      p.join(modelAssetDirectory, 'tokenizer_config.json'),
+      p.join(modelAssetDirectory, 'generation_config.json'),
+      p.join(modelAssetDirectory, 'special_tokens_map.json'),
+      p.join(modelAssetDirectory, 'spiece.model'),
+    };
+
+    companionAssetPaths.remove(installation.spec.assetPath);
+    if (installation.spec.tokenizerAssetPath != null) {
+      companionAssetPaths.remove(installation.spec.tokenizerAssetPath);
+    }
+
+    for (final assetPath in companionAssetPaths) {
+      try {
+        await _copyAsset(
+          bundle: bundle,
+          assetPath: assetPath,
+          targetDirectory: targetDirectory,
+        );
+      } catch (_) {
+        // Some model folders may not provide every companion file.
+      }
     }
   }
 
