@@ -57,10 +57,11 @@ class OnnxAiRuntime implements AiRuntime {
     String? title,
     required String body,
   }) async {
-    var summary = await _fallbackSummarizer.summarize(
+    final fallbackSummary = await _fallbackSummarizer.summarize(
       title: title,
       body: body,
     );
+    var summary = fallbackSummary;
     final summaryStage = _summaryStage();
     if (_capability.isUsable &&
         summaryStage != null &&
@@ -80,8 +81,14 @@ class OnnxAiRuntime implements AiRuntime {
         bosTokenId: contract?.bosTokenId,
         eosTokenId: contract?.eosTokenId,
       );
-      if (nativeSummary != null && nativeSummary.summary.trim().isNotEmpty) {
-        summary = nativeSummary.summary.trim();
+      final candidateSummary = nativeSummary?.summary.trim();
+      if (_looksUsefulSummary(
+        candidateSummary,
+        title: title,
+        body: body,
+        fallbackSummary: fallbackSummary,
+      )) {
+        summary = candidateSummary!;
       }
     }
 
@@ -104,5 +111,52 @@ class OnnxAiRuntime implements AiRuntime {
       }
     }
     return null;
+  }
+
+  bool _looksUsefulSummary(
+    String? candidate,
+    {
+    String? title,
+    required String body,
+    required String fallbackSummary,
+  }) {
+    if (candidate == null || candidate.isEmpty) {
+      return false;
+    }
+
+    final normalizedCandidate = _normalize(candidate);
+    if (normalizedCandidate.length < 24) {
+      return false;
+    }
+
+    final normalizedFallback = _normalize(fallbackSummary);
+    if (normalizedCandidate == normalizedFallback) {
+      return false;
+    }
+
+    final normalizedTitle = _normalize(title ?? '');
+    if (normalizedTitle.isNotEmpty &&
+        (normalizedCandidate == normalizedTitle ||
+            normalizedCandidate.startsWith('$normalizedTitle:'))) {
+      return false;
+    }
+
+    final normalizedBody = _normalize(body);
+    if (normalizedBody.isNotEmpty &&
+        normalizedBody.startsWith(normalizedCandidate) &&
+        normalizedCandidate.length < 80) {
+      return false;
+    }
+
+    if (RegExp(r'^\s*(summary|summarize)\s*:\s*', caseSensitive: false)
+        .hasMatch(normalizedCandidate)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  String _normalize(String value) {
+    return value.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 }
