@@ -129,6 +129,14 @@ class OnnxAiRuntime implements AiRuntime {
       return false;
     }
 
+    final words = normalizedCandidate
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .toList(growable: false);
+    if (words.length < 6) {
+      return false;
+    }
+
     final normalizedFallback = _normalize(fallbackSummary);
     if (normalizedCandidate == normalizedFallback) {
       return false;
@@ -150,6 +158,23 @@ class OnnxAiRuntime implements AiRuntime {
 
     if (RegExp(r'^\s*(summary|summarize)\s*:\s*', caseSensitive: false)
         .hasMatch(normalizedCandidate)) {
+      return false;
+    }
+
+    final punctuationHeavy =
+        RegExp(r'^[\p{L}\p{N}\s,&;:/()-]+$', unicode: true).hasMatch(
+      normalizedCandidate,
+    );
+    final sentenceLike = RegExp(r'[.!?]').hasMatch(normalizedCandidate);
+    final hasVerbLikeTerm = RegExp(
+      r'\b(is|are|was|were|be|been|being|has|have|had|will|would|could|should|can|may|might|do|does|did|announced|said|plans|launched|revealed|showed|found|used|uses|helps|improves|includes)\b',
+      caseSensitive: false,
+    ).hasMatch(normalizedCandidate);
+    final semicolonCount = ';'.allMatches(normalizedCandidate).length;
+    if (!sentenceLike && (!hasVerbLikeTerm || punctuationHeavy)) {
+      return false;
+    }
+    if (semicolonCount >= 2) {
       return false;
     }
 
