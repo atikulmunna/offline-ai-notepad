@@ -51,7 +51,7 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Offline AI Notepad'),
+        title: const _BrandWordmark(),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 20),
@@ -188,6 +188,38 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _BrandWordmark extends StatelessWidget {
+  const _BrandWordmark();
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).appBarTheme.titleTextStyle ??
+        Theme.of(context).textTheme.titleLarge;
+
+    return ShaderMask(
+      shaderCallback: (bounds) {
+        return const LinearGradient(
+          colors: [
+            Color(0xFF5C33D6),
+            Color(0xFF8F6BFF),
+            Color(0xFFC56CFF),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ).createShader(bounds);
+      },
+      blendMode: BlendMode.srcIn,
+      child: Text(
+        'NativeNote',
+        style: style?.copyWith(
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.2,
+        ),
       ),
     );
   }

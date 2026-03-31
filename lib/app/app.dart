@@ -10,7 +10,7 @@ class OfflineAiNotepadApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Offline AI Notepad',
+      title: 'NativeNote',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       localizationsDelegates: FlutterQuillLocalizations.localizationsDelegates,
