@@ -70,4 +70,18 @@ void main() {
     expect(controller.state.isLocked, isTrue);
     expect(controller.state.errorMessage, isNotNull);
   });
+
+  test('app lock can ignore backgrounding during external interactions', () async {
+    final controller = AppLockController(_FakeAppLockRepository());
+    await Future<void>.delayed(Duration.zero);
+    await controller.enableWithPin('2468');
+
+    controller.beginExternalInteraction();
+    controller.onBackgrounded();
+    expect(controller.state.isLocked, isFalse);
+
+    controller.endExternalInteraction();
+    controller.onBackgrounded();
+    expect(controller.state.isLocked, isTrue);
+  });
 }

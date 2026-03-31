@@ -904,6 +904,7 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
 
   Future<void> _exportBackup() async {
     final messenger = ScaffoldMessenger.of(context);
+    final appLockController = ref.read(appLockControllerProvider.notifier);
     final passphrase = await _promptBackupPassphrase(
       title: 'Export encrypted backup',
       actionLabel: 'Export',
@@ -921,6 +922,7 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
       final path = await backupService.exportEncryptedBackup(
         passphrase: passphrase,
       );
+      appLockController.beginExternalInteraction();
       await backupService.shareBackupFile(path);
       if (!mounted) {
         return;
@@ -931,6 +933,7 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
         ),
       );
     } finally {
+      appLockController.endExternalInteraction();
       if (mounted) {
         setState(() {
           _isProcessingBackup = false;
@@ -941,6 +944,7 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
 
   Future<void> _importBackup() async {
     final messenger = ScaffoldMessenger.of(context);
+    final appLockController = ref.read(appLockControllerProvider.notifier);
     final passphrase = await _promptBackupPassphrase(
       title: 'Import encrypted backup',
       actionLabel: 'Import',
@@ -953,6 +957,7 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
       _isProcessingBackup = true;
     });
     try {
+      appLockController.beginExternalInteraction();
       final imported = await ref.read(encryptedBackupServiceProvider).importEncryptedBackup(
             passphrase: passphrase,
           );
@@ -982,6 +987,7 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
         ),
       );
     } finally {
+      appLockController.endExternalInteraction();
       if (mounted) {
         setState(() {
           _isProcessingBackup = false;

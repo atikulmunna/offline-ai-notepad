@@ -66,6 +66,7 @@ class AppLockController extends StateNotifier<AppLockState> {
   final AppLockRepository _repository;
   String? _sessionPin;
   AppLockSettings? _settings;
+  int _externalInteractionDepth = 0;
 
   String? get sessionPin => _sessionPin;
   AppLockSettings? get settings => _settings;
@@ -156,11 +157,22 @@ class AppLockController extends StateNotifier<AppLockState> {
   }
 
   void onBackgrounded() {
-    if (!state.isEnabled || state.isLocked) {
+    if (!state.isEnabled || state.isLocked || _externalInteractionDepth > 0) {
       return;
     }
     _sessionPin = null;
     state = state.copyWith(isLocked: true, clearError: true);
+  }
+
+  void beginExternalInteraction() {
+    _externalInteractionDepth += 1;
+  }
+
+  void endExternalInteraction() {
+    if (_externalInteractionDepth == 0) {
+      return;
+    }
+    _externalInteractionDepth -= 1;
   }
 
   void clearError() {
