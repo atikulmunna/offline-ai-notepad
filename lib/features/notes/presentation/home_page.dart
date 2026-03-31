@@ -1368,6 +1368,8 @@ class _PreviewCard extends StatelessWidget {
               const SizedBox(height: 10),
               Text(
                 note.body,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: const Color(0xFF22333B),
                   height: 1.5,
