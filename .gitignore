@@ -16,6 +16,12 @@ Thumbs.db
 .packages
 build/
 
+# Local Android release signing
+android/key.properties
+android/*.jks
+android/*.keystore
+android/RELEASE_KEYSTORE_DETAILS.txt
+
 # Local model assets / exports
 local_models/
 .venv-model-export/
