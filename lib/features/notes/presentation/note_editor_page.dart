@@ -27,6 +27,24 @@ class NoteEditorPage extends ConsumerStatefulWidget {
 }
 
 class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
+  static const List<Color> _textColorPalette = [
+    Color(0xFF2D2542),
+    Color(0xFF5D3FD3),
+    Color(0xFF7A42F4),
+    Color(0xFF9B5DE5),
+    Color(0xFFC05299),
+    Color(0xFF2F6FED),
+    Color(0xFF1F8F6A),
+    Color(0xFFCC5A1A),
+  ];
+  static const List<Color> _highlightPalette = [
+    Color(0xFFFFF1A8),
+    Color(0xFFFFD6A5),
+    Color(0xFFFFC8DD),
+    Color(0xFFE6CCFF),
+    Color(0xFFD7E3FF),
+    Color(0xFFC7F0D8),
+  ];
   final _titleController = TextEditingController();
   final _bodyController = QuillController.basic();
   final _bodyFocusNode = FocusNode();
@@ -221,6 +239,162 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     return Document()..insert(0, seed);
   }
 
+  Future<void> _showStyledColorPicker(
+    QuillController controller,
+    bool isBackground,
+  ) async {
+    final palette = isBackground ? _highlightPalette : _textColorPalette;
+    final selected = await showModalBottomSheet<Color?>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        final theme = Theme.of(context);
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFFFFFCFF),
+                    Color(0xFFF3E8FF),
+                    Color(0xFFEADFFF),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: const Color(0xFFE2D2FF)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x22693CF0),
+                    blurRadius: 28,
+                    offset: Offset(0, 14),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: isBackground
+                                ? const [
+                                    Color(0xFFFFCF70),
+                                    Color(0xFFFF8CC6),
+                                  ]
+                                : const [
+                                    Color(0xFF8856FF),
+                                    Color(0xFFC06CFF),
+                                  ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                        child: Icon(
+                          isBackground
+                              ? Icons.format_color_fill_rounded
+                              : Icons.palette_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isBackground
+                                  ? 'Highlight style'
+                                  : 'Text color',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                color: const Color(0xFF4F3B77),
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              isBackground
+                                  ? 'Pick a soft highlight for the selected text.'
+                                  : 'Choose a color that still reads beautifully on the page.',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: const Color(0xFF796995),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      for (final color in palette)
+                        _ColorSwatchButton(
+                          color: color,
+                          onTap: () => Navigator.of(context).pop(color),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => Navigator.of(context).pop(null),
+                          icon: const Icon(Icons.format_color_reset_rounded),
+                          label: const Text('Clear'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton.tonalIcon(
+                          onPressed: () => Navigator.of(context).pop(),
+                          icon: const Icon(Icons.check_rounded),
+                          label: const Text('Done'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (selected == null) {
+      controller.formatSelection(
+        isBackground
+            ? const BackgroundAttribute(null)
+            : const ColorAttribute(null),
+      );
+      return;
+    }
+
+    final hex = '#${selected.toARGB32().toRadixString(16).substring(2)}';
+    controller.formatSelection(
+      isBackground ? BackgroundAttribute(hex) : ColorAttribute(hex),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -297,6 +471,14 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
           iconSize: 18,
           iconButtonFactor: 1.15,
           iconTheme: toolbarIconTheme,
+        ),
+        color: QuillToolbarColorButtonOptions(
+          iconTheme: toolbarIconTheme,
+          customOnPressedCallback: _showStyledColorPicker,
+        ),
+        backgroundColor: QuillToolbarColorButtonOptions(
+          iconTheme: toolbarIconTheme,
+          customOnPressedCallback: _showStyledColorPicker,
         ),
       ),
     );
@@ -665,6 +847,46 @@ class _FormattingCueChip extends StatelessWidget {
               fontWeight: FontWeight.w700,
               letterSpacing: 0.1,
             ),
+      ),
+    );
+  }
+}
+
+class _ColorSwatchButton extends StatelessWidget {
+  const _ColorSwatchButton({
+    required this.color,
+    required this.onTap,
+  });
+
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.92),
+              width: 2,
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x1F6D43E0),
+                blurRadius: 14,
+                offset: Offset(0, 6),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
