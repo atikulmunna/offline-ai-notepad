@@ -28,22 +28,22 @@ class NoteEditorPage extends ConsumerStatefulWidget {
 
 class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   static const List<Color> _textColorPalette = [
-    Color(0xFF2D2542),
-    Color(0xFF5D3FD3),
-    Color(0xFF7A42F4),
-    Color(0xFF9B5DE5),
-    Color(0xFFC05299),
-    Color(0xFF2F6FED),
-    Color(0xFF1F8F6A),
-    Color(0xFFCC5A1A),
+    Color(0xFF0A0908),
+    Color(0xFF22333B),
+    Color(0xFF5E503F),
+    Color(0xFF8A7259),
+    Color(0xFFA98B6A),
+    Color(0xFF6D4C41),
+    Color(0xFF4A5A48),
+    Color(0xFF8C6239),
   ];
   static const List<Color> _highlightPalette = [
-    Color(0xFFFFF1A8),
-    Color(0xFFFFD6A5),
-    Color(0xFFFFC8DD),
-    Color(0xFFE6CCFF),
-    Color(0xFFD7E3FF),
-    Color(0xFFC7F0D8),
+    Color(0xFFEAE0D5),
+    Color(0xFFDCC8AF),
+    Color(0xFFC6AC8F),
+    Color(0xFFB89F83),
+    Color(0xFFD7C6B4),
+    Color(0xFFCDBA9E),
   ];
   final _titleController = TextEditingController();
   final _bodyController = QuillController.basic();
@@ -258,18 +258,18 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [
-                    Color(0xFFFFFCFF),
-                    Color(0xFFF3E8FF),
-                    Color(0xFFEADFFF),
+                    Color(0xFFFFFBF7),
+                    Color(0xFFEAE0D5),
+                    Color(0xFFC6AC8F),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: const Color(0xFFE2D2FF)),
+                border: Border.all(color: const Color(0xFFC6AC8F)),
                 boxShadow: const [
                   BoxShadow(
-                    color: Color(0x22693CF0),
+                    color: Color(0x2222333B),
                     blurRadius: 28,
                     offset: Offset(0, 14),
                   ),
@@ -288,12 +288,12 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                           gradient: LinearGradient(
                             colors: isBackground
                                 ? const [
-                                    Color(0xFFFFCF70),
-                                    Color(0xFFFF8CC6),
+                                    Color(0xFFC6AC8F),
+                                    Color(0xFF5E503F),
                                   ]
                                 : const [
-                                    Color(0xFF8856FF),
-                                    Color(0xFFC06CFF),
+                                    Color(0xFF22333B),
+                                    Color(0xFF5E503F),
                                   ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
@@ -318,7 +318,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                                   ? 'Highlight style'
                                   : 'Text color',
                               style: theme.textTheme.titleMedium?.copyWith(
-                                color: const Color(0xFF4F3B77),
+                                color: const Color(0xFF0A0908),
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -328,7 +328,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                                   ? 'Pick a soft highlight for the selected text.'
                                   : 'Choose a color that still reads beautifully on the page.',
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: const Color(0xFF796995),
+                                color: const Color(0xFF22333B),
                               ),
                             ),
                           ],
@@ -406,32 +406,32 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
         : ref.watch(noteAiSnapshotProvider(_activeNoteId!));
     final toolbarIconTheme = QuillIconTheme(
       iconButtonUnselectedData: IconButtonData(
-        color: const Color(0xFF6A4DB3),
+        color: const Color(0xFF22333B),
         style: IconButton.styleFrom(
-          backgroundColor: const Color(0xFFF6F0FF),
-          foregroundColor: const Color(0xFF6A4DB3),
-          hoverColor: const Color(0xFFE8DAFF),
-          highlightColor: const Color(0xFFDFD0FF),
+          backgroundColor: const Color(0xFFF2E8DC),
+          foregroundColor: const Color(0xFF22333B),
+          hoverColor: const Color(0xFFE5D6C3),
+          highlightColor: const Color(0xFFD9C4AA),
           padding: const EdgeInsets.all(11),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: Color(0xFFE3D5FF)),
+            side: const BorderSide(color: Color(0xFFC6AC8F)),
           ),
         ),
       ),
       iconButtonSelectedData: IconButtonData(
-        color: Colors.white,
+        color: const Color(0xFFEAE0D5),
         style: IconButton.styleFrom(
-          backgroundColor: const Color(0xFF7A42F4),
-          foregroundColor: Colors.white,
-          hoverColor: const Color(0xFF6B35E3),
-          highlightColor: const Color(0xFF5727C7),
+          backgroundColor: const Color(0xFF5E503F),
+          foregroundColor: const Color(0xFFEAE0D5),
+          hoverColor: const Color(0xFF4F4334),
+          highlightColor: const Color(0xFF3E3429),
           padding: const EdgeInsets.all(11),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          side: const BorderSide(color: Color(0xFFA987FF)),
-          shadowColor: const Color(0x447A42F4),
+          side: const BorderSide(color: Color(0xFFC6AC8F)),
+          shadowColor: const Color(0x445E503F),
           elevation: 4,
         ),
       ),
@@ -522,16 +522,16 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                 borderRadius: BorderRadius.circular(28),
                 gradient: const LinearGradient(
                   colors: [
-                    Color(0xFFF4ECFF),
-                    Color(0xFFEEE7FF),
+                    Color(0xFFEAE0D5),
+                    Color(0xFFF6EEE6),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                border: Border.all(color: const Color(0xFFE1D6F5)),
+                border: Border.all(color: const Color(0xFFC6AC8F)),
                 boxShadow: const [
                   BoxShadow(
-                    color: Color(0x145F46B0),
+                    color: Color(0x1422333B),
                     blurRadius: 22,
                     offset: Offset(0, 12),
                   ),
@@ -652,16 +652,16 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
               gradient: LinearGradient(
                 colors: [
                   Colors.white,
-                  const Color(0xFFF8F3FF),
+                  const Color(0xFFF2E8DC),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFFDDD1F4)),
+              border: Border.all(color: const Color(0xFFC6AC8F)),
               boxShadow: const [
                 BoxShadow(
-                  color: Color(0x125F46B0),
+                  color: Color(0x1222333B),
                   blurRadius: 18,
                   offset: Offset(0, 8),
                 ),
@@ -678,7 +678,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                 Text(
                   'Bold, italic, color, highlight, and more.',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFF6E6287),
+                    color: const Color(0xFF22333B),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -693,17 +693,17 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                     gradient: LinearGradient(
                       colors: [
                         Colors.white.withValues(alpha: 0.98),
-                        const Color(0xFFF3EAFF),
-                        const Color(0xFFEEE2FF),
+                        const Color(0xFFF6EEE6),
+                        const Color(0xFFEAE0D5),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: const Color(0xFFE0D0FF)),
+                    border: Border.all(color: const Color(0xFFC6AC8F)),
                     boxShadow: const [
                       BoxShadow(
-                        color: Color(0x15653CC9),
+                        color: Color(0x1522333B),
                         blurRadius: 18,
                         offset: Offset(0, 8),
                       ),
@@ -720,8 +720,8 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
                                 colors: [
-                                  Color(0xFF8856FF),
-                                  Color(0xFFC06CFF),
+                                  Color(0xFF22333B),
+                                  Color(0xFF5E503F),
                                 ],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
@@ -729,7 +729,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                               borderRadius: BorderRadius.circular(12),
                               boxShadow: const [
                                 BoxShadow(
-                                  color: Color(0x338856FF),
+                                  color: Color(0x3322333B),
                                   blurRadius: 14,
                                   offset: Offset(0, 6),
                                 ),
@@ -749,7 +749,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                                 Text(
                                   'Formatting',
                                   style: theme.textTheme.titleSmall?.copyWith(
-                                    color: const Color(0xFF4F3B77),
+                                    color: const Color(0xFF0A0908),
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -757,7 +757,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                                 Text(
                                   'Style the note with emphasis, color, and highlights.',
                                   style: theme.textTheme.bodySmall?.copyWith(
-                                    color: const Color(0xFF7D6A9D),
+                                    color: const Color(0xFF22333B),
                                   ),
                                 ),
                                 const SizedBox(height: 6),
@@ -781,7 +781,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                           color: Colors.white.withValues(alpha: 0.54),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: const Color(0xFFE8DDFF),
+                            color: const Color(0xFFC6AC8F),
                           ),
                         ),
                         padding: const EdgeInsets.all(8),
@@ -804,9 +804,9 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFCF8FF),
+                    color: const Color(0xFFFFFBF7),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFE3D9F5)),
+                    border: Border.all(color: const Color(0xFFC6AC8F)),
                   ),
                   child: QuillEditor.basic(
                     controller: _bodyController,
@@ -836,14 +836,14 @@ class _FormattingCueChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F1FF),
+        color: const Color(0xFFF1E7DB),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFE4D6FF)),
+        border: Border.all(color: const Color(0xFFC6AC8F)),
       ),
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: const Color(0xFF7B5CB8),
+              color: const Color(0xFF5E503F),
               fontWeight: FontWeight.w700,
               letterSpacing: 0.1,
             ),
@@ -965,12 +965,12 @@ class _AiWorkspaceCard extends StatelessWidget {
           : Icons.check_circle_outline_rounded,
     };
     final summaryStatusColor = switch (status) {
-      EmbeddingStatus.indexed => const Color(0xFF6D43E0),
-      EmbeddingStatus.queued => const Color(0xFF8B63D9),
-      EmbeddingStatus.failed => const Color(0xFFB45CD6),
+      EmbeddingStatus.indexed => const Color(0xFF5E503F),
+      EmbeddingStatus.queued => const Color(0xFF22333B),
+      EmbeddingStatus.failed => const Color(0xFF8A7259),
       EmbeddingStatus.missing => effectiveSummary == null
-          ? const Color(0xFF6E6287)
-          : const Color(0xFF6D43E0),
+          ? const Color(0xFF22333B)
+          : const Color(0xFF5E503F),
     };
 
     return Container(
@@ -979,16 +979,16 @@ class _AiWorkspaceCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(28),
         gradient: const LinearGradient(
           colors: [
-            Color(0xFFF1E9FF),
-            Color(0xFFF9F1FF),
+            Color(0xFFEAE0D5),
+            Color(0xFFF6EEE6),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        border: Border.all(color: const Color(0xFFDDD1F4)),
+        border: Border.all(color: const Color(0xFFC6AC8F)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x105F46B0),
+            color: Color(0x1022333B),
             blurRadius: 20,
             offset: Offset(0, 10),
           ),
@@ -1020,7 +1020,7 @@ class _AiWorkspaceCard extends StatelessWidget {
           Text(
             'A short local recap of the current note.',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: const Color(0xFF6E6287),
+              color: const Color(0xFF22333B),
             ),
           ),
           const SizedBox(height: 14),
@@ -1031,7 +1031,7 @@ class _AiWorkspaceCard extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.78),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: const Color(0xFFDDD1F4),
+                color: const Color(0xFFC6AC8F),
               ),
             ),
             child: Text(
@@ -1052,7 +1052,7 @@ class _AiWorkspaceCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.62),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFDDD1F4)),
+              border: Border.all(color: const Color(0xFFC6AC8F)),
             ),
             child: Row(
               children: [
@@ -1087,13 +1087,13 @@ class _AiWorkspaceCard extends StatelessWidget {
               title: Text(
                 'AI details',
                 style: theme.textTheme.titleSmall?.copyWith(
-                  color: const Color(0xFF5D5076),
+                  color: const Color(0xFF0A0908),
                 ),
               ),
               subtitle: Text(
                 'Model and runtime info.',
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: const Color(0xFF76698D),
+                  color: const Color(0xFF22333B),
                 ),
               ),
               children: [
@@ -1105,7 +1105,7 @@ class _AiWorkspaceCard extends StatelessWidget {
                     color: Colors.white.withValues(alpha: 0.56),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: const Color(0xFFDDD1F4),
+                      color: const Color(0xFFC6AC8F),
                     ),
                   ),
                   child: Text(
@@ -1152,7 +1152,7 @@ class _AiWorkspaceCard extends StatelessWidget {
                       'Can attempt decode: $canAttemptDecode',
                     ].join('\n'),
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF5D5076),
+                      color: const Color(0xFF22333B),
                     ),
                   ),
                 ),

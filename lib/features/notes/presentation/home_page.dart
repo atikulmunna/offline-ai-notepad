@@ -231,9 +231,9 @@ class _BrandWordmark extends StatelessWidget {
       shaderCallback: (bounds) {
         return const LinearGradient(
           colors: [
-            Color(0xFF5C33D6),
-            Color(0xFF8F6BFF),
-            Color(0xFFC56CFF),
+            Color(0xFF22333B),
+            Color(0xFF5E503F),
+            Color(0xFFC6AC8F),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -269,8 +269,8 @@ class _BackdropGlow extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    Color(0x55B388FF),
-                    Color(0x00B388FF),
+                    Color(0x55C6AC8F),
+                    Color(0x00C6AC8F),
                   ],
                 ),
               ),
@@ -286,8 +286,8 @@ class _BackdropGlow extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    Color(0x337C4DFF),
-                    Color(0x007C4DFF),
+                    Color(0x3322333B),
+                    Color(0x0022333B),
                   ],
                 ),
               ),
@@ -312,16 +312,16 @@ class _HeroPanel extends StatelessWidget {
         borderRadius: BorderRadius.circular(32),
         gradient: const LinearGradient(
           colors: [
-            Color(0xFF5C33D6),
-            Color(0xFF8F6BFF),
-            Color(0xFFC8B1FF),
+            Color(0xFF22333B),
+            Color(0xFF5E503F),
+            Color(0xFFC6AC8F),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x2C5F46B0),
+            color: Color(0x2A22333B),
             blurRadius: 30,
             offset: Offset(0, 18),
           ),
@@ -359,8 +359,8 @@ class _HeroPanel extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    Color(0x2EBEA3FF),
-                    Color(0x00BEA3FF),
+                    Color(0x33EAE0D5),
+                    Color(0x00EAE0D5),
                   ],
                 ),
               ),
@@ -454,7 +454,7 @@ class _QuickStats extends StatelessWidget {
               NoteCollection.trash => 'In trash',
             },
             value: '$count',
-            tint: const Color(0xFFF3ECFF),
+            tint: const Color(0xFFEAE0D5),
             icon: switch (collection) {
               NoteCollection.active => Icons.sticky_note_2_outlined,
               NoteCollection.archived => Icons.archive_outlined,
@@ -467,7 +467,7 @@ class _QuickStats extends StatelessWidget {
           child: _StatCard(
             label: 'Mode',
             value: 'Local',
-            tint: Color(0xFFEFE7FF),
+            tint: Color(0xFFF1E7DB),
             icon: Icons.shield_moon_outlined,
           ),
         ),
@@ -497,7 +497,7 @@ class _StatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: tint,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFF5EEFF)),
+        border: Border.all(color: const Color(0xFFC6AC8F)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -553,16 +553,16 @@ class _ControlDeck extends ConsumerWidget {
         gradient: LinearGradient(
           colors: [
             Colors.white.withValues(alpha: 0.94),
-            const Color(0xFFF8F2FF),
+            const Color(0xFFEAE0D5),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFDDD1F4)),
+        border: Border.all(color: const Color(0xFFC6AC8F)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x145F46B0),
+            color: Color(0x1422333B),
             blurRadius: 18,
             offset: Offset(0, 10),
           ),
@@ -862,7 +862,7 @@ class _FolderManagerSheetState extends ConsumerState<_FolderManagerSheet> {
         bottom: MediaQuery.of(context).viewInsets.bottom + 16,
       ),
       child: Material(
-        color: const Color(0xFFFCF8FF),
+        color: const Color(0xFFFFFBF7),
         borderRadius: BorderRadius.circular(28),
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -1229,18 +1229,18 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [
-                Color(0xFFFFFCFF),
-                Color(0xFFF3E8FF),
-                Color(0xFFEADFFF),
+                Color(0xFFFFFBF7),
+                Color(0xFFEAE0D5),
+                Color(0xFFC6AC8F),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: const Color(0xFFE0D0FF)),
+            border: Border.all(color: const Color(0xFFC6AC8F)),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x226E3EEE),
+                color: Color(0x2222333B),
                 blurRadius: 28,
                 offset: Offset(0, 14),
               ),
@@ -1257,7 +1257,7 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
                     ? 'NativeNote will ask for your PIN whenever the app comes back into view.'
                     : 'Add a local PIN so the app locks itself when you leave it.',
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: const Color(0xFF6D5D86),
+                  color: const Color(0xFF22333B),
                 ),
               ),
               const SizedBox(height: 18),
@@ -1305,7 +1305,7 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFE1D3FF)),
+                    border: Border.all(color: const Color(0xFFC6AC8F)),
                   ),
                   child: Row(
                     children: [
@@ -1315,8 +1315,8 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             colors: [
-                              Color(0xFF7A42F4),
-                              Color(0xFFC06CFF),
+                              Color(0xFF22333B),
+                              Color(0xFF5E503F),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(14),
@@ -1334,14 +1334,14 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
                             Text(
                               'App lock is active',
                               style: theme.textTheme.titleMedium?.copyWith(
-                                color: const Color(0xFF4A3A64),
+                                color: const Color(0xFF0A0908),
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               'The app will relock when it goes to the background.',
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: const Color(0xFF736388),
+                                color: const Color(0xFF22333B),
                               ),
                             ),
                           ],
@@ -1382,7 +1382,7 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.66),
                     borderRadius: BorderRadius.circular(22),
-                    border: Border.all(color: const Color(0xFFE1D3FF)),
+                    border: Border.all(color: const Color(0xFFC6AC8F)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1390,14 +1390,14 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
                       Text(
                         'Encrypted backup',
                         style: theme.textTheme.titleMedium?.copyWith(
-                          color: const Color(0xFF4A3A64),
+                          color: const Color(0xFF0A0908),
                         ),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         'Export your notes into a passphrase-protected backup file, or import one back into this device.',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: const Color(0xFF736388),
+                          color: const Color(0xFF22333B),
                         ),
                       ),
                       const SizedBox(height: 14),
@@ -1463,9 +1463,9 @@ class _PreviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final accents = [
-      const Color(0xFF7C4DFF),
-      const Color(0xFFB388FF),
-      const Color(0xFF8A63FF),
+      const Color(0xFF5E503F),
+      const Color(0xFFC6AC8F),
+      const Color(0xFF22333B),
     ];
     final accent = accents[accentIndex % accents.length];
 
@@ -1517,7 +1517,7 @@ class _PreviewCard extends StatelessWidget {
               Text(
                 note.body,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: const Color(0xFF54486B),
+                  color: const Color(0xFF22333B),
                   height: 1.5,
                 ),
               ),
@@ -1546,7 +1546,7 @@ class _PreviewCard extends StatelessWidget {
                   Text(
                     _formatUpdatedLabel(note.updatedAt),
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF5B6674),
+                      color: const Color(0xFF22333B),
                       fontWeight: FontWeight.w600,
                     ),
                   ),

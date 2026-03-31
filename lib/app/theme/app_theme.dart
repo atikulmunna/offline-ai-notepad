@@ -2,19 +2,22 @@ import 'package:flutter/material.dart';
 
 class AppTheme {
   static ThemeData light() {
-    const accent = Color(0xFF7C4DFF);
-    const orchid = Color(0xFFB388FF);
-    const lilac = Color(0xFFE3D7FF);
-    const blush = Color(0xFFF5ECFF);
-    const mist = Color(0xFFF7F3FF);
-    const ink = Color(0xFF231A33);
+    const bark = Color(0xFF5E503F);
+    const sand = Color(0xFFC6AC8F);
+    const linen = Color(0xFFEAE0D5);
+    const slate = Color(0xFF22333B);
+    const coal = Color(0xFF0A0908);
+    const mist = Color(0xFFF5EEE6);
+    const paper = Color(0xFFFFFBF7);
+    const chip = Color(0xFFF1E6D8);
 
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: accent,
+      seedColor: bark,
       brightness: Brightness.light,
-      primary: accent,
-      secondary: orchid,
-      surface: Colors.white,
+      primary: bark,
+      secondary: slate,
+      tertiary: sand,
+      surface: paper,
     );
 
     return ThemeData(
@@ -26,66 +29,66 @@ class AppTheme {
         headlineLarge: TextStyle(
           fontSize: 34,
           fontWeight: FontWeight.w800,
-          color: ink,
+          color: coal,
           height: 1.05,
         ),
         headlineSmall: TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.w800,
-          color: ink,
+          color: coal,
         ),
         titleLarge: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w700,
-          color: ink,
+          color: coal,
         ),
         titleMedium: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w700,
-          color: ink,
+          color: coal,
         ),
         bodyLarge: TextStyle(
           fontSize: 16,
-          color: ink,
+          color: coal,
           height: 1.4,
         ),
         bodyMedium: TextStyle(
           fontSize: 14,
-          color: ink,
+          color: coal,
           height: 1.4,
         ),
         labelLarge: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w700,
-          color: ink,
+          color: coal,
           letterSpacing: 0.2,
         ),
       ).apply(
         fontFamily: 'Merriweather',
-        bodyColor: ink,
-        displayColor: ink,
+        bodyColor: coal,
+        displayColor: coal,
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
-        foregroundColor: ink,
+        foregroundColor: coal,
         elevation: 0,
         titleTextStyle: TextStyle(
           fontFamily: 'Merriweather',
           fontSize: 22,
           fontWeight: FontWeight.w700,
-          color: ink,
+          color: coal,
         ),
         toolbarTextStyle: TextStyle(
           fontFamily: 'Merriweather',
           fontSize: 16,
           fontWeight: FontWeight.w600,
-          color: ink,
+          color: coal,
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: accent,
-          foregroundColor: Colors.white,
+          backgroundColor: bark,
+          foregroundColor: linen,
           textStyle: const TextStyle(
             fontFamily: 'Merriweather',
             fontWeight: FontWeight.w700,
@@ -100,7 +103,7 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: accent,
+          foregroundColor: bark,
           textStyle: const TextStyle(
             fontFamily: 'Merriweather',
             fontWeight: FontWeight.w700,
@@ -114,18 +117,18 @@ class AppTheme {
         style: ButtonStyle(
           foregroundColor: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.selected)) {
-              return Colors.white;
+              return linen;
             }
-            return ink;
+            return coal;
           }),
           backgroundColor: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.selected)) {
-              return accent;
+              return bark;
             }
-            return const Color(0xFFF8F3FF);
+            return chip;
           }),
           side: const WidgetStatePropertyAll(
-            BorderSide(color: Color(0xFFDCD0F4)),
+            BorderSide(color: sand),
           ),
           shape: WidgetStatePropertyAll(
             RoundedRectangleBorder(
@@ -142,81 +145,81 @@ class AppTheme {
       ),
       chipTheme: ChipThemeData(
         backgroundColor: Colors.white,
-        selectedColor: accent,
-        side: const BorderSide(color: Color(0xFFDCCEF7)),
+        selectedColor: sand,
+        side: const BorderSide(color: sand),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(999),
         ),
         labelStyle: const TextStyle(
           fontFamily: 'Merriweather',
-          color: ink,
+          color: coal,
           fontWeight: FontWeight.w600,
         ),
       ),
       cardTheme: CardThemeData(
-        color: Colors.white,
+        color: paper,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(28),
-          side: const BorderSide(color: Color(0xFFDDD1F4)),
+          side: const BorderSide(color: sand),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFFFEFCFF),
+        fillColor: paper,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 18,
           vertical: 18,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(20),
-          borderSide: const BorderSide(color: Color(0xFFDCD0F4)),
+          borderSide: const BorderSide(color: sand),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(20),
-          borderSide: const BorderSide(color: Color(0xFFDCD0F4)),
+          borderSide: const BorderSide(color: sand),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(20),
-          borderSide: const BorderSide(color: accent, width: 1.5),
+          borderSide: const BorderSide(color: bark, width: 1.5),
         ),
         labelStyle: const TextStyle(
           fontFamily: 'Merriweather',
-          color: Color(0xFF665A7B),
+          color: slate,
           fontWeight: FontWeight.w600,
         ),
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: accent,
-        foregroundColor: Colors.white,
+        backgroundColor: bark,
+        foregroundColor: linen,
         elevation: 8,
         extendedTextStyle: TextStyle(
           fontFamily: 'Merriweather',
           fontWeight: FontWeight.w700,
-          color: Colors.white,
+          color: linen,
         ),
       ),
       popupMenuTheme: PopupMenuThemeData(
-        color: const Color(0xFFFEFCFF),
+        color: paper,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: Color(0xFFDCD0F4)),
+          side: const BorderSide(color: sand),
         ),
       ),
       textSelectionTheme: const TextSelectionThemeData(
-        cursorColor: accent,
-        selectionColor: Color(0x667C4DFF),
-        selectionHandleColor: accent,
+        cursorColor: bark,
+        selectionColor: Color(0x665E503F),
+        selectionHandleColor: bark,
       ),
-      dividerColor: const Color(0xFFDCD0F4),
+      dividerColor: sand,
       splashFactory: InkSparkle.splashFactory,
       extensions: const [
         _AppColors(
-          accent: accent,
-          coral: orchid,
-          sky: lilac,
-          cream: blush,
-          ink: ink,
+          accent: bark,
+          coral: sand,
+          sky: linen,
+          cream: mist,
+          ink: coal,
         ),
       ],
     );
