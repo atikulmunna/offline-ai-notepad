@@ -10,6 +10,7 @@ import '../domain/note_search_mode.dart';
 import '../providers/notes_actions.dart';
 import '../providers/notes_providers.dart';
 import '../providers/notes_view_state.dart';
+import '../../security/providers/app_lock_providers.dart';
 import 'note_editor_page.dart';
 
 class NotesHomePage extends ConsumerStatefulWidget {
@@ -44,16 +45,35 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
     });
   }
 
+  Future<void> _openPrivacySheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const _PrivacySheet(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final notesAsync = ref.watch(notesListProvider);
     final foldersAsync = ref.watch(noteFoldersProvider);
     final viewState = ref.watch(notesViewStateProvider);
+    final appLockState = ref.watch(appLockControllerProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const _BrandWordmark(),
         actions: [
+          IconButton(
+            onPressed: _openPrivacySheet,
+            tooltip: 'Privacy controls',
+            icon: Icon(
+              appLockState.isEnabled
+                  ? Icons.lock_rounded
+                  : Icons.lock_open_rounded,
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 20),
             child: Chip(
@@ -909,6 +929,279 @@ class _FolderManagerSheetState extends ConsumerState<_FolderManagerSheet> {
                     },
                   ),
                 ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PrivacySheet extends ConsumerStatefulWidget {
+  const _PrivacySheet();
+
+  @override
+  ConsumerState<_PrivacySheet> createState() => _PrivacySheetState();
+}
+
+class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
+  final _pinController = TextEditingController();
+  final _confirmPinController = TextEditingController();
+  bool _isDisabling = false;
+
+  @override
+  void dispose() {
+    _pinController.dispose();
+    _confirmPinController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _enableLock() async {
+    final pin = _pinController.text.trim();
+    final confirmation = _confirmPinController.text.trim();
+    if (pin != confirmation) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('PIN entries need to match.')),
+      );
+      return;
+    }
+
+    final success =
+        await ref.read(appLockControllerProvider.notifier).enableWithPin(pin);
+    if (!mounted) {
+      return;
+    }
+    if (success) {
+      _pinController.clear();
+      _confirmPinController.clear();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('App lock is now on.')),
+      );
+    }
+  }
+
+  Future<void> _disableLock() async {
+    final controller = TextEditingController();
+    final enteredPin = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Turn off app lock'),
+          content: TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            obscureText: true,
+            maxLength: 8,
+            decoration: const InputDecoration(
+              labelText: 'Current PIN',
+              counterText: '',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+              child: const Text('Disable'),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+
+    if (!mounted || enteredPin == null || enteredPin.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _isDisabling = true;
+    });
+    final success = await ref
+        .read(appLockControllerProvider.notifier)
+        .disable(enteredPin);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _isDisabling = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success ? 'App lock is off.' : 'Could not disable app lock.',
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final appLockState = ref.watch(appLockControllerProvider);
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [
+                Color(0xFFFFFCFF),
+                Color(0xFFF3E8FF),
+                Color(0xFFEADFFF),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: const Color(0xFFE0D0FF)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x226E3EEE),
+                blurRadius: 28,
+                offset: Offset(0, 14),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Privacy lock', style: theme.textTheme.headlineSmall),
+              const SizedBox(height: 8),
+              Text(
+                appLockState.isEnabled
+                    ? 'NativeNote will ask for your PIN whenever the app comes back into view.'
+                    : 'Add a local PIN so the app locks itself when you leave it.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: const Color(0xFF6D5D86),
+                ),
+              ),
+              const SizedBox(height: 18),
+              if (!appLockState.isEnabled) ...[
+                TextField(
+                  controller: _pinController,
+                  keyboardType: TextInputType.number,
+                  obscureText: true,
+                  maxLength: 8,
+                  decoration: const InputDecoration(
+                    labelText: 'Create PIN',
+                    hintText: '4 to 8 digits',
+                    counterText: '',
+                    prefixIcon: Icon(Icons.lock_outline_rounded),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _confirmPinController,
+                  keyboardType: TextInputType.number,
+                  obscureText: true,
+                  maxLength: 8,
+                  decoration: const InputDecoration(
+                    labelText: 'Confirm PIN',
+                    hintText: 'Repeat the same PIN',
+                    counterText: '',
+                    prefixIcon: Icon(Icons.verified_user_outlined),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: appLockState.isBusy ? null : _enableLock,
+                    icon: const Icon(Icons.shield_rounded),
+                    label: Text(
+                      appLockState.isBusy ? 'Saving...' : 'Turn on app lock',
+                    ),
+                  ),
+                ),
+              ] else ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE1D3FF)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFF7A42F4),
+                              Color(0xFFC06CFF),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Icon(
+                          Icons.lock_rounded,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'App lock is active',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                color: const Color(0xFF4A3A64),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'The app will relock when it goes to the background.',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: const Color(0xFF736388),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          ref
+                              .read(appLockControllerProvider.notifier)
+                              .lockNow();
+                          Navigator.of(context).pop();
+                        },
+                        icon: const Icon(Icons.lock_clock_rounded),
+                        label: const Text('Lock now'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.tonalIcon(
+                        onPressed: _isDisabling ? null : _disableLock,
+                        icon: const Icon(Icons.lock_open_rounded),
+                        label: Text(_isDisabling ? 'Checking...' : 'Turn off'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),

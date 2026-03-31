@@ -14,6 +14,25 @@ import 'package:offline_ai_notepad/app/app.dart';
 import 'package:offline_ai_notepad/features/notes/data/in_memory_notes_repository.dart';
 import 'package:offline_ai_notepad/features/notes/presentation/note_editor_page.dart';
 import 'package:offline_ai_notepad/features/notes/providers/notes_providers.dart';
+import 'package:offline_ai_notepad/features/security/domain/app_lock_repository.dart';
+import 'package:offline_ai_notepad/features/security/domain/app_lock_settings.dart';
+import 'package:offline_ai_notepad/features/security/providers/app_lock_providers.dart';
+
+class _TestAppLockRepository implements AppLockRepository {
+  @override
+  Future<void> clear() async {}
+
+  @override
+  Future<AppLockSettings> loadSettings() async {
+    return const AppLockSettings(isEnabled: false, pinHash: null);
+  }
+
+  @override
+  Future<void> savePin(String pin) async {}
+
+  @override
+  Future<bool> verifyPin(String pin) async => false;
+}
 
 void main() {
   testWidgets('app shell renders the project home screen', (
@@ -23,6 +42,7 @@ void main() {
       ProviderScope(
         overrides: [
           notesRepositoryProvider.overrideWithValue(InMemoryNotesRepository()),
+          appLockRepositoryProvider.overrideWithValue(_TestAppLockRepository()),
         ],
         child: OfflineAiNotepadApp(),
       ),
@@ -46,6 +66,7 @@ void main() {
       ProviderScope(
         overrides: [
           notesRepositoryProvider.overrideWithValue(InMemoryNotesRepository()),
+          appLockRepositoryProvider.overrideWithValue(_TestAppLockRepository()),
         ],
         child: MaterialApp(
           localizationsDelegates:
