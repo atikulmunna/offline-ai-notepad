@@ -53,6 +53,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   bool _isLoading = false;
   bool _isSaving = false;
   bool _isGeneratingSummary = false;
+  bool _showFormattingToolbar = false;
   String? _activeNoteId;
   String? _selectedFolderId;
   String? _summary;
@@ -460,7 +461,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
       showSmallButton: false,
       showInlineCode: false,
       showDirection: false,
-      multiRowsDisplay: true,
+      multiRowsDisplay: false,
       toolbarSize: 38,
       toolbarSectionSpacing: 10,
       toolbarRunSpacing: 10,
@@ -670,102 +671,63 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Body',
-                  style: theme.textTheme.titleMedium,
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.fromLTRB(
-                    12,
-                    12,
-                    12,
-                    10,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.white.withValues(alpha: 0.98),
-                        const Color(0xFFF6EEE6),
-                        const Color(0xFFEAE0D5),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: const Color(0xFFC6AC8F)),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x1522333B),
-                        blurRadius: 18,
-                        offset: Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 34,
-                            height: 34,
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [
-                                  Color(0xFF22333B),
-                                  Color(0xFF5E503F),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0x3322333B),
-                                  blurRadius: 14,
-                                  offset: Offset(0, 6),
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.draw_rounded,
-                              size: 18,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                'Formatting',
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                  color: const Color(0xFF0A0908),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
+                Row(
+                  children: [
+                    InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () {
+                        setState(() {
+                          _showFormattingToolbar = !_showFormattingToolbar;
+                        });
+                      },
+                      child: Container(
+                        width: 34,
+                        height: 34,
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.54),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: const Color(0xFFC6AC8F),
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFF22333B),
+                              Color(0xFF5E503F),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x3322333B),
+                              blurRadius: 14,
+                              offset: Offset(0, 6),
+                            ),
+                          ],
                         ),
-                        padding: const EdgeInsets.all(8),
-                        child: QuillSimpleToolbar(
-                          controller: _bodyController,
-                          config: toolbarConfig,
+                        child: Icon(
+                          _showFormattingToolbar
+                              ? Icons.close_rounded
+                              : Icons.draw_rounded,
+                          size: 18,
+                          color: Colors.white,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeOutCubic,
+                  child: _showFormattingToolbar
+                      ? Padding(
+                          key: const ValueKey('formatting-toolbar'),
+                          padding: const EdgeInsets.only(top: 12),
+                          child: QuillSimpleToolbar(
+                            controller: _bodyController,
+                            config: toolbarConfig,
+                          ),
+                        )
+                      : const SizedBox.shrink(
+                          key: ValueKey('formatting-toolbar-hidden'),
+                        ),
                 ),
                 const SizedBox(height: 12),
                 Container(
