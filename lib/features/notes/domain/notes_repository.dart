@@ -19,6 +19,7 @@ abstract class NotesRepository {
   Future<String> createNote({
     String? title,
     required String body,
+    String? bodyDelta,
     String? folderId,
   });
   Future<NoteDocument?> getNote(String id);
@@ -26,6 +27,7 @@ abstract class NotesRepository {
     required String id,
     String? title,
     required String body,
+    String? bodyDelta,
     String? folderId,
   });
   Future<void> togglePin({

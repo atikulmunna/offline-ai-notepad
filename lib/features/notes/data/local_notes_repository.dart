@@ -196,6 +196,7 @@ ON folders.id = notes.folder_id
   Future<String> createNote({
     String? title,
     required String body,
+    String? bodyDelta,
     String? folderId,
   }) async {
     final now = DateTime.now();
@@ -206,6 +207,7 @@ ON folders.id = notes.folder_id
         id: id,
         title: title,
         body: body,
+        bodyDelta: bodyDelta,
         folderId: folder?.id,
         folderName: folder?.name,
         createdAt: now,
@@ -243,6 +245,7 @@ LIMIT 1
     required String id,
     String? title,
     required String body,
+    String? bodyDelta,
     String? folderId,
   }) async {
     final existing = await getNote(id);
@@ -255,6 +258,7 @@ LIMIT 1
       id: existing.id,
       title: title,
       body: body,
+      bodyDelta: bodyDelta,
       summary: existing.summary,
       folderId: folder?.id,
       folderName: folder?.name,
@@ -288,6 +292,7 @@ LIMIT 1
       id: existing.id,
       title: existing.title,
       body: existing.body,
+      bodyDelta: existing.bodyDelta,
       summary: existing.summary,
       folderId: existing.folderId,
       isPinned: value,
@@ -320,6 +325,7 @@ LIMIT 1
       id: existing.id,
       title: existing.title,
       body: existing.body,
+      bodyDelta: existing.bodyDelta,
       summary: existing.summary,
       folderId: existing.folderId,
       isPinned: existing.isPinned,
@@ -349,6 +355,7 @@ LIMIT 1
       id: existing.id,
       title: existing.title,
       body: existing.body,
+      bodyDelta: existing.bodyDelta,
       summary: existing.summary,
       folderId: existing.folderId,
       isPinned: false,
@@ -378,6 +385,7 @@ LIMIT 1
       id: existing.id,
       title: existing.title,
       body: existing.body,
+      bodyDelta: existing.bodyDelta,
       summary: existing.summary,
       folderId: existing.folderId,
       isPinned: existing.isPinned,

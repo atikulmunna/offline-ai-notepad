@@ -3,6 +3,7 @@ class NoteDocument {
     required this.id,
     required this.title,
     required this.body,
+    this.bodyDelta,
     required this.createdAt,
     required this.updatedAt,
     required this.isPinned,
@@ -16,6 +17,7 @@ class NoteDocument {
   final String id;
   final String? title;
   final String body;
+  final String? bodyDelta;
   final String? summary;
   final DateTime createdAt;
   final DateTime updatedAt;

@@ -17,12 +17,14 @@ class NotesActions {
   Future<String> createNote({
     String? title,
     required String body,
+    String? bodyDelta,
     String? folderId,
   }) async {
     final repository = _ref.read(notesRepositoryProvider);
     final id = await repository.createNote(
       title: title,
       body: body,
+      bodyDelta: bodyDelta,
       folderId: folderId,
     );
     _ref.invalidate(notesListProvider);
@@ -39,6 +41,7 @@ class NotesActions {
     required String id,
     String? title,
     required String body,
+    String? bodyDelta,
     String? folderId,
   }) async {
     final repository = _ref.read(notesRepositoryProvider);
@@ -46,6 +49,7 @@ class NotesActions {
       id: id,
       title: title,
       body: body,
+      bodyDelta: bodyDelta,
       folderId: folderId,
     );
     _ref.invalidate(notesListProvider);

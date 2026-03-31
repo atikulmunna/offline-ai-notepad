@@ -118,6 +118,11 @@ class AppDatabase {
             await db.execute(statement);
           }
         },
+        onUpgrade: (db, oldVersion, newVersion) async {
+          if (oldVersion < 2) {
+            await db.execute(DatabaseSchema.addNotesBodyDeltaColumn);
+          }
+        },
       ),
     );
   }

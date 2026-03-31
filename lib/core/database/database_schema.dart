@@ -1,6 +1,6 @@
 class DatabaseSchema {
   static const databaseName = 'offline_ai_notepad.db';
-  static const databaseVersion = 1;
+  static const databaseVersion = 2;
 
   static const notesTable = 'notes';
   static const foldersTable = 'folders';
@@ -13,6 +13,7 @@ CREATE TABLE notes (
   id TEXT PRIMARY KEY,
   title TEXT,
   body TEXT NOT NULL,
+  body_delta TEXT,
   summary TEXT,
   folder_id TEXT,
   is_pinned INTEGER NOT NULL DEFAULT 0,
@@ -23,6 +24,9 @@ CREATE TABLE notes (
   deleted_at INTEGER
 );
 ''';
+
+  static const addNotesBodyDeltaColumn =
+      'ALTER TABLE notes ADD COLUMN body_delta TEXT;';
 
   static const createFoldersTable = '''
 CREATE TABLE folders (

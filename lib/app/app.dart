@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 
 import 'theme/app_theme.dart';
 import '../features/notes/presentation/home_page.dart';
@@ -12,6 +13,8 @@ class OfflineAiNotepadApp extends StatelessWidget {
       title: 'Offline AI Notepad',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
+      localizationsDelegates: FlutterQuillLocalizations.localizationsDelegates,
+      supportedLocales: FlutterQuillLocalizations.supportedLocales,
       home: const NotesHomePage(),
     );
   }

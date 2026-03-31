@@ -123,6 +123,7 @@ class InMemoryNotesRepository implements NotesRepository {
         id: note.id,
         title: note.title,
         body: note.body,
+        bodyDelta: note.bodyDelta,
         summary: note.summary,
         folderId: note.folderId,
         folderName: updated.name,
@@ -142,6 +143,7 @@ class InMemoryNotesRepository implements NotesRepository {
   Future<String> createNote({
     String? title,
     required String body,
+    String? bodyDelta,
     String? folderId,
   }) async {
     final now = DateTime.now();
@@ -153,6 +155,7 @@ class InMemoryNotesRepository implements NotesRepository {
         id: id,
         title: title,
         body: body,
+        bodyDelta: bodyDelta,
         folderId: folder?.id,
         folderName: folder?.name,
         createdAt: now,
@@ -177,6 +180,7 @@ class InMemoryNotesRepository implements NotesRepository {
     required String id,
     String? title,
     required String body,
+    String? bodyDelta,
     String? folderId,
   }) async {
     final index = _notes.indexWhere((note) => note.id == id);
@@ -190,6 +194,7 @@ class InMemoryNotesRepository implements NotesRepository {
       id: current.id,
       title: title,
       body: body,
+      bodyDelta: bodyDelta,
       summary: current.summary,
       folderId: folder?.id,
       folderName: folder?.name,
@@ -217,6 +222,7 @@ class InMemoryNotesRepository implements NotesRepository {
       id: current.id,
       title: current.title,
       body: current.body,
+      bodyDelta: current.bodyDelta,
       summary: current.summary,
       folderId: current.folderId,
       folderName: current.folderName,
@@ -251,6 +257,7 @@ class InMemoryNotesRepository implements NotesRepository {
       id: current.id,
       title: current.title,
       body: current.body,
+      bodyDelta: current.bodyDelta,
       summary: current.summary,
       folderId: current.folderId,
       folderName: current.folderName,
@@ -275,6 +282,7 @@ class InMemoryNotesRepository implements NotesRepository {
       id: current.id,
       title: current.title,
       body: current.body,
+      bodyDelta: current.bodyDelta,
       summary: current.summary,
       folderId: current.folderId,
       folderName: current.folderName,
@@ -299,6 +307,7 @@ class InMemoryNotesRepository implements NotesRepository {
       id: current.id,
       title: current.title,
       body: current.body,
+      bodyDelta: current.bodyDelta,
       summary: current.summary,
       folderId: current.folderId,
       folderName: current.folderName,

@@ -6,6 +6,7 @@ class NoteRecord {
     required this.id,
     required this.title,
     required this.body,
+    this.bodyDelta,
     required this.createdAt,
     required this.updatedAt,
     this.summary,
@@ -20,6 +21,7 @@ class NoteRecord {
   final String id;
   final String? title;
   final String body;
+  final String? bodyDelta;
   final String? summary;
   final String? folderId;
   final String? folderName;
@@ -35,6 +37,7 @@ class NoteRecord {
       'id': id,
       'title': title,
       'body': body,
+      'body_delta': bodyDelta,
       'summary': summary,
       'folder_id': folderId,
       'is_pinned': isPinned ? 1 : 0,
@@ -51,6 +54,7 @@ class NoteRecord {
       id: map['id']! as String,
       title: map['title'] as String?,
       body: map['body']! as String,
+      bodyDelta: map['body_delta'] as String?,
       summary: map['summary'] as String?,
       folderId: map['folder_id'] as String?,
       folderName: map['folder_name'] as String?,
@@ -91,6 +95,7 @@ class NoteRecord {
       id: id,
       title: title,
       body: body,
+      bodyDelta: bodyDelta,
       summary: summary,
       createdAt: createdAt,
       updatedAt: updatedAt,

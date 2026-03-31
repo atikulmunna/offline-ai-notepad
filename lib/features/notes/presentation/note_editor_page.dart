@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -26,7 +28,8 @@ class NoteEditorPage extends ConsumerStatefulWidget {
 
 class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   final _titleController = TextEditingController();
-  final _bodyController = TextEditingController();
+  final _bodyController = QuillController.basic();
+  final _bodyFocusNode = FocusNode();
   Timer? _autosaveTimer;
   bool _didLoadInitialData = false;
   bool _isLoading = false;
@@ -73,7 +76,14 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   void _applyNote(NoteDocument note) {
     _activeNoteId = note.id;
     _titleController.text = note.title ?? '';
-    _bodyController.text = note.body;
+    _bodyController.document = _documentFromStoredContent(
+      body: note.body,
+      bodyDelta: note.bodyDelta,
+    );
+    _bodyController.updateSelection(
+      const TextSelection.collapsed(offset: 0),
+      ChangeSource.local,
+    );
     _selectedFolderId = note.folderId;
     _summary = note.summary;
   }
@@ -94,6 +104,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     _autosaveTimer?.cancel();
     _titleController.dispose();
     _bodyController.dispose();
+    _bodyFocusNode.dispose();
     super.dispose();
   }
 
@@ -102,7 +113,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   }
 
   Future<void> _generateSummary() async {
-    final body = _bodyController.text.trim();
+    final body = _plainBody;
     if (body.isEmpty || _isGeneratingSummary) {
       return;
     }
@@ -143,7 +154,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   }
 
   Future<void> _persist({required bool closeAfterSave}) async {
-    final body = _bodyController.text.trim();
+    final body = _plainBody;
     if (body.isEmpty) {
       return;
     }
@@ -161,6 +172,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
         _activeNoteId = await ref.read(notesActionsProvider).createNote(
               title: title,
               body: body,
+              bodyDelta: _encodedBodyDelta,
               folderId: _selectedFolderId,
             );
       } else {
@@ -168,6 +180,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
               id: _activeNoteId!,
               title: title,
               body: body,
+              bodyDelta: _encodedBodyDelta,
               folderId: _selectedFolderId,
             );
       }
@@ -183,6 +196,29 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
         });
       }
     }
+  }
+
+  String get _plainBody =>
+      _bodyController.document.toPlainText().replaceAll('\u00a0', ' ').trim();
+
+  String get _encodedBodyDelta =>
+      jsonEncode(_bodyController.document.toDelta().toJson());
+
+  Document _documentFromStoredContent({
+    required String body,
+    String? bodyDelta,
+  }) {
+    if (bodyDelta != null && bodyDelta.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(bodyDelta);
+        if (decoded is List) {
+          return Document.fromJson(decoded);
+        }
+      } catch (_) {}
+    }
+
+    final seed = body.trim().isEmpty ? '\n' : '${body.trim()}\n';
+    return Document()..insert(0, seed);
   }
 
   @override
@@ -350,16 +386,79 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
             ),
           ),
           const SizedBox(height: 16),
-          TextField(
-            controller: _bodyController,
-            minLines: 12,
-            maxLines: 20,
-            textCapitalization: TextCapitalization.sentences,
-            style: theme.textTheme.bodyLarge,
-            decoration: const InputDecoration(
-              labelText: 'Body',
-              hintText: 'Write your note here...',
-              alignLabelWithHint: true,
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: const Color(0xFFD8E6EE)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Body',
+                  style: theme.textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Bold, italic, color, highlight, and more.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFF5F6E79),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                QuillSimpleToolbar(
+                  controller: _bodyController,
+                  config: const QuillSimpleToolbarConfig(
+                    showFontFamily: false,
+                    showFontSize: false,
+                    showSubscript: false,
+                    showSuperscript: false,
+                    showHeaderStyle: false,
+                    showListNumbers: false,
+                    showListBullets: false,
+                    showListCheck: false,
+                    showCodeBlock: false,
+                    showQuote: false,
+                    showIndent: false,
+                    showLink: false,
+                    showSearchButton: false,
+                    showUndo: false,
+                    showRedo: false,
+                    showDividers: false,
+                    showSmallButton: false,
+                    showInlineCode: false,
+                    showDirection: false,
+                    multiRowsDisplay: true,
+                    toolbarSize: 36,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  constraints: const BoxConstraints(
+                    minHeight: 260,
+                    maxHeight: 420,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFDFBF8),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE3E7EC)),
+                  ),
+                  child: QuillEditor.basic(
+                    controller: _bodyController,
+                    focusNode: _bodyFocusNode,
+                    config: QuillEditorConfig(
+                      padding: const EdgeInsets.all(12),
+                      placeholder: 'Write your note here...',
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
