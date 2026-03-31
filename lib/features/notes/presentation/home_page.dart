@@ -75,151 +75,163 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
     final foldersAsync = ref.watch(noteFoldersProvider);
     final viewState = ref.watch(notesViewStateProvider);
     final appLockState = ref.watch(appLockControllerProvider);
+    final isShowingIntro = _showIntro;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const _BrandWordmark(),
-        actions: [
-          IconButton(
-            onPressed: _openPrivacySheet,
-            tooltip: 'Privacy controls',
-            icon: Icon(
-              appLockState.isEnabled
-                  ? Icons.lock_rounded
-                  : Icons.lock_open_rounded,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 20),
-            child: Chip(
-              avatar: const Icon(Icons.cloud_off_rounded, size: 16),
-              label: const Text('Offline-ready'),
-              backgroundColor: Colors.white.withValues(alpha: 0.92),
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          await Navigator.of(context).push<bool>(
-            MaterialPageRoute(
-              builder: (context) => const NoteEditorPage(),
-            ),
-          );
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('New note'),
-      ),
-      body: Stack(
-        children: [
-          const _BackdropGlow(),
-          ListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
-            children: [
-              _Entrance(
-                delay: 80,
-                child: _ControlDeck(
-                  showSearch: _showSearch,
-                  onToggleSearch: () {
-                    setState(() {
-                      _showSearch = !_showSearch;
-                    });
-                  },
-                  searchController: _searchController,
-                  onSearchChanged: _onSearchChanged,
-                  foldersAsync: foldersAsync,
-                  viewState: viewState,
+      appBar: isShowingIntro
+          ? null
+          : AppBar(
+              title: const _BrandWordmark(),
+              actions: [
+                IconButton(
+                  onPressed: _openPrivacySheet,
+                  tooltip: 'Privacy controls',
+                  icon: Icon(
+                    appLockState.isEnabled
+                        ? Icons.lock_rounded
+                        : Icons.lock_open_rounded,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              _Entrance(
-                delay: 160,
-                child: _SectionHeader(
-                  eyebrow: switch (viewState.collection) {
-                    NoteCollection.active => 'Library',
-                    NoteCollection.archived => 'Archive',
-                    NoteCollection.trash => 'Trash',
-                  },
-                  title: switch (viewState.collection) {
-                    NoteCollection.active => 'Recent Notes',
-                    NoteCollection.archived => 'Archived Notes',
-                    NoteCollection.trash => 'Trash Bin',
-                  },
-                  subtitle: switch (viewState.collection) {
-                    NoteCollection.active => viewState.searchMode == NoteSearchMode.semantic
-                        ? 'Use local meaning-based search to surface notes that feel related, not just exact matches.'
-                        : 'Keep the current workspace tidy and searchable.',
-                    NoteCollection.archived => 'Older notes stay close without crowding the main list.',
-                    NoteCollection.trash => 'Restore something valuable or remove it permanently.',
-                  },
+                Padding(
+                  padding: const EdgeInsets.only(right: 20),
+                  child: Chip(
+                    avatar: const Icon(Icons.cloud_off_rounded, size: 16),
+                    label: const Text('Offline-ready'),
+                    backgroundColor: Colors.white.withValues(alpha: 0.92),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              notesAsync.when(
-                data: (notes) => _Entrance(
-                  delay: 220,
-                  child: notes.isEmpty
-                      ? _EmptyNotesCard(viewState: viewState)
-                      : Column(
-                          children: [
-                            for (var i = 0; i < notes.length; i++) ...[
-                              _PreviewCard(
-                                note: notes[i],
-                                accentIndex: i,
-                                collection: viewState.collection,
-                                onTap: () async {
-                                  if (viewState.collection == NoteCollection.trash) {
-                                    return;
-                                  }
-                                  await Navigator.of(context).push<bool>(
-                                    MaterialPageRoute(
-                                      builder: (context) => NoteEditorPage(
-                                        noteId: notes[i].id,
-                                      ),
-                                    ),
-                                  );
-                                },
-                                onTogglePin: () async {
-                                  await ref.read(notesActionsProvider).togglePin(
-                                        id: notes[i].id,
-                                        value: !notes[i].isPinned,
-                                      );
-                                },
-                                onArchiveToggle: () async {
-                                  await ref.read(notesActionsProvider).setArchived(
-                                        id: notes[i].id,
-                                        value: !notes[i].isArchived,
-                                      );
-                                },
-                                onMoveToTrash: () async {
-                                  await ref
-                                      .read(notesActionsProvider)
-                                      .moveToTrash(notes[i].id);
-                                },
-                                onRestore: () async {
-                                  await ref
-                                      .read(notesActionsProvider)
-                                      .restoreFromTrash(notes[i].id);
-                                },
-                                onDeleteForever: () async {
-                                  await ref
-                                      .read(notesActionsProvider)
-                                      .deletePermanently(notes[i].id);
-                                },
-                              ),
-                              if (i < notes.length - 1)
-                                const SizedBox(height: 14),
-                            ],
-                          ],
+              ],
+            ),
+      floatingActionButton: isShowingIntro
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () async {
+                await Navigator.of(context).push<bool>(
+                  MaterialPageRoute(
+                    builder: (context) => const NoteEditorPage(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('New note'),
+            ),
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 380),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeOutCubic,
+        child: isShowingIntro
+            ? const _LaunchIntroScreen(key: ValueKey('launch-intro'))
+            : Stack(
+                key: const ValueKey('home-content'),
+                children: [
+                  const _BackdropGlow(),
+                  ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+                    children: [
+                      _Entrance(
+                        delay: 80,
+                        child: _ControlDeck(
+                          showSearch: _showSearch,
+                          onToggleSearch: () {
+                            setState(() {
+                              _showSearch = !_showSearch;
+                            });
+                          },
+                          searchController: _searchController,
+                          onSearchChanged: _onSearchChanged,
+                          foldersAsync: foldersAsync,
+                          viewState: viewState,
                         ),
-                ),
-                error: (error, stackTrace) => _ErrorCard(error: error),
-                loading: () => const _LoadingCard(),
+                      ),
+                      const SizedBox(height: 24),
+                      _Entrance(
+                        delay: 160,
+                        child: _SectionHeader(
+                          eyebrow: switch (viewState.collection) {
+                            NoteCollection.active => 'Library',
+                            NoteCollection.archived => 'Archive',
+                            NoteCollection.trash => 'Trash',
+                          },
+                          title: switch (viewState.collection) {
+                            NoteCollection.active => 'Recent Notes',
+                            NoteCollection.archived => 'Archived Notes',
+                            NoteCollection.trash => 'Trash Bin',
+                          },
+                          subtitle: switch (viewState.collection) {
+                            NoteCollection.active => viewState.searchMode == NoteSearchMode.semantic
+                                ? 'Use local meaning-based search to surface notes that feel related, not just exact matches.'
+                                : 'Keep the current workspace tidy and searchable.',
+                            NoteCollection.archived => 'Older notes stay close without crowding the main list.',
+                            NoteCollection.trash => 'Restore something valuable or remove it permanently.',
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      notesAsync.when(
+                        data: (notes) => _Entrance(
+                          delay: 220,
+                          child: notes.isEmpty
+                              ? _EmptyNotesCard(viewState: viewState)
+                              : Column(
+                                  children: [
+                                    for (var i = 0; i < notes.length; i++) ...[
+                                      _PreviewCard(
+                                        note: notes[i],
+                                        accentIndex: i,
+                                        collection: viewState.collection,
+                                        onTap: () async {
+                                          if (viewState.collection == NoteCollection.trash) {
+                                            return;
+                                          }
+                                          await Navigator.of(context).push<bool>(
+                                            MaterialPageRoute(
+                                              builder: (context) => NoteEditorPage(
+                                                noteId: notes[i].id,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        onTogglePin: () async {
+                                          await ref.read(notesActionsProvider).togglePin(
+                                                id: notes[i].id,
+                                                value: !notes[i].isPinned,
+                                              );
+                                        },
+                                        onArchiveToggle: () async {
+                                          await ref.read(notesActionsProvider).setArchived(
+                                                id: notes[i].id,
+                                                value: !notes[i].isArchived,
+                                              );
+                                        },
+                                        onMoveToTrash: () async {
+                                          await ref
+                                              .read(notesActionsProvider)
+                                              .moveToTrash(notes[i].id);
+                                        },
+                                        onRestore: () async {
+                                          await ref
+                                              .read(notesActionsProvider)
+                                              .restoreFromTrash(notes[i].id);
+                                        },
+                                        onDeleteForever: () async {
+                                          await ref
+                                              .read(notesActionsProvider)
+                                              .deletePermanently(notes[i].id);
+                                        },
+                                      ),
+                                      if (i < notes.length - 1)
+                                        const SizedBox(height: 14),
+                                    ],
+                                  ],
+                                ),
+                        ),
+                        error: (error, stackTrace) => _ErrorCard(error: error),
+                        loading: () => const _LoadingCard(),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
-          ),
-          _LaunchIntroOverlay(visible: _showIntro),
-        ],
       ),
     );
   }
@@ -305,59 +317,36 @@ class _BackdropGlow extends StatelessWidget {
   }
 }
 
-class _LaunchIntroOverlay extends StatelessWidget {
-  const _LaunchIntroOverlay({
-    required this.visible,
-  });
-
-  final bool visible;
+class _LaunchIntroScreen extends StatelessWidget {
+  const _LaunchIntroScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return IgnorePointer(
-      ignoring: !visible,
-      child: AnimatedOpacity(
-        opacity: visible ? 1 : 0,
-        duration: const Duration(milliseconds: 420),
-        curve: Curves.easeOutCubic,
-        child: AnimatedSlide(
-          offset: visible ? Offset.zero : const Offset(0, -0.04),
+    return ColoredBox(
+      color: const Color(0xFFF5EEE6),
+      child: Center(
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.96, end: 1),
           duration: const Duration(milliseconds: 520),
           curve: Curves.easeOutCubic,
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  const Color(0xFFF5EEE6).withValues(alpha: 0.72),
-                  const Color(0xFFEAE0D5).withValues(alpha: 0.42),
-                ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+          builder: (context, value, child) {
+            return Transform.scale(
+              scale: value,
+              child: Opacity(
+                opacity: value.clamp(0.0, 1.0),
+                child: child,
               ),
-            ),
-            alignment: Alignment.topCenter,
-            padding: const EdgeInsets.only(top: 118),
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.96, end: 1),
-              duration: const Duration(milliseconds: 520),
-              curve: Curves.easeOutCubic,
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: value,
-                  child: child,
-                );
-              },
-              child: Text(
-                'Private notes with a pulse.',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  color: const Color(0xFF22333B),
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.1,
-                ),
-              ),
+            );
+          },
+          child: Text(
+            'Private notes with a pulse.',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              color: const Color(0xFF22333B),
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.1,
             ),
           ),
         ),

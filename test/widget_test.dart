@@ -52,6 +52,9 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    expect(find.text('Private notes with a pulse.'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 1700));
+    await tester.pumpAndSettle();
 
     expect(find.text('NativeNote'), findsOneWidget);
     expect(find.widgetWithText(FloatingActionButton, 'New note'), findsOneWidget);
