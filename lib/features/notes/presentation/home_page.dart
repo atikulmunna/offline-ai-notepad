@@ -26,12 +26,21 @@ class NotesHomePage extends ConsumerStatefulWidget {
 class _NotesHomePageState extends ConsumerState<NotesHomePage> {
   late final TextEditingController _searchController;
   Timer? _searchDebounce;
+  bool _showIntro = true;
 
   @override
   void initState() {
     super.initState();
     final initialQuery = ref.read(notesViewStateProvider).searchQuery;
     _searchController = TextEditingController(text: initialQuery);
+    Future<void>.delayed(const Duration(milliseconds: 1600), () {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _showIntro = false;
+      });
+    });
   }
 
   @override
@@ -104,11 +113,6 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
           ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
             children: [
-              const _Entrance(
-                delay: 0,
-                child: _HeroPanel(),
-              ),
-              const SizedBox(height: 18),
               _Entrance(
                 delay: 70,
                 child: _QuickStats(
@@ -213,6 +217,7 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
               ),
             ],
           ),
+          _LaunchIntroOverlay(visible: _showIntro),
         ],
       ),
     );
@@ -299,123 +304,62 @@ class _BackdropGlow extends StatelessWidget {
   }
 }
 
-class _HeroPanel extends StatelessWidget {
-  const _HeroPanel();
+class _LaunchIntroOverlay extends StatelessWidget {
+  const _LaunchIntroOverlay({
+    required this.visible,
+  });
+
+  final bool visible;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32),
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFF22333B),
-            Color(0xFF5E503F),
-            Color(0xFFC6AC8F),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x2A22333B),
-            blurRadius: 30,
-            offset: Offset(0, 18),
-          ),
-        ],
-        border: Border.all(
-          color: Color(0x3DFFFFFF),
-        ),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: -36,
-            right: -24,
-            child: Container(
-              width: 170,
-              height: 170,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    Color(0x50FFFFFF),
-                    Color(0x00FFFFFF),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -28,
-            left: -18,
-            child: Container(
-              width: 140,
-              height: 140,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    Color(0x33EAE0D5),
-                    Color(0x00EAE0D5),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: Colors.white24),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 16),
-                        SizedBox(width: 8),
-                        Text(
-                          'Offline AI workspace',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+    return IgnorePointer(
+      ignoring: !visible,
+      child: AnimatedOpacity(
+        opacity: visible ? 1 : 0,
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeOutCubic,
+        child: AnimatedSlide(
+          offset: visible ? Offset.zero : const Offset(0, -0.04),
+          duration: const Duration(milliseconds: 520),
+          curve: Curves.easeOutCubic,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFFF5EEE6).withValues(alpha: 0.72),
+                  const Color(0xFFEAE0D5).withValues(alpha: 0.42),
                 ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
               ),
-              const SizedBox(height: 18),
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  'Private notes with a pulse.',
-                  textHeightBehavior: const TextHeightBehavior(
-                    applyHeightToFirstAscent: false,
-                    applyHeightToLastDescent: true,
-                  ),
-                  style: theme.textTheme.headlineLarge?.copyWith(
-                    color: Colors.white,
-                    height: 1.14,
-                  ),
+            ),
+            alignment: Alignment.topCenter,
+            padding: const EdgeInsets.only(top: 118),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.96, end: 1),
+              duration: const Duration(milliseconds: 520),
+              curve: Curves.easeOutCubic,
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: child,
+                );
+              },
+              child: Text(
+                'Private notes with a pulse.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  color: const Color(0xFF22333B),
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.1,
                 ),
               ),
-            ],
+            ),
           ),
-        ],
+        ),
       ),
     );
   }

@@ -504,92 +504,23 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
             const LinearProgressIndicator(),
             const SizedBox(height: 16),
           ],
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: 1),
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.easeOutCubic,
-            builder: (context, value, child) {
-              return Opacity(
-                opacity: value,
-                child: Transform.translate(
-                  offset: Offset(0, (1 - value) * 12),
-                  child: child,
+          Row(
+            children: [
+              const Spacer(),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                child: Text(
+                  _isSaving ? 'Saving...' : 'Saved',
+                  key: ValueKey(_isSaving),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: _isSaving
+                        ? theme.colorScheme.secondary
+                        : theme.colorScheme.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.all(22),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(28),
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFFEAE0D5),
-                    Color(0xFFF6EEE6),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                border: Border.all(color: const Color(0xFFC6AC8F)),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x1422333B),
-                    blurRadius: 22,
-                    offset: Offset(0, 12),
-                  ),
-                ],
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          isEditingExisting ? 'Editing' : 'Draft',
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            color: theme.colorScheme.primary,
-                          ),
-                        ),
-                      ),
-                      const Spacer(),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 220),
-                        child: Text(
-                          _isSaving ? 'Saving...' : 'Saved',
-                          key: ValueKey(_isSaving),
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: _isSaving
-                                ? theme.colorScheme.secondary
-                                : theme.colorScheme.primary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    isEditingExisting ? 'Keep writing' : 'Capture a note',
-                    style: theme.textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    isEditingExisting
-                        ? 'Changes save locally as you go.'
-                        : 'A clean space for quick capture.',
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                ],
-              ),
-            ),
+            ],
           ),
           const SizedBox(height: 20),
           _AiWorkspaceCard(

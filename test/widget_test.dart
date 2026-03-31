@@ -54,13 +54,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('NativeNote'), findsOneWidget);
-    expect(find.text('Private notes with a pulse.'), findsOneWidget);
     expect(find.widgetWithText(FloatingActionButton, 'New note'), findsOneWidget);
     await tester.tap(find.widgetWithText(FloatingActionButton, 'New note'));
     await tester.pumpAndSettle();
 
     expect(find.text('New note'), findsOneWidget);
-    expect(find.text('Capture a note'), findsOneWidget);
+    expect(find.text('AI Summary'), findsOneWidget);
+    expect(find.text('Title'), findsOneWidget);
   });
 
   testWidgets('existing note opens in edit mode', (
@@ -83,8 +83,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Edit note'), findsOneWidget);
-    expect(find.text('Keep writing'), findsOneWidget);
-    expect(find.text('Editing'), findsOneWidget);
     expect(find.text('Refresh'), findsOneWidget);
+    expect(find.text('Title'), findsOneWidget);
   });
 }
