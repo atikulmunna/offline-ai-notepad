@@ -11,6 +11,7 @@ import '../domain/note_search_mode.dart';
 import '../providers/notes_actions.dart';
 import '../providers/notes_providers.dart';
 import '../providers/notes_view_state.dart';
+import '../../security/data/encrypted_backup_service.dart';
 import '../../security/data/note_protection_service.dart';
 import '../../security/providers/app_lock_providers.dart';
 import 'note_editor_page.dart';
@@ -950,6 +951,7 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
   final _pinController = TextEditingController();
   final _confirmPinController = TextEditingController();
   bool _isDisabling = false;
+  bool _isProcessingBackup = false;
 
   @override
   void dispose() {
@@ -1057,6 +1059,156 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
         ),
       ),
     );
+  }
+
+  Future<String?> _promptBackupPassphrase({
+    required String title,
+    required String actionLabel,
+    bool confirm = false,
+  }) async {
+    final passphraseController = TextEditingController();
+    final confirmController = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(title),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: passphraseController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Passphrase',
+                ),
+              ),
+              if (confirm) ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: confirmController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Confirm passphrase',
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final passphrase = passphraseController.text.trim();
+                final confirmation = confirmController.text.trim();
+                if (passphrase.length < 6) {
+                  return;
+                }
+                if (confirm && passphrase != confirmation) {
+                  return;
+                }
+                Navigator.of(context).pop(passphrase);
+              },
+              child: Text(actionLabel),
+            ),
+          ],
+        );
+      },
+    );
+    passphraseController.dispose();
+    confirmController.dispose();
+    return result;
+  }
+
+  Future<void> _exportBackup() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final passphrase = await _promptBackupPassphrase(
+      title: 'Export encrypted backup',
+      actionLabel: 'Export',
+      confirm: true,
+    );
+    if (!mounted || passphrase == null) {
+      return;
+    }
+
+    setState(() {
+      _isProcessingBackup = true;
+    });
+    try {
+      final backupService = ref.read(encryptedBackupServiceProvider);
+      final path = await backupService.exportEncryptedBackup(
+        passphrase: passphrase,
+      );
+      await backupService.shareBackupFile(path);
+      if (!mounted) {
+        return;
+      }
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Encrypted backup is ready to save or share.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessingBackup = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _importBackup() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final passphrase = await _promptBackupPassphrase(
+      title: 'Import encrypted backup',
+      actionLabel: 'Import',
+    );
+    if (!mounted || passphrase == null) {
+      return;
+    }
+
+    setState(() {
+      _isProcessingBackup = true;
+    });
+    try {
+      final imported = await ref.read(encryptedBackupServiceProvider).importEncryptedBackup(
+            passphrase: passphrase,
+          );
+      if (!mounted) {
+        return;
+      }
+      if (imported) {
+        ref.invalidate(notesListProvider);
+        ref.invalidate(noteFoldersProvider);
+      }
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            imported
+                ? 'Encrypted backup imported.'
+                : 'Backup import was cancelled.',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Could not import that backup. Check the passphrase and file.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessingBackup = false;
+        });
+      }
+    }
   }
 
   @override
@@ -1222,6 +1374,58 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 18),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.66),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: const Color(0xFFE1D3FF)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Encrypted backup',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: const Color(0xFF4A3A64),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Export your notes into a passphrase-protected backup file, or import one back into this device.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: const Color(0xFF736388),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed:
+                                  _isProcessingBackup ? null : _exportBackup,
+                              icon: const Icon(Icons.ios_share_rounded),
+                              label: Text(
+                                _isProcessingBackup ? 'Working...' : 'Export',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: FilledButton.tonalIcon(
+                              onPressed:
+                                  _isProcessingBackup ? null : _importBackup,
+                              icon: const Icon(Icons.download_rounded),
+                              label: const Text('Import'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ],
