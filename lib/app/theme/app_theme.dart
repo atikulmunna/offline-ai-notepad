@@ -82,6 +82,64 @@ class AppTheme {
           color: ink,
         ),
       ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: accent,
+          foregroundColor: Colors.white,
+          textStyle: const TextStyle(
+            fontFamily: 'Merriweather',
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.2,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          elevation: 0,
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: accent,
+          textStyle: const TextStyle(
+            fontFamily: 'Merriweather',
+            fontWeight: FontWeight.w700,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return Colors.white;
+            }
+            return ink;
+          }),
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return accent;
+            }
+            return const Color(0xFFF8F3FF);
+          }),
+          side: const WidgetStatePropertyAll(
+            BorderSide(color: Color(0xFFDCD0F4)),
+          ),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          textStyle: const WidgetStatePropertyAll(
+            TextStyle(
+              fontFamily: 'Merriweather',
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
       chipTheme: ChipThemeData(
         backgroundColor: Colors.white,
         selectedColor: accent,
@@ -131,6 +189,24 @@ class AppTheme {
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: accent,
         foregroundColor: Colors.white,
+        elevation: 8,
+        extendedTextStyle: TextStyle(
+          fontFamily: 'Merriweather',
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: const Color(0xFFFEFCFF),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: Color(0xFFDCD0F4)),
+        ),
+      ),
+      textSelectionTheme: const TextSelectionThemeData(
+        cursorColor: accent,
+        selectionColor: Color(0x667C4DFF),
+        selectionHandleColor: accent,
       ),
       dividerColor: const Color(0xFFDCD0F4),
       splashFactory: InkSparkle.splashFactory,

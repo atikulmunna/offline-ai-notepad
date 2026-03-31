@@ -58,7 +58,7 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
             child: Chip(
               avatar: const Icon(Icons.cloud_off_rounded, size: 16),
               label: const Text('Offline-ready'),
-              backgroundColor: Colors.white,
+              backgroundColor: Colors.white.withValues(alpha: 0.92),
             ),
           ),
         ],
@@ -268,61 +268,103 @@ class _HeroPanel extends StatelessWidget {
             offset: Offset(0, 18),
           ),
         ],
+        border: Border.all(
+          color: Color(0x3DFFFFFF),
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 16),
-                    SizedBox(width: 8),
-                    Text(
-                      'Offline AI workspace',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+          Positioned(
+            top: -36,
+            right: -24,
+            child: Container(
+              width: 170,
+              height: 170,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    Color(0x50FFFFFF),
+                    Color(0x00FFFFFF),
                   ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Text(
-            'Private notes with a pulse.',
-            style: theme.textTheme.headlineLarge?.copyWith(
-              color: Colors.white,
             ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            'Folders, archive, trash, and search are now shaping the note library into a calmer workspace instead of a single stream.',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: Colors.white.withValues(alpha: 0.92),
+          Positioned(
+            bottom: -28,
+            left: -18,
+            child: Container(
+              width: 140,
+              height: 140,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    Color(0x2EBEA3FF),
+                    Color(0x00BEA3FF),
+                  ],
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 20),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: const [
-              _FeaturePill(label: 'Folders'),
-              _FeaturePill(label: 'Archive'),
-              _FeaturePill(label: 'Trash restore'),
-              _FeaturePill(label: 'Search'),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 16),
+                        SizedBox(width: 8),
+                        Text(
+                          'Offline AI workspace',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'Private notes with a pulse.',
+                style: theme.textTheme.headlineLarge?.copyWith(
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Folders, archive, trash, and search are now shaping the note library into a calmer workspace instead of a single stream.',
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.92),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: const [
+                  _FeaturePill(label: 'Folders'),
+                  _FeaturePill(label: 'Archive'),
+                  _FeaturePill(label: 'Trash restore'),
+                  _FeaturePill(label: 'Search'),
+                ],
+              ),
             ],
           ),
         ],
@@ -450,7 +492,14 @@ class _ControlDeck extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.85),
+        gradient: LinearGradient(
+          colors: [
+            Colors.white.withValues(alpha: 0.94),
+            const Color(0xFFF8F2FF),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(28),
         border: Border.all(color: const Color(0xFFDDD1F4)),
         boxShadow: const [
@@ -834,6 +883,8 @@ class _PreviewCard extends StatelessWidget {
     final accent = accents[accentIndex % accents.length];
 
     return Card(
+      elevation: 0,
+      color: Colors.white.withValues(alpha: 0.96),
       child: InkWell(
         borderRadius: BorderRadius.circular(24),
         onTap: collection == NoteCollection.trash ? null : onTap,
@@ -876,7 +927,13 @@ class _PreviewCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 10),
-              Text(note.body, style: theme.textTheme.bodyMedium),
+              Text(
+                note.body,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: const Color(0xFF54486B),
+                  height: 1.5,
+                ),
+              ),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,

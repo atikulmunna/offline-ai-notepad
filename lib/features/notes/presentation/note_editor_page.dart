@@ -276,6 +276,14 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
+                border: Border.all(color: const Color(0xFFE1D6F5)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x145F46B0),
+                    blurRadius: 22,
+                    offset: Offset(0, 12),
+                  ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -389,9 +397,23 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white,
+                  const Color(0xFFF8F3FF),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               borderRadius: BorderRadius.circular(24),
               border: Border.all(color: const Color(0xFFDDD1F4)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x125F46B0),
+                  blurRadius: 18,
+                  offset: Offset(0, 8),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -408,30 +430,38 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                QuillSimpleToolbar(
-                  controller: _bodyController,
-                  config: const QuillSimpleToolbarConfig(
-                    showFontFamily: false,
-                    showFontSize: false,
-                    showSubscript: false,
-                    showSuperscript: false,
-                    showHeaderStyle: false,
-                    showListNumbers: false,
-                    showListBullets: false,
-                    showListCheck: false,
-                    showCodeBlock: false,
-                    showQuote: false,
-                    showIndent: false,
-                    showLink: false,
-                    showSearchButton: false,
-                    showUndo: false,
-                    showRedo: false,
-                    showDividers: false,
-                    showSmallButton: false,
-                    showInlineCode: false,
-                    showDirection: false,
-                    multiRowsDisplay: true,
-                    toolbarSize: 36,
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: const Color(0xFFE1D6F5)),
+                  ),
+                  child: QuillSimpleToolbar(
+                    controller: _bodyController,
+                    config: const QuillSimpleToolbarConfig(
+                      showFontFamily: false,
+                      showFontSize: false,
+                      showSubscript: false,
+                      showSuperscript: false,
+                      showHeaderStyle: false,
+                      showListNumbers: false,
+                      showListBullets: false,
+                      showListCheck: false,
+                      showCodeBlock: false,
+                      showQuote: false,
+                      showIndent: false,
+                      showLink: false,
+                      showSearchButton: false,
+                      showUndo: false,
+                      showRedo: false,
+                      showDividers: false,
+                      showSmallButton: false,
+                      showInlineCode: false,
+                      showDirection: false,
+                      multiRowsDisplay: true,
+                      toolbarSize: 36,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -561,6 +591,13 @@ class _AiWorkspaceCard extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         border: Border.all(color: const Color(0xFFDDD1F4)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x105F46B0),
+            blurRadius: 20,
+            offset: Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
