@@ -399,10 +399,18 @@ class _HeroPanel extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 18),
-              Text(
-                'Private notes with a pulse.',
-                style: theme.textTheme.headlineLarge?.copyWith(
-                  color: Colors.white,
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'Private notes with a pulse.',
+                  textHeightBehavior: const TextHeightBehavior(
+                    applyHeightToFirstAscent: false,
+                    applyHeightToLastDescent: true,
+                  ),
+                  style: theme.textTheme.headlineLarge?.copyWith(
+                    color: Colors.white,
+                    height: 1.14,
+                  ),
                 ),
               ),
             ],
