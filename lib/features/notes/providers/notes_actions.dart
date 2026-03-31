@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/note_collection.dart';
 import '../domain/note_document.dart';
 import '../domain/note_folder.dart';
+import '../domain/note_search_mode.dart';
 import 'notes_providers.dart';
 
 final notesActionsProvider = Provider<NotesActions>((ref) {
@@ -121,6 +122,12 @@ class NotesActions {
     _ref.read(notesViewStateProvider.notifier).state = _ref
         .read(notesViewStateProvider)
         .copyWith(searchQuery: value);
+  }
+
+  void setSearchMode(NoteSearchMode mode) {
+    _ref.read(notesViewStateProvider.notifier).state = _ref
+        .read(notesViewStateProvider)
+        .copyWith(searchMode: mode);
   }
 
   void setFolderFilter(String? folderId) {

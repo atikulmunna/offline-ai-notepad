@@ -1,9 +1,11 @@
 import '../domain/note_collection.dart';
 import '../domain/note_document.dart';
 import '../domain/note_folder.dart';
+import '../domain/note_search_mode.dart';
 import 'note_record.dart';
 import '../domain/note_preview.dart';
 import '../domain/notes_repository.dart';
+import 'semantic_note_search.dart';
 
 class InMemoryNotesRepository implements NotesRepository {
   static final _folders = [
@@ -48,6 +50,7 @@ class InMemoryNotesRepository implements NotesRepository {
   Future<List<NotePreview>> listNotes({
     NoteCollection collection = NoteCollection.active,
     String searchQuery = '',
+    NoteSearchMode searchMode = NoteSearchMode.keyword,
     String? folderId,
     bool pinnedOnly = false,
   }) async {
@@ -63,8 +66,10 @@ class InMemoryNotesRepository implements NotesRepository {
           ? true
           : note.folderId == folderId;
       final matchesPinned = !pinnedOnly || note.isPinned;
-      final matchesQuery = query.isEmpty ||
-          '${note.title ?? ''}\n${note.body}'.toLowerCase().contains(query);
+      final matchesQuery = searchMode == NoteSearchMode.semantic
+          ? true
+          : query.isEmpty ||
+              '${note.title ?? ''}\n${note.body}'.toLowerCase().contains(query);
       return matchesCollection &&
           matchesFolder &&
           matchesPinned &&
@@ -78,7 +83,15 @@ class InMemoryNotesRepository implements NotesRepository {
         return b.updatedAt.compareTo(a.updatedAt);
       });
 
-    return filtered.map((note) => note.toPreview()).toList(growable: false);
+    final previews =
+        filtered.map((note) => note.toPreview()).toList(growable: false);
+    if (query.isNotEmpty && searchMode == NoteSearchMode.semantic) {
+      return SemanticNoteSearch.rank(
+        notes: previews,
+        query: query,
+      );
+    }
+    return previews;
   }
 
   @override

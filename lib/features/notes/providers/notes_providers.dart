@@ -20,6 +20,7 @@ final notesListProvider = FutureProvider<List<NotePreview>>((ref) {
   return repository.listNotes(
     collection: viewState.collection,
     searchQuery: viewState.searchQuery,
+    searchMode: viewState.searchMode,
     folderId: viewState.folderId,
     pinnedOnly: viewState.pinnedOnly,
   );

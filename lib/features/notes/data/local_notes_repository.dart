@@ -6,9 +6,11 @@ import '../domain/note_collection.dart';
 import '../domain/note_document.dart';
 import '../domain/note_folder.dart';
 import '../domain/note_preview.dart';
+import '../domain/note_search_mode.dart';
 import '../domain/notes_repository.dart';
 import 'folder_record.dart';
 import 'note_record.dart';
+import 'semantic_note_search.dart';
 
 class LocalNotesRepository implements NotesRepository {
   LocalNotesRepository(this._database);
@@ -71,6 +73,7 @@ class LocalNotesRepository implements NotesRepository {
   Future<List<NotePreview>> listNotes({
     NoteCollection collection = NoteCollection.active,
     String searchQuery = '',
+    NoteSearchMode searchMode = NoteSearchMode.keyword,
     String? folderId,
     bool pinnedOnly = false,
   }) async {
@@ -105,7 +108,7 @@ ON folders.id = notes.folder_id
     }
 
     final query = searchQuery.trim();
-    if (query.isNotEmpty) {
+    if (query.isNotEmpty && searchMode == NoteSearchMode.keyword) {
       whereClauses.add('(LOWER(COALESCE(notes.title, \'\')) LIKE ? OR LOWER(notes.body) LIKE ?)');
       final match = '%${query.toLowerCase()}%';
       whereArgs.add(match);
@@ -119,8 +122,19 @@ ON folders.id = notes.folder_id
     buffer.write(' ORDER BY notes.is_pinned DESC, notes.updated_at DESC LIMIT 100');
 
     final rows = await _database.rawQuery(buffer.toString(), whereArgs);
+    final previews = rows
+        .map(NoteRecord.fromMap)
+        .map((note) => note.toPreview())
+        .toList(growable: false);
 
-    return rows.map(NoteRecord.fromMap).map((note) => note.toPreview()).toList(growable: false);
+    if (query.isNotEmpty && searchMode == NoteSearchMode.semantic) {
+      return SemanticNoteSearch.rank(
+        notes: previews,
+        query: query,
+      );
+    }
+
+    return previews;
   }
 
   @override

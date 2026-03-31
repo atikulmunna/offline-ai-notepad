@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/note_collection.dart';
 import '../domain/note_folder.dart';
 import '../domain/note_preview.dart';
+import '../domain/note_search_mode.dart';
 import '../providers/notes_actions.dart';
 import '../providers/notes_providers.dart';
 import '../providers/notes_view_state.dart';
@@ -117,7 +118,9 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
                     NoteCollection.trash => 'Trash Bin',
                   },
                   subtitle: switch (viewState.collection) {
-                    NoteCollection.active => 'Keep the current workspace tidy and searchable.',
+                    NoteCollection.active => viewState.searchMode == NoteSearchMode.semantic
+                        ? 'Use local meaning-based search to surface notes that feel related, not just exact matches.'
+                        : 'Keep the current workspace tidy and searchable.',
                     NoteCollection.archived => 'Older notes stay close without crowding the main list.',
                     NoteCollection.trash => 'Restore something valuable or remove it permanently.',
                   },
@@ -128,7 +131,7 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
                 data: (notes) => _Entrance(
                   delay: 280,
                   child: notes.isEmpty
-                      ? _EmptyNotesCard(collection: viewState.collection)
+                      ? _EmptyNotesCard(viewState: viewState)
                       : Column(
                           children: [
                             for (var i = 0; i < notes.length; i++) ...[
@@ -382,10 +385,10 @@ class _HeroPanel extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 'Folders, archive, trash, and search are now shaping the note library into a calmer workspace instead of a single stream.',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.92),
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.92),
+                  ),
                 ),
-              ),
               const SizedBox(height: 20),
               Wrap(
                 spacing: 12,
@@ -394,7 +397,7 @@ class _HeroPanel extends StatelessWidget {
                   _FeaturePill(label: 'Folders'),
                   _FeaturePill(label: 'Archive'),
                   _FeaturePill(label: 'Trash restore'),
-                  _FeaturePill(label: 'Search'),
+                  _FeaturePill(label: 'Semantic search'),
                 ],
               ),
             ],
@@ -548,10 +551,43 @@ class _ControlDeck extends ConsumerWidget {
           TextField(
             controller: searchController,
             onChanged: onSearchChanged,
-            decoration: const InputDecoration(
-              labelText: 'Search notes',
-              hintText: 'Title, body, or ideas you remember',
+            decoration: InputDecoration(
+              labelText: viewState.searchMode == NoteSearchMode.semantic
+                  ? 'Search by meaning'
+                  : 'Search notes',
+              hintText: viewState.searchMode == NoteSearchMode.semantic
+                  ? 'Ideas, themes, or what the note was about'
+                  : 'Title, body, or exact words you remember',
               prefixIcon: Icon(Icons.search_rounded),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text('Search style', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 10),
+          SegmentedButton<NoteSearchMode>(
+            segments: const [
+              ButtonSegment(
+                value: NoteSearchMode.keyword,
+                icon: Icon(Icons.text_fields_rounded),
+                label: Text('Keyword'),
+              ),
+              ButtonSegment(
+                value: NoteSearchMode.semantic,
+                icon: Icon(Icons.auto_awesome_rounded),
+                label: Text('Semantic'),
+              ),
+            ],
+            selected: {viewState.searchMode},
+            onSelectionChanged: (selection) {
+              ref.read(notesActionsProvider).setSearchMode(selection.first);
+            },
+          ),
+          const SizedBox(height: 10),
+          Text(
+            viewState.searchMode.helperLabel,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: const Color(0xFF746487),
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 18),
@@ -1098,15 +1134,23 @@ String _formatUpdatedLabel(DateTime updatedAt) {
 
 class _EmptyNotesCard extends StatelessWidget {
   const _EmptyNotesCard({
-    required this.collection,
+    required this.viewState,
   });
 
-  final NoteCollection collection;
+  final NotesViewState viewState;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final message = switch (collection) {
+    final hasSearchQuery = viewState.searchQuery.trim().isNotEmpty;
+    final message = hasSearchQuery
+        ? switch (viewState.searchMode) {
+            NoteSearchMode.keyword =>
+              'No exact matches yet. Try a broader word, remove a folder filter, or switch to semantic search.',
+            NoteSearchMode.semantic =>
+              'No related notes surfaced yet. Try a different idea phrase or switch back to keyword search for exact wording.',
+          }
+        : switch (viewState.collection) {
       NoteCollection.active =>
         'Create a note, pin a few favorites, or narrow the workspace with folder and search filters.',
       NoteCollection.archived =>

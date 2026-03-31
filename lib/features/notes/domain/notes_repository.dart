@@ -2,11 +2,13 @@ import 'note_collection.dart';
 import 'note_document.dart';
 import 'note_folder.dart';
 import 'note_preview.dart';
+import 'note_search_mode.dart';
 
 abstract class NotesRepository {
   Future<List<NotePreview>> listNotes({
     NoteCollection collection = NoteCollection.active,
     String searchQuery = '',
+    NoteSearchMode searchMode = NoteSearchMode.keyword,
     String? folderId,
     bool pinnedOnly = false,
   });
