@@ -265,6 +265,10 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     final toolbarConfig = QuillSimpleToolbarConfig(
       showFontFamily: false,
       showFontSize: false,
+      showBoldButton: true,
+      showItalicButton: true,
+      showUnderLineButton: true,
+      showStrikeThrough: true,
       showSubscript: false,
       showSuperscript: false,
       showHeaderStyle: false,
@@ -574,6 +578,16 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                                     color: const Color(0xFF7D6A9D),
                                   ),
                                 ),
+                                const SizedBox(height: 6),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: const [
+                                    _FormattingCueChip(label: 'Emphasis'),
+                                    _FormattingCueChip(label: 'Text color'),
+                                    _FormattingCueChip(label: 'Highlight'),
+                                  ],
+                                ),
                               ],
                             ),
                           ),
@@ -625,6 +639,32 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FormattingCueChip extends StatelessWidget {
+  const _FormattingCueChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F1FF),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFE4D6FF)),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: const Color(0xFF7B5CB8),
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.1,
+            ),
       ),
     );
   }
