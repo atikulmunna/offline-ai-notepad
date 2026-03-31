@@ -230,6 +230,72 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     final aiSnapshotAsync = _activeNoteId == null
         ? null
         : ref.watch(noteAiSnapshotProvider(_activeNoteId!));
+    final toolbarIconTheme = QuillIconTheme(
+      iconButtonUnselectedData: IconButtonData(
+        color: const Color(0xFF6A4DB3),
+        style: IconButton.styleFrom(
+          backgroundColor: const Color(0xFFF6F0FF),
+          foregroundColor: const Color(0xFF6A4DB3),
+          hoverColor: const Color(0xFFE8DAFF),
+          highlightColor: const Color(0xFFDFD0FF),
+          padding: const EdgeInsets.all(11),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Color(0xFFE3D5FF)),
+          ),
+        ),
+      ),
+      iconButtonSelectedData: IconButtonData(
+        color: Colors.white,
+        style: IconButton.styleFrom(
+          backgroundColor: const Color(0xFF7A42F4),
+          foregroundColor: Colors.white,
+          hoverColor: const Color(0xFF6B35E3),
+          highlightColor: const Color(0xFF5727C7),
+          padding: const EdgeInsets.all(11),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          side: const BorderSide(color: Color(0xFFA987FF)),
+          shadowColor: const Color(0x447A42F4),
+          elevation: 4,
+        ),
+      ),
+    );
+    final toolbarConfig = QuillSimpleToolbarConfig(
+      showFontFamily: false,
+      showFontSize: false,
+      showSubscript: false,
+      showSuperscript: false,
+      showHeaderStyle: false,
+      showListNumbers: false,
+      showListBullets: false,
+      showListCheck: false,
+      showCodeBlock: false,
+      showQuote: false,
+      showIndent: false,
+      showLink: false,
+      showSearchButton: false,
+      showUndo: false,
+      showRedo: false,
+      showDividers: false,
+      showSmallButton: false,
+      showInlineCode: false,
+      showDirection: false,
+      multiRowsDisplay: true,
+      toolbarSize: 38,
+      toolbarSectionSpacing: 10,
+      toolbarRunSpacing: 10,
+      color: const Color(0x00000000),
+      iconTheme: toolbarIconTheme,
+      buttonOptions: QuillSimpleToolbarButtonOptions(
+        base: QuillToolbarBaseButtonOptions(
+          iconSize: 18,
+          iconButtonFactor: 1.15,
+          iconTheme: toolbarIconTheme,
+        ),
+      ),
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -431,37 +497,104 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                 ),
                 const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFE1D6F5)),
+                  padding: const EdgeInsets.fromLTRB(
+                    12,
+                    12,
+                    12,
+                    10,
                   ),
-                  child: QuillSimpleToolbar(
-                    controller: _bodyController,
-                    config: const QuillSimpleToolbarConfig(
-                      showFontFamily: false,
-                      showFontSize: false,
-                      showSubscript: false,
-                      showSuperscript: false,
-                      showHeaderStyle: false,
-                      showListNumbers: false,
-                      showListBullets: false,
-                      showListCheck: false,
-                      showCodeBlock: false,
-                      showQuote: false,
-                      showIndent: false,
-                      showLink: false,
-                      showSearchButton: false,
-                      showUndo: false,
-                      showRedo: false,
-                      showDividers: false,
-                      showSmallButton: false,
-                      showInlineCode: false,
-                      showDirection: false,
-                      multiRowsDisplay: true,
-                      toolbarSize: 36,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white.withValues(alpha: 0.98),
+                        const Color(0xFFF3EAFF),
+                        const Color(0xFFEEE2FF),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: const Color(0xFFE0D0FF)),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x15653CC9),
+                        blurRadius: 18,
+                        offset: Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFF8856FF),
+                                  Color(0xFFC06CFF),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x338856FF),
+                                  blurRadius: 14,
+                                  offset: Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.draw_rounded,
+                              size: 18,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Formatting',
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    color: const Color(0xFF4F3B77),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Style the note with emphasis, color, and highlights.',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: const Color(0xFF7D6A9D),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.54),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: const Color(0xFFE8DDFF),
+                          ),
+                        ),
+                        padding: const EdgeInsets.all(8),
+                        child: QuillSimpleToolbar(
+                          controller: _bodyController,
+                          config: toolbarConfig,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 12),
