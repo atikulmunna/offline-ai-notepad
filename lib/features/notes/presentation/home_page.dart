@@ -340,14 +340,49 @@ class _LaunchIntroScreen extends StatelessWidget {
               ),
             );
           },
-          child: Text(
-            'Private notes with a pulse.',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.headlineMedium?.copyWith(
-              color: const Color(0xFF22333B),
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.1,
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFF22333B),
+                      Color(0xFF5E503F),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x3322333B),
+                      blurRadius: 20,
+                      offset: Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.edit_note_rounded,
+                  color: Color(0xFFEAE0D5),
+                  size: 34,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const _BrandWordmark(),
+              const SizedBox(height: 14),
+              Text(
+                'Private notes with a pulse.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: const Color(0xFF5E503F).withValues(alpha: 0.72),
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.1,
+                ),
+              ),
+            ],
           ),
         ),
       ),
