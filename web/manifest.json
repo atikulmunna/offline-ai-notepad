@@ -1,6 +1,6 @@
 {
-    "name": "offline_ai_notepad",
-    "short_name": "offline_ai_notepad",
+    "name": "NativeNote",
+    "short_name": "NativeNote",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

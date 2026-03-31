@@ -1,4 +1,4 @@
-package com.example.offline_ai_notepad
+package com.atikulmunna.nativenote
 
 import android.os.Build
 import java.io.File
@@ -7,7 +7,7 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
-    private val channelName = "offline_ai_notepad/onnx_runtime"
+    private val channelName = "nativenote/onnx_runtime"
     private val onnxSessionManager = OnnxSessionManager()
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {

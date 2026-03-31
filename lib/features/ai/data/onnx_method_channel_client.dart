@@ -15,7 +15,7 @@ class OnnxMethodChannelClient {
   }) : _channel = channel;
 
   static const _defaultChannel = MethodChannel(
-    'offline_ai_notepad/onnx_runtime',
+    'nativenote/onnx_runtime',
   );
 
   final MethodChannel? _channel;

@@ -1,4 +1,4 @@
-package com.example.offline_ai_notepad
+package com.atikulmunna.nativenote
 
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
