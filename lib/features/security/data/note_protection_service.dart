@@ -30,6 +30,13 @@ class NoteProtectionService {
   }
 
   Future<String?> protect(String? value) async {
+    return protectWithPin(value);
+  }
+
+  Future<String?> protectWithPin(
+    String? value, {
+    String? sessionPinOverride,
+  }) async {
     if (value == null) {
       return null;
     }
@@ -42,7 +49,7 @@ class NoteProtectionService {
       return value;
     }
 
-    final secretKey = await _secretKey();
+    final secretKey = await _secretKey(sessionPinOverride: sessionPinOverride);
     final secretBox = await _cipher.encrypt(
       utf8.encode(value),
       secretKey: secretKey,
@@ -56,6 +63,13 @@ class NoteProtectionService {
   }
 
   Future<String?> unprotect(String? value) async {
+    return unprotectWithPin(value);
+  }
+
+  Future<String?> unprotectWithPin(
+    String? value, {
+    String? sessionPinOverride,
+  }) async {
     if (value == null || value.isEmpty) {
       return value;
     }
@@ -63,7 +77,7 @@ class NoteProtectionService {
       return value;
     }
 
-    final secretKey = await _secretKey();
+    final secretKey = await _secretKey(sessionPinOverride: sessionPinOverride);
     final decoded = jsonDecode(value.substring(_envelopePrefix.length))
         as Map<String, dynamic>;
     final secretBox = SecretBox(
@@ -78,7 +92,10 @@ class NoteProtectionService {
     return utf8.decode(clearBytes);
   }
 
-  Future<void> encryptExistingNotes(AppDatabase database) async {
+  Future<void> encryptExistingNotes(
+    AppDatabase database, {
+    String? sessionPinOverride,
+  }) async {
     if (!await isEnabled) {
       return;
     }
@@ -92,10 +109,22 @@ class NoteProtectionService {
       await database.update(
         DatabaseSchema.notesTable,
         {
-          'title': await protect(row['title'] as String?),
-          'body': await protect(body),
-          'body_delta': await protect(row['body_delta'] as String?),
-          'summary': await protect(row['summary'] as String?),
+          'title': await protectWithPin(
+            row['title'] as String?,
+            sessionPinOverride: sessionPinOverride,
+          ),
+          'body': await protectWithPin(
+            body,
+            sessionPinOverride: sessionPinOverride,
+          ),
+          'body_delta': await protectWithPin(
+            row['body_delta'] as String?,
+            sessionPinOverride: sessionPinOverride,
+          ),
+          'summary': await protectWithPin(
+            row['summary'] as String?,
+            sessionPinOverride: sessionPinOverride,
+          ),
         },
         where: 'id = ?',
         whereArgs: [row['id']],
@@ -103,7 +132,10 @@ class NoteProtectionService {
     }
   }
 
-  Future<void> decryptExistingNotes(AppDatabase database) async {
+  Future<void> decryptExistingNotes(
+    AppDatabase database, {
+    String? sessionPinOverride,
+  }) async {
     final rows = await database.query(DatabaseSchema.notesTable);
     for (final row in rows) {
       final body = row['body'] as String?;
@@ -113,10 +145,22 @@ class NoteProtectionService {
       await database.update(
         DatabaseSchema.notesTable,
         {
-          'title': await unprotect(row['title'] as String?),
-          'body': await unprotect(body),
-          'body_delta': await unprotect(row['body_delta'] as String?),
-          'summary': await unprotect(row['summary'] as String?),
+          'title': await unprotectWithPin(
+            row['title'] as String?,
+            sessionPinOverride: sessionPinOverride,
+          ),
+          'body': await unprotectWithPin(
+            body,
+            sessionPinOverride: sessionPinOverride,
+          ),
+          'body_delta': await unprotectWithPin(
+            row['body_delta'] as String?,
+            sessionPinOverride: sessionPinOverride,
+          ),
+          'summary': await unprotectWithPin(
+            row['summary'] as String?,
+            sessionPinOverride: sessionPinOverride,
+          ),
         },
         where: 'id = ?',
         whereArgs: [row['id']],
@@ -126,9 +170,9 @@ class NoteProtectionService {
 
   bool _looksEncrypted(String value) => value.startsWith(_envelopePrefix);
 
-  Future<SecretKey> _secretKey() async {
+  Future<SecretKey> _secretKey({String? sessionPinOverride}) async {
     final controller = _ref.read(appLockControllerProvider.notifier);
-    final sessionPin = controller.sessionPin;
+    final sessionPin = sessionPinOverride ?? controller.sessionPin;
     final settings = controller.settings;
 
     if (sessionPin == null || settings?.saltBase64 == null) {

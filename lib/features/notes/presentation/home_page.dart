@@ -977,7 +977,10 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
     if (success) {
       await ref
           .read(noteProtectionServiceProvider)
-          .encryptExistingNotes(ref.read(appDatabaseProvider));
+          .encryptExistingNotes(
+            ref.read(appDatabaseProvider),
+            sessionPinOverride: pin,
+          );
       ref.invalidate(notesListProvider);
       _pinController.clear();
       _confirmPinController.clear();
@@ -1037,7 +1040,10 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
     if (unlocked) {
       await ref
           .read(noteProtectionServiceProvider)
-          .decryptExistingNotes(ref.read(appDatabaseProvider));
+          .decryptExistingNotes(
+            ref.read(appDatabaseProvider),
+            sessionPinOverride: enteredPin,
+          );
       success = await controller.disable(enteredPin);
       ref.invalidate(notesListProvider);
     }
