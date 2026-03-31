@@ -491,23 +491,6 @@ class _AiWorkspaceCard extends StatelessWidget {
         ? summary!.trim()
         : snapshot?.summary;
     final status = snapshot?.embeddingStatus ?? EmbeddingStatus.missing;
-    final modelVersion = snapshot?.modelVersion ?? runtimeStatus?.modelVersion;
-    final runtimeReady = runtimeStatus?.isReady ?? false;
-    final packagedRuntimeReady = runtimeStatus?.packagedRuntimeReady ?? false;
-    final nativeBackendLinked = runtimeStatus?.nativeBackendLinked ?? false;
-    final nativeSessionReady = runtimeStatus?.nativeSessionReady ?? false;
-    final contractMatchesManifest =
-        runtimeStatus?.contractMatchesManifest ?? false;
-    final runtimeLabel = runtimeStatus?.runtimeLabel ?? 'AI status';
-    final packagedModels = runtimeStatus == null
-        ? null
-        : '${runtimeStatus.packagedModels}/${runtimeStatus.totalModels} planned';
-    final installedModels = runtimeStatus == null
-        ? null
-        : '${runtimeStatus.installedModels}/${runtimeStatus.totalModels} installed';
-    final stagedModels = runtimeStatus == null
-        ? null
-        : '${runtimeStatus.stagedModels}/${runtimeStatus.totalModels} staged';
     final runtimeProfile = runtimeStatus?.runtimeProfile;
     final summaryModelId = runtimeStatus?.summaryModelId;
     final embeddingModelId = runtimeStatus?.embeddingModelId;
@@ -540,6 +523,30 @@ class _AiWorkspaceCard extends StatelessWidget {
         runtimeStatus?.outputInterpretationMessage;
     final decoderType = runtimeStatus?.decoderType;
     final canAttemptDecode = runtimeStatus?.canAttemptDecode ?? false;
+    final summaryStatusLabel = switch (status) {
+      EmbeddingStatus.indexed => 'Summary and note index are ready.',
+      EmbeddingStatus.queued => 'Summary is ready. Search index is updating.',
+      EmbeddingStatus.failed => 'Summary is ready. AI indexing needs attention.',
+      EmbeddingStatus.missing => effectiveSummary == null
+          ? 'Generate a local summary when you want a quick recap.'
+          : 'Summary is ready.',
+    };
+    final summaryStatusIcon = switch (status) {
+      EmbeddingStatus.indexed => Icons.check_circle_outline_rounded,
+      EmbeddingStatus.queued => Icons.schedule_rounded,
+      EmbeddingStatus.failed => Icons.error_outline_rounded,
+      EmbeddingStatus.missing => effectiveSummary == null
+          ? Icons.auto_awesome_outlined
+          : Icons.check_circle_outline_rounded,
+    };
+    final summaryStatusColor = switch (status) {
+      EmbeddingStatus.indexed => const Color(0xFF0B6E4F),
+      EmbeddingStatus.queued => const Color(0xFF866118),
+      EmbeddingStatus.failed => const Color(0xFFB14D35),
+      EmbeddingStatus.missing => effectiveSummary == null
+          ? const Color(0xFF5F6E79)
+          : const Color(0xFF0B6E4F),
+    };
 
     return Container(
       padding: const EdgeInsets.all(22),
@@ -604,86 +611,36 @@ class _AiWorkspaceCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              Chip(
-                avatar: const Icon(Icons.hub_outlined, size: 16),
-                label: Text(status.label),
-              ),
-              Chip(
-                avatar: Icon(
-                  runtimeReady ? Icons.offline_bolt_rounded : Icons.error_outline,
-                  size: 16,
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.62),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFD8E6EE)),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  summaryStatusIcon,
+                  size: 18,
+                  color: summaryStatusColor,
                 ),
-                label: Text(runtimeLabel),
-              ),
-              Chip(
-                avatar: const Icon(Icons.memory_rounded, size: 16),
-                label: Text(modelVersion ?? 'AI'),
-              ),
-              if (!runtimeReady)
-                const Chip(
-                  avatar: Icon(Icons.warning_amber_rounded, size: 16),
-                  label: Text('Unavailable'),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    summaryStatusLabel,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: summaryStatusColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
-              if (packagedRuntimeReady)
-                const Chip(
-                  avatar: Icon(Icons.check_circle_outline, size: 16),
-                  label: Text('Models ready'),
-                )
-              else
-                const Chip(
-                  avatar: Icon(Icons.pending_outlined, size: 16),
-                  label: Text('Models pending'),
-                ),
-              if (nativeBackendLinked)
-                const Chip(
-                  avatar: Icon(Icons.developer_mode_rounded, size: 16),
-                  label: Text('ONNX linked'),
-                )
-              else
-                const Chip(
-                  avatar: Icon(Icons.developer_mode_outlined, size: 16),
-                  label: Text('ONNX pending'),
-                ),
-              if (nativeSessionReady)
-                const Chip(
-                  avatar: Icon(Icons.play_circle_outline_rounded, size: 16),
-                  label: Text('Session ready'),
-                )
-              else
-                const Chip(
-                  avatar: Icon(Icons.pause_circle_outline_rounded, size: 16),
-                  label: Text('Session idle'),
-                ),
-              if (contractMatchesManifest)
-                const Chip(
-                  avatar: Icon(Icons.rule_folder_outlined, size: 16),
-                  label: Text('Contract matches'),
-                )
-              else
-                const Chip(
-                  avatar: Icon(Icons.rule_folder_rounded, size: 16),
-                  label: Text('Contract idle'),
-                ),
-              if (packagedModels != null)
-                Chip(
-                  avatar: const Icon(Icons.inventory_2_outlined, size: 16),
-                  label: Text(packagedModels),
-                ),
-              if (installedModels != null)
-                Chip(
-                  avatar: const Icon(Icons.download_done_outlined, size: 16),
-                  label: Text(installedModels),
-                ),
-              if (stagedModels != null)
-                Chip(
-                  avatar: const Icon(Icons.folder_special_outlined, size: 16),
-                  label: Text(stagedModels),
-                ),
-            ],
+              ],
+            ),
           ),
           if (runtimeProfile != null ||
               summaryModelId != null ||
