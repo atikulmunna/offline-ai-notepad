@@ -211,8 +211,8 @@ class _BackdropGlow extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    Color(0x55FF7A59),
-                    Color(0x00FF7A59),
+                    Color(0x55B388FF),
+                    Color(0x00B388FF),
                   ],
                 ),
               ),
@@ -228,8 +228,8 @@ class _BackdropGlow extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    Color(0x336CCFF6),
-                    Color(0x006CCFF6),
+                    Color(0x337C4DFF),
+                    Color(0x007C4DFF),
                   ],
                 ),
               ),
@@ -254,16 +254,16 @@ class _HeroPanel extends StatelessWidget {
         borderRadius: BorderRadius.circular(32),
         gradient: const LinearGradient(
           colors: [
-            Color(0xFF0B6E4F),
-            Color(0xFF188A65),
-            Color(0xFF6CCFF6),
+            Color(0xFF5C33D6),
+            Color(0xFF8F6BFF),
+            Color(0xFFC8B1FF),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x22182A3A),
+            color: Color(0x2C5F46B0),
             blurRadius: 30,
             offset: Offset(0, 18),
           ),
@@ -354,7 +354,7 @@ class _QuickStats extends StatelessWidget {
               NoteCollection.trash => 'In trash',
             },
             value: '$count',
-            tint: const Color(0xFFEEF7F0),
+            tint: const Color(0xFFF3ECFF),
             icon: switch (collection) {
               NoteCollection.active => Icons.sticky_note_2_outlined,
               NoteCollection.archived => Icons.archive_outlined,
@@ -367,7 +367,7 @@ class _QuickStats extends StatelessWidget {
           child: _StatCard(
             label: 'Mode',
             value: 'Local',
-            tint: Color(0xFFFFF1EB),
+            tint: Color(0xFFEFE7FF),
             icon: Icons.shield_moon_outlined,
           ),
         ),
@@ -397,7 +397,7 @@ class _StatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: tint,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white),
+        border: Border.all(color: const Color(0xFFF5EEFF)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -452,10 +452,10 @@ class _ControlDeck extends ConsumerWidget {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFE8DDC7)),
+        border: Border.all(color: const Color(0xFFDDD1F4)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x10A56532),
+            color: Color(0x145F46B0),
             blurRadius: 18,
             offset: Offset(0, 10),
           ),
@@ -722,7 +722,7 @@ class _FolderManagerSheetState extends ConsumerState<_FolderManagerSheet> {
         bottom: MediaQuery.of(context).viewInsets.bottom + 16,
       ),
       child: Material(
-        color: const Color(0xFFFFFBF4),
+        color: const Color(0xFFFCF8FF),
         borderRadius: BorderRadius.circular(28),
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -827,9 +827,9 @@ class _PreviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final accents = [
-      const Color(0xFF0B6E4F),
-      const Color(0xFFFF7A59),
-      const Color(0xFF6CCFF6),
+      const Color(0xFF7C4DFF),
+      const Color(0xFFB388FF),
+      const Color(0xFF8A63FF),
     ];
     final accent = accents[accentIndex % accents.length];
 

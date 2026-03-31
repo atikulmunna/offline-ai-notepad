@@ -2,24 +2,25 @@ import 'package:flutter/material.dart';
 
 class AppTheme {
   static ThemeData light() {
-    const accent = Color(0xFF0B6E4F);
-    const coral = Color(0xFFFF7A59);
-    const sky = Color(0xFF6CCFF6);
-    const cream = Color(0xFFFFF8EE);
-    const ink = Color(0xFF182230);
+    const accent = Color(0xFF7C4DFF);
+    const orchid = Color(0xFFB388FF);
+    const lilac = Color(0xFFE3D7FF);
+    const blush = Color(0xFFF5ECFF);
+    const mist = Color(0xFFF7F3FF);
+    const ink = Color(0xFF231A33);
 
     final colorScheme = ColorScheme.fromSeed(
       seedColor: accent,
       brightness: Brightness.light,
       primary: accent,
-      secondary: coral,
+      secondary: orchid,
       surface: Colors.white,
     );
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: cream,
+      scaffoldBackgroundColor: mist,
       fontFamily: 'Merriweather',
       textTheme: const TextTheme(
         headlineLarge: TextStyle(
@@ -84,7 +85,7 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: Colors.white,
         selectedColor: accent,
-        side: const BorderSide(color: Color(0xFFE8DDC7)),
+        side: const BorderSide(color: Color(0xFFDCCEF7)),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(999),
         ),
@@ -99,23 +100,23 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(28),
-          side: const BorderSide(color: Color(0xFFE9DCC6)),
+          side: const BorderSide(color: Color(0xFFDDD1F4)),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white,
+        fillColor: const Color(0xFFFEFCFF),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 18,
           vertical: 18,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(20),
-          borderSide: const BorderSide(color: Color(0xFFE7DCC8)),
+          borderSide: const BorderSide(color: Color(0xFFDCD0F4)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(20),
-          borderSide: const BorderSide(color: Color(0xFFE7DCC8)),
+          borderSide: const BorderSide(color: Color(0xFFDCD0F4)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(20),
@@ -123,7 +124,7 @@ class AppTheme {
         ),
         labelStyle: const TextStyle(
           fontFamily: 'Merriweather',
-          color: Color(0xFF55606F),
+          color: Color(0xFF665A7B),
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -131,14 +132,14 @@ class AppTheme {
         backgroundColor: accent,
         foregroundColor: Colors.white,
       ),
-      dividerColor: const Color(0xFFE7DCC8),
+      dividerColor: const Color(0xFFDCD0F4),
       splashFactory: InkSparkle.splashFactory,
       extensions: const [
         _AppColors(
           accent: accent,
-          coral: coral,
-          sky: sky,
-          cream: cream,
+          coral: orchid,
+          sky: lilac,
+          cream: blush,
           ink: ink,
         ),
       ],

@@ -270,8 +270,8 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                 borderRadius: BorderRadius.circular(28),
                 gradient: const LinearGradient(
                   colors: [
-                    Color(0xFFFFF0E9),
-                    Color(0xFFEFF9F5),
+                    Color(0xFFF4ECFF),
+                    Color(0xFFEEE7FF),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -391,7 +391,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFFD8E6EE)),
+              border: Border.all(color: const Color(0xFFDDD1F4)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -404,7 +404,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                 Text(
                   'Bold, italic, color, highlight, and more.',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFF5F6E79),
+                    color: const Color(0xFF6E6287),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -445,9 +445,9 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFDFBF8),
+                    color: const Color(0xFFFCF8FF),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFE3E7EC)),
+                    border: Border.all(color: const Color(0xFFE3D9F5)),
                   ),
                   child: QuillEditor.basic(
                     controller: _bodyController,
@@ -540,12 +540,12 @@ class _AiWorkspaceCard extends StatelessWidget {
           : Icons.check_circle_outline_rounded,
     };
     final summaryStatusColor = switch (status) {
-      EmbeddingStatus.indexed => const Color(0xFF0B6E4F),
-      EmbeddingStatus.queued => const Color(0xFF866118),
-      EmbeddingStatus.failed => const Color(0xFFB14D35),
+      EmbeddingStatus.indexed => const Color(0xFF6D43E0),
+      EmbeddingStatus.queued => const Color(0xFF8B63D9),
+      EmbeddingStatus.failed => const Color(0xFFB45CD6),
       EmbeddingStatus.missing => effectiveSummary == null
-          ? const Color(0xFF5F6E79)
-          : const Color(0xFF0B6E4F),
+          ? const Color(0xFF6E6287)
+          : const Color(0xFF6D43E0),
     };
 
     return Container(
@@ -554,13 +554,13 @@ class _AiWorkspaceCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(28),
         gradient: const LinearGradient(
           colors: [
-            Color(0xFFE8F6FF),
-            Color(0xFFFFF4E8),
+            Color(0xFFF1E9FF),
+            Color(0xFFF9F1FF),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        border: Border.all(color: const Color(0xFFD8E6EE)),
+        border: Border.all(color: const Color(0xFFDDD1F4)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -588,7 +588,7 @@ class _AiWorkspaceCard extends StatelessWidget {
           Text(
             'A short local recap of the current note.',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: const Color(0xFF5F6E79),
+              color: const Color(0xFF6E6287),
             ),
           ),
           const SizedBox(height: 14),
@@ -599,7 +599,7 @@ class _AiWorkspaceCard extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.78),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: const Color(0xFFD8E6EE),
+                color: const Color(0xFFDDD1F4),
               ),
             ),
             child: Text(
@@ -620,7 +620,7 @@ class _AiWorkspaceCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.62),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFD8E6EE)),
+              border: Border.all(color: const Color(0xFFDDD1F4)),
             ),
             child: Row(
               children: [
@@ -655,13 +655,13 @@ class _AiWorkspaceCard extends StatelessWidget {
               title: Text(
                 'AI details',
                 style: theme.textTheme.titleSmall?.copyWith(
-                  color: const Color(0xFF4D5B68),
+                  color: const Color(0xFF5D5076),
                 ),
               ),
               subtitle: Text(
                 'Model and runtime info.',
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: const Color(0xFF6B7785),
+                  color: const Color(0xFF76698D),
                 ),
               ),
               children: [
@@ -673,7 +673,7 @@ class _AiWorkspaceCard extends StatelessWidget {
                     color: Colors.white.withValues(alpha: 0.56),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: const Color(0xFFD8E6EE),
+                      color: const Color(0xFFDDD1F4),
                     ),
                   ),
                   child: Text(
@@ -720,7 +720,7 @@ class _AiWorkspaceCard extends StatelessWidget {
                       'Can attempt decode: $canAttemptDecode',
                     ].join('\n'),
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF4D5B68),
+                      color: const Color(0xFF5D5076),
                     ),
                   ),
                 ),
