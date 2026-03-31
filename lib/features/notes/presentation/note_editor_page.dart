@@ -578,113 +578,86 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
             ),
           ),
           const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.white,
-                  const Color(0xFFF2E8DC),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFFC6AC8F)),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x1222333B),
-                  blurRadius: 18,
-                  offset: Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () {
-                        setState(() {
-                          _showFormattingToolbar = !_showFormattingToolbar;
-                        });
-                      },
-                      child: Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [
-                              Color(0xFF22333B),
-                              Color(0xFF5E503F),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x3322333B),
-                              blurRadius: 14,
-                              offset: Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          _showFormattingToolbar
-                              ? Icons.close_rounded
-                              : Icons.draw_rounded,
-                          size: 18,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 180),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeOutCubic,
-                  child: _showFormattingToolbar
-                      ? Padding(
-                          key: const ValueKey('formatting-toolbar'),
-                          padding: const EdgeInsets.only(top: 12),
-                          child: QuillSimpleToolbar(
-                            controller: _bodyController,
-                            config: toolbarConfig,
-                          ),
-                        )
-                      : const SizedBox.shrink(
-                          key: ValueKey('formatting-toolbar-hidden'),
-                        ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  constraints: const BoxConstraints(
-                    minHeight: 260,
-                    maxHeight: 420,
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
+          Row(
+            children: [
+              InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () {
+                  setState(() {
+                    _showFormattingToolbar = !_showFormattingToolbar;
+                  });
+                },
+                child: Container(
+                  width: 34,
+                  height: 34,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFFBF7),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFC6AC8F)),
-                  ),
-                  child: QuillEditor.basic(
-                    controller: _bodyController,
-                    focusNode: _bodyFocusNode,
-                    config: QuillEditorConfig(
-                      padding: const EdgeInsets.all(12),
-                      placeholder: 'Write your note here...',
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color(0xFF22333B),
+                        Color(0xFF5E503F),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x3322333B),
+                        blurRadius: 14,
+                        offset: Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    _showFormattingToolbar
+                        ? Icons.close_rounded
+                        : Icons.draw_rounded,
+                    size: 18,
+                    color: Colors.white,
                   ),
                 ),
-              ],
+              ),
+            ],
+          ),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeOutCubic,
+            child: _showFormattingToolbar
+                ? Padding(
+                    key: const ValueKey('formatting-toolbar'),
+                    padding: const EdgeInsets.only(top: 12),
+                    child: QuillSimpleToolbar(
+                      controller: _bodyController,
+                      config: toolbarConfig,
+                    ),
+                  )
+                : const SizedBox.shrink(
+                    key: ValueKey('formatting-toolbar-hidden'),
+                  ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            constraints: const BoxConstraints(
+              minHeight: 260,
+              maxHeight: 460,
+            ),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 4,
+              vertical: 2,
+            ),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFBF7),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFC6AC8F)),
+            ),
+            child: QuillEditor.basic(
+              controller: _bodyController,
+              focusNode: _bodyFocusNode,
+              config: QuillEditorConfig(
+                padding: const EdgeInsets.all(12),
+                placeholder: 'Write your note here...',
+              ),
             ),
           ),
         ],
