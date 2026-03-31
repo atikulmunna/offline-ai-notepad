@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/database/app_database_provider.dart';
 import '../domain/note_collection.dart';
 import '../domain/note_folder.dart';
 import '../domain/note_preview.dart';
@@ -10,6 +11,7 @@ import '../domain/note_search_mode.dart';
 import '../providers/notes_actions.dart';
 import '../providers/notes_providers.dart';
 import '../providers/notes_view_state.dart';
+import '../../security/data/note_protection_service.dart';
 import '../../security/providers/app_lock_providers.dart';
 import 'note_editor_page.dart';
 
@@ -957,10 +959,11 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
   }
 
   Future<void> _enableLock() async {
+    final messenger = ScaffoldMessenger.of(context);
     final pin = _pinController.text.trim();
     final confirmation = _confirmPinController.text.trim();
     if (pin != confirmation) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('PIN entries need to match.')),
       );
       return;
@@ -972,23 +975,28 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
       return;
     }
     if (success) {
+      await ref
+          .read(noteProtectionServiceProvider)
+          .encryptExistingNotes(ref.read(appDatabaseProvider));
+      ref.invalidate(notesListProvider);
       _pinController.clear();
       _confirmPinController.clear();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('App lock is now on.')),
+      messenger.showSnackBar(
+        const SnackBar(content: Text('App lock is on and notes are now protected at rest.')),
       );
     }
   }
 
   Future<void> _disableLock() async {
-    final controller = TextEditingController();
+    final messenger = ScaffoldMessenger.of(context);
+    final pinController = TextEditingController();
     final enteredPin = await showDialog<String>(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: const Text('Turn off app lock'),
           content: TextField(
-            controller: controller,
+            controller: pinController,
             keyboardType: TextInputType.number,
             obscureText: true,
             maxLength: 8,
@@ -1003,14 +1011,15 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+              onPressed: () =>
+                  Navigator.of(context).pop(pinController.text.trim()),
               child: const Text('Disable'),
             ),
           ],
         );
       },
     );
-    controller.dispose();
+    pinController.dispose();
 
     if (!mounted || enteredPin == null || enteredPin.isEmpty) {
       return;
@@ -1019,16 +1028,23 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
     setState(() {
       _isDisabling = true;
     });
-    final success = await ref
-        .read(appLockControllerProvider.notifier)
-        .disable(enteredPin);
+    final controller = ref.read(appLockControllerProvider.notifier);
+    final unlocked = await controller.unlock(enteredPin);
     if (!mounted) {
       return;
+    }
+    var success = false;
+    if (unlocked) {
+      await ref
+          .read(noteProtectionServiceProvider)
+          .decryptExistingNotes(ref.read(appDatabaseProvider));
+      success = await controller.disable(enteredPin);
+      ref.invalidate(notesListProvider);
     }
     setState(() {
       _isDisabling = false;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
+    messenger.showSnackBar(
       SnackBar(
         content: Text(
           success ? 'App lock is off.' : 'Could not disable app lock.',

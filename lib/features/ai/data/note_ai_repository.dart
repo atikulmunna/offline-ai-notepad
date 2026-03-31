@@ -1,14 +1,18 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../core/database/app_database.dart';
 import '../../../core/database/database_schema.dart';
+import '../../security/data/note_protection_service.dart';
 import 'package:sqflite/sqflite.dart';
 import '../domain/embedding_status.dart';
 import '../domain/note_ai_snapshot.dart';
 import '../domain/note_embedding_metadata.dart';
 
 class NoteAiRepository {
-  NoteAiRepository(this._database);
+  NoteAiRepository(this._database, this._ref);
 
   final AppDatabase _database;
+  final Ref _ref;
 
   Future<NoteAiSnapshot?> getSnapshot(String noteId) async {
     final noteRows = await _database.query(
@@ -34,7 +38,9 @@ class NoteAiRepository {
     final updatedMillis = embedding?['updated_at'] as int? ?? note['updated_at'] as int?;
 
     return NoteAiSnapshot(
-      summary: note['summary'] as String?,
+      summary: await _ref
+          .read(noteProtectionServiceProvider)
+          .unprotect(note['summary'] as String?),
       embeddingStatus: EmbeddingStatusX.fromDb(embedding?['status'] as String?),
       modelVersion: embedding?['model_ver'] as String?,
       updatedAt: updatedMillis == null
@@ -47,9 +53,11 @@ class NoteAiRepository {
     required String noteId,
     required String summary,
   }) async {
+    final protectedSummary =
+        await _ref.read(noteProtectionServiceProvider).protect(summary);
     await _database.update(
       DatabaseSchema.notesTable,
-      {'summary': summary},
+      {'summary': protectedSummary},
       where: 'id = ?',
       whereArgs: [noteId],
     );

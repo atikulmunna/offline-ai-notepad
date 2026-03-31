@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/shared_prefs_app_lock_repository.dart';
 import '../domain/app_lock_repository.dart';
+import '../domain/app_lock_settings.dart';
 
 class AppLockState {
   const AppLockState({
@@ -63,9 +64,15 @@ class AppLockController extends StateNotifier<AppLockState> {
   }
 
   final AppLockRepository _repository;
+  String? _sessionPin;
+  AppLockSettings? _settings;
+
+  String? get sessionPin => _sessionPin;
+  AppLockSettings? get settings => _settings;
 
   Future<void> _load() async {
     final settings = await _repository.loadSettings();
+    _settings = settings;
     state = AppLockState(
       isReady: true,
       isEnabled: settings.isEnabled,
@@ -84,6 +91,8 @@ class AppLockController extends StateNotifier<AppLockState> {
 
     state = state.copyWith(isBusy: true, clearError: true);
     await _repository.savePin(pin);
+    _settings = await _repository.loadSettings();
+    _sessionPin = pin;
     state = state.copyWith(
       isReady: true,
       isEnabled: true,
@@ -105,6 +114,8 @@ class AppLockController extends StateNotifier<AppLockState> {
       return false;
     }
 
+    _settings = await _repository.loadSettings();
+    _sessionPin = pin;
     state = state.copyWith(
       isBusy: false,
       isLocked: false,
@@ -125,6 +136,8 @@ class AppLockController extends StateNotifier<AppLockState> {
     }
 
     await _repository.clear();
+    _settings = await _repository.loadSettings();
+    _sessionPin = null;
     state = state.copyWith(
       isBusy: false,
       isEnabled: false,
@@ -138,6 +151,7 @@ class AppLockController extends StateNotifier<AppLockState> {
     if (!state.isEnabled) {
       return;
     }
+    _sessionPin = null;
     state = state.copyWith(isLocked: true, clearError: true);
   }
 
@@ -145,6 +159,7 @@ class AppLockController extends StateNotifier<AppLockState> {
     if (!state.isEnabled || state.isLocked) {
       return;
     }
+    _sessionPin = null;
     state = state.copyWith(isLocked: true, clearError: true);
   }
 

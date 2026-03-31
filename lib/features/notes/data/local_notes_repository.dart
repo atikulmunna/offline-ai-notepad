@@ -1,7 +1,9 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/database_schema.dart';
+import '../../security/data/note_protection_service.dart';
 import '../domain/note_collection.dart';
 import '../domain/note_document.dart';
 import '../domain/note_folder.dart';
@@ -13,9 +15,10 @@ import 'note_record.dart';
 import 'semantic_note_search.dart';
 
 class LocalNotesRepository implements NotesRepository {
-  LocalNotesRepository(this._database);
+  LocalNotesRepository(this._database, this._ref);
 
   final AppDatabase _database;
+  final Ref _ref;
 
   static final _seedFolders = [
     FolderRecord(
@@ -108,12 +111,6 @@ ON folders.id = notes.folder_id
     }
 
     final query = searchQuery.trim();
-    if (query.isNotEmpty && searchMode == NoteSearchMode.keyword) {
-      whereClauses.add('(LOWER(COALESCE(notes.title, \'\')) LIKE ? OR LOWER(notes.body) LIKE ?)');
-      final match = '%${query.toLowerCase()}%';
-      whereArgs.add(match);
-      whereArgs.add(match);
-    }
 
     if (whereClauses.isNotEmpty) {
       buffer.write(' WHERE ${whereClauses.join(' AND ')}');
@@ -122,19 +119,30 @@ ON folders.id = notes.folder_id
     buffer.write(' ORDER BY notes.is_pinned DESC, notes.updated_at DESC LIMIT 100');
 
     final rows = await _database.rawQuery(buffer.toString(), whereArgs);
-    final previews = rows
-        .map(NoteRecord.fromMap)
-        .map((note) => note.toPreview())
-        .toList(growable: false);
-
-    if (query.isNotEmpty && searchMode == NoteSearchMode.semantic) {
-      return SemanticNoteSearch.rank(
-        notes: previews,
-        query: query,
-      );
+    final notes = <NoteRecord>[];
+    for (final row in rows) {
+      notes.add(await _readRecord(NoteRecord.fromMap(row)));
     }
 
-    return previews;
+    final filteredNotes = query.isEmpty
+        ? notes
+        : searchMode == NoteSearchMode.semantic
+            ? SemanticNoteSearch.rank(
+                notes: notes.map((note) => note.toPreview()),
+                query: query,
+              )
+                .map((preview) => notes.firstWhere((note) => note.id == preview.id))
+                .toList(growable: false)
+            : notes.where((note) {
+                final haystack =
+                    '${note.title ?? ''}\n${note.body}\n${note.summary ?? ''}'
+                        .toLowerCase();
+                return haystack.contains(query.toLowerCase());
+              }).toList(growable: false);
+
+    return filteredNotes
+        .map((note) => note.toPreview())
+        .toList(growable: false);
   }
 
   @override
@@ -216,7 +224,7 @@ ON folders.id = notes.folder_id
     final now = DateTime.now();
     final id = 'note-${now.microsecondsSinceEpoch}';
     final folder = await _folderForId(folderId);
-    await upsert(
+    await upsert(await _writeRecord(
       NoteRecord(
         id: id,
         title: title,
@@ -227,7 +235,7 @@ ON folders.id = notes.folder_id
         createdAt: now,
         updatedAt: now,
       ),
-    );
+    ));
     return id;
   }
 
@@ -251,7 +259,7 @@ LIMIT 1
       return null;
     }
 
-    return NoteRecord.fromMap(rows.first).toDocument();
+    return (await _readRecord(NoteRecord.fromMap(rows.first))).toDocument();
   }
 
   @override
@@ -286,7 +294,7 @@ LIMIT 1
 
     await _database.update(
       DatabaseSchema.notesTable,
-      updated.toMap(),
+      (await _writeRecord(updated)).toMap(),
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -319,7 +327,7 @@ LIMIT 1
 
     await _database.update(
       DatabaseSchema.notesTable,
-      updated.toMap(),
+      (await _writeRecord(updated)).toMap(),
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -352,7 +360,7 @@ LIMIT 1
 
     await _database.update(
       DatabaseSchema.notesTable,
-      updated.toMap(),
+      (await _writeRecord(updated)).toMap(),
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -382,7 +390,7 @@ LIMIT 1
 
     await _database.update(
       DatabaseSchema.notesTable,
-      updated.toMap(),
+      (await _writeRecord(updated)).toMap(),
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -412,7 +420,7 @@ LIMIT 1
 
     await _database.update(
       DatabaseSchema.notesTable,
-      updated.toMap(),
+      (await _writeRecord(updated)).toMap(),
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -453,5 +461,43 @@ LIMIT 1
       return null;
     }
     return FolderRecord.fromMap(rows.first);
+  }
+
+  Future<NoteRecord> _readRecord(NoteRecord record) async {
+    final protection = _ref.read(noteProtectionServiceProvider);
+    return NoteRecord(
+      id: record.id,
+      title: await protection.unprotect(record.title),
+      body: (await protection.unprotect(record.body)) ?? '',
+      bodyDelta: await protection.unprotect(record.bodyDelta),
+      summary: await protection.unprotect(record.summary),
+      folderId: record.folderId,
+      folderName: record.folderName,
+      isPinned: record.isPinned,
+      isArchived: record.isArchived,
+      isDeleted: record.isDeleted,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+      deletedAt: record.deletedAt,
+    );
+  }
+
+  Future<NoteRecord> _writeRecord(NoteRecord record) async {
+    final protection = _ref.read(noteProtectionServiceProvider);
+    return NoteRecord(
+      id: record.id,
+      title: await protection.protect(record.title),
+      body: (await protection.protect(record.body)) ?? record.body,
+      bodyDelta: await protection.protect(record.bodyDelta),
+      summary: await protection.protect(record.summary),
+      folderId: record.folderId,
+      folderName: record.folderName,
+      isPinned: record.isPinned,
+      isArchived: record.isArchived,
+      isDeleted: record.isDeleted,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+      deletedAt: record.deletedAt,
+    );
   }
 }

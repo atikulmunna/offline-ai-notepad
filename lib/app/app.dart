@@ -39,22 +39,22 @@ class _OfflineAiNotepadAppState extends ConsumerState<OfflineAiNotepadApp>
   @override
   Widget build(BuildContext context) {
     final appLockState = ref.watch(appLockControllerProvider);
+    final home = !appLockState.isReady
+        ? const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          )
+        : appLockState.isEnabled && appLockState.isLocked
+            ? const _AppLockGate()
+            : const NotesHomePage();
     return MaterialApp(
       title: 'NativeNote',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       localizationsDelegates: FlutterQuillLocalizations.localizationsDelegates,
       supportedLocales: FlutterQuillLocalizations.supportedLocales,
-      builder: (context, child) {
-        return Stack(
-          children: [
-            child ?? const SizedBox.shrink(),
-            if (appLockState.isReady && appLockState.isEnabled && appLockState.isLocked)
-              const _AppLockGate(),
-          ],
-        );
-      },
-      home: const NotesHomePage(),
+      home: home,
     );
   }
 }

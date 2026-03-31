@@ -24,7 +24,11 @@ class _TestAppLockRepository implements AppLockRepository {
 
   @override
   Future<AppLockSettings> loadSettings() async {
-    return const AppLockSettings(isEnabled: false, pinHash: null);
+    return const AppLockSettings(
+      isEnabled: false,
+      pinHash: null,
+      saltBase64: null,
+    );
   }
 
   @override

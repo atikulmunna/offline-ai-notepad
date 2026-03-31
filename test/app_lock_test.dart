@@ -7,12 +7,17 @@ class _FakeAppLockRepository implements AppLockRepository {
   AppLockSettings _settings = const AppLockSettings(
     isEnabled: false,
     pinHash: null,
+    saltBase64: null,
   );
   String? _pin;
 
   @override
   Future<void> clear() async {
-    _settings = const AppLockSettings(isEnabled: false, pinHash: null);
+    _settings = const AppLockSettings(
+      isEnabled: false,
+      pinHash: null,
+      saltBase64: null,
+    );
     _pin = null;
   }
 
@@ -22,7 +27,11 @@ class _FakeAppLockRepository implements AppLockRepository {
   @override
   Future<void> savePin(String pin) async {
     _pin = pin;
-    _settings = const AppLockSettings(isEnabled: true, pinHash: 'stored');
+    _settings = const AppLockSettings(
+      isEnabled: true,
+      pinHash: 'stored',
+      saltBase64: 'salt',
+    );
   }
 
   @override
