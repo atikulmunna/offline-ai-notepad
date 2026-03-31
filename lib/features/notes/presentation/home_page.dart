@@ -845,61 +845,16 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
     required String actionLabel,
     bool confirm = false,
   }) async {
-    final passphraseController = TextEditingController();
-    final confirmController = TextEditingController();
-    final result = await showDialog<String>(
+    return showDialog<String>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text(title),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: passphraseController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Passphrase',
-                ),
-              ),
-              if (confirm) ...[
-                const SizedBox(height: 12),
-                TextField(
-                  controller: confirmController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Confirm passphrase',
-                  ),
-                ),
-              ],
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final passphrase = passphraseController.text.trim();
-                final confirmation = confirmController.text.trim();
-                if (passphrase.length < 6) {
-                  return;
-                }
-                if (confirm && passphrase != confirmation) {
-                  return;
-                }
-                Navigator.of(context).pop(passphrase);
-              },
-              child: Text(actionLabel),
-            ),
-          ],
+        return _BackupPassphraseDialog(
+          title: title,
+          actionLabel: actionLabel,
+          confirm: confirm,
         );
       },
     );
-    passphraseController.dispose();
-    confirmController.dispose();
-    return result;
   }
 
   Future<void> _exportBackup() async {
@@ -1217,6 +1172,116 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _BackupPassphraseDialog extends StatefulWidget {
+  const _BackupPassphraseDialog({
+    required this.title,
+    required this.actionLabel,
+    required this.confirm,
+  });
+
+  final String title;
+  final String actionLabel;
+  final bool confirm;
+
+  @override
+  State<_BackupPassphraseDialog> createState() =>
+      _BackupPassphraseDialogState();
+}
+
+class _BackupPassphraseDialogState extends State<_BackupPassphraseDialog> {
+  final _passphraseController = TextEditingController();
+  final _confirmController = TextEditingController();
+  String? _errorText;
+
+  @override
+  void dispose() {
+    _passphraseController.dispose();
+    _confirmController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final passphrase = _passphraseController.text.trim();
+    final confirmation = _confirmController.text.trim();
+
+    if (passphrase.length < 6) {
+      setState(() {
+        _errorText = 'Use at least 6 characters.';
+      });
+      return;
+    }
+
+    if (widget.confirm && passphrase != confirmation) {
+      setState(() {
+        _errorText = 'Passphrases do not match.';
+      });
+      return;
+    }
+
+    Navigator.of(context).pop(passphrase);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _passphraseController,
+            obscureText: true,
+            decoration: InputDecoration(
+              labelText: 'Passphrase',
+              errorText: _errorText,
+            ),
+            onChanged: (_) {
+              if (_errorText != null) {
+                setState(() {
+                  _errorText = null;
+                });
+              }
+            },
+            onSubmitted: (_) {
+              if (!widget.confirm) {
+                _submit();
+              }
+            },
+          ),
+          if (widget.confirm) ...[
+            const SizedBox(height: 12),
+            TextField(
+              controller: _confirmController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Confirm passphrase',
+              ),
+              onChanged: (_) {
+                if (_errorText != null) {
+                  setState(() {
+                    _errorText = null;
+                  });
+                }
+              },
+              onSubmitted: (_) => _submit(),
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: Text(widget.actionLabel),
+        ),
+      ],
     );
   }
 }
