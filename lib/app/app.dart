@@ -88,7 +88,7 @@ class _AppLockGateState extends ConsumerState<_AppLockGate> {
     final state = ref.watch(appLockControllerProvider);
 
     return ColoredBox(
-      color: const Color(0xE9F6F0FF),
+      color: const Color(0xFFF5EEE6),
       child: SafeArea(
         child: Material(
           color: Colors.transparent,
@@ -102,18 +102,18 @@ class _AppLockGateState extends ConsumerState<_AppLockGate> {
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       colors: [
-                        Color(0xFFFFFCFF),
-                        Color(0xFFF2E9FF),
-                        Color(0xFFE8D8FF),
+                        Color(0xFFFFFBF7),
+                        Color(0xFFEAE0D5),
+                        Color(0xFFF1E7DB),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                     borderRadius: BorderRadius.circular(32),
-                    border: Border.all(color: const Color(0xFFE1D1FF)),
+                    border: Border.all(color: const Color(0xFFC6AC8F)),
                     boxShadow: const [
                       BoxShadow(
-                        color: Color(0x2A7A42F4),
+                        color: Color(0x2A22333B),
                         blurRadius: 28,
                         offset: Offset(0, 16),
                       ),
@@ -128,8 +128,8 @@ class _AppLockGateState extends ConsumerState<_AppLockGate> {
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             colors: [
-                              Color(0xFF7A42F4),
-                              Color(0xFFC06CFF),
+                              Color(0xFF22333B),
+                              Color(0xFF5E503F),
                             ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
@@ -137,7 +137,7 @@ class _AppLockGateState extends ConsumerState<_AppLockGate> {
                           borderRadius: BorderRadius.circular(24),
                           boxShadow: const [
                             BoxShadow(
-                              color: Color(0x337A42F4),
+                              color: Color(0x3322333B),
                               blurRadius: 18,
                               offset: Offset(0, 10),
                             ),
@@ -153,7 +153,7 @@ class _AppLockGateState extends ConsumerState<_AppLockGate> {
                       Text(
                         'NativeNote is locked',
                         style: theme.textTheme.headlineSmall?.copyWith(
-                          color: const Color(0xFF45335E),
+                          color: const Color(0xFF0A0908),
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -161,7 +161,7 @@ class _AppLockGateState extends ConsumerState<_AppLockGate> {
                       Text(
                         'Enter your PIN to get back to your notes.',
                         style: theme.textTheme.bodyLarge?.copyWith(
-                          color: const Color(0xFF6D5B86),
+                          color: const Color(0xFF22333B),
                         ),
                         textAlign: TextAlign.center,
                       ),
