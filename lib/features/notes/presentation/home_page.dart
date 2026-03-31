@@ -1237,6 +1237,7 @@ class _BackupPassphraseDialogState extends State<_BackupPassphraseDialog> {
             obscureText: true,
             decoration: InputDecoration(
               labelText: 'Passphrase',
+              hintText: 'Use at least 6 characters',
               errorText: _errorText,
             ),
             onChanged: (_) {
@@ -1259,6 +1260,7 @@ class _BackupPassphraseDialogState extends State<_BackupPassphraseDialog> {
               obscureText: true,
               decoration: const InputDecoration(
                 labelText: 'Confirm passphrase',
+                hintText: 'Use at least 6 characters',
               ),
               onChanged: (_) {
                 if (_errorText != null) {
