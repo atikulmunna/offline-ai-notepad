@@ -26,14 +26,16 @@ class NotesHomePage extends ConsumerStatefulWidget {
 class _NotesHomePageState extends ConsumerState<NotesHomePage> {
   late final TextEditingController _searchController;
   Timer? _searchDebounce;
+  Timer? _introDismissTimer;
   bool _showIntro = true;
+  bool _showSearch = false;
 
   @override
   void initState() {
     super.initState();
     final initialQuery = ref.read(notesViewStateProvider).searchQuery;
     _searchController = TextEditingController(text: initialQuery);
-    Future<void>.delayed(const Duration(milliseconds: 1600), () {
+    _introDismissTimer = Timer(const Duration(milliseconds: 1600), () {
       if (!mounted) {
         return;
       }
@@ -45,6 +47,7 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
 
   @override
   void dispose() {
+    _introDismissTimer?.cancel();
     _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
@@ -114,16 +117,14 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
             children: [
               _Entrance(
-                delay: 70,
-                child: _QuickStats(
-                  notesAsync: notesAsync,
-                  collection: viewState.collection,
-                ),
-              ),
-              const SizedBox(height: 22),
-              _Entrance(
-                delay: 140,
+                delay: 80,
                 child: _ControlDeck(
+                  showSearch: _showSearch,
+                  onToggleSearch: () {
+                    setState(() {
+                      _showSearch = !_showSearch;
+                    });
+                  },
                   searchController: _searchController,
                   onSearchChanged: _onSearchChanged,
                   foldersAsync: foldersAsync,
@@ -132,7 +133,7 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
               ),
               const SizedBox(height: 24),
               _Entrance(
-                delay: 220,
+                delay: 160,
                 child: _SectionHeader(
                   eyebrow: switch (viewState.collection) {
                     NoteCollection.active => 'Library',
@@ -156,7 +157,7 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
               const SizedBox(height: 12),
               notesAsync.when(
                 data: (notes) => _Entrance(
-                  delay: 280,
+                  delay: 220,
                   child: notes.isEmpty
                       ? _EmptyNotesCard(viewState: viewState)
                       : Column(
@@ -365,113 +366,18 @@ class _LaunchIntroOverlay extends StatelessWidget {
   }
 }
 
-class _QuickStats extends StatelessWidget {
-  const _QuickStats({
-    required this.notesAsync,
-    required this.collection,
-  });
-
-  final AsyncValue<List<NotePreview>> notesAsync;
-  final NoteCollection collection;
-
-  @override
-  Widget build(BuildContext context) {
-    final count = notesAsync.valueOrNull?.length ?? 0;
-
-    return Row(
-      children: [
-        Expanded(
-          child: _StatCard(
-            label: switch (collection) {
-              NoteCollection.active => 'Visible notes',
-              NoteCollection.archived => 'Archived',
-              NoteCollection.trash => 'In trash',
-            },
-            value: '$count',
-            tint: const Color(0xFFEAE0D5),
-            icon: switch (collection) {
-              NoteCollection.active => Icons.sticky_note_2_outlined,
-              NoteCollection.archived => Icons.archive_outlined,
-              NoteCollection.trash => Icons.delete_outline,
-            },
-          ),
-        ),
-        const SizedBox(width: 12),
-        const Expanded(
-          child: _StatCard(
-            label: 'Mode',
-            value: 'Local',
-            tint: Color(0xFFF1E7DB),
-            icon: Icons.shield_moon_outlined,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.tint,
-    required this.icon,
-  });
-
-  final String label;
-  final String value;
-  final Color tint;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: tint,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFC6AC8F)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          children: [
-            Container(
-              height: 42,
-              width: 42,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, color: theme.colorScheme.primary),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label, style: theme.textTheme.bodyMedium),
-                  const SizedBox(height: 4),
-                  Text(value, style: theme.textTheme.titleLarge),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _ControlDeck extends ConsumerWidget {
   const _ControlDeck({
+    required this.showSearch,
+    required this.onToggleSearch,
     required this.searchController,
     required this.onSearchChanged,
     required this.foldersAsync,
     required this.viewState,
   });
 
+  final bool showSearch;
+  final VoidCallback onToggleSearch;
   final TextEditingController searchController;
   final ValueChanged<String> onSearchChanged;
   final AsyncValue<List<NoteFolder>> foldersAsync;
@@ -505,47 +411,86 @@ class _ControlDeck extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextField(
-            controller: searchController,
-            onChanged: onSearchChanged,
-            decoration: InputDecoration(
-              labelText: viewState.searchMode == NoteSearchMode.semantic
-                  ? 'Search by meaning'
-                  : 'Search notes',
-              hintText: viewState.searchMode == NoteSearchMode.semantic
-                  ? 'Ideas, themes, or what the note was about'
-                  : 'Title, body, or exact words you remember',
-              prefixIcon: Icon(Icons.search_rounded),
-            ),
-          ),
-          const SizedBox(height: 14),
-          Text('Search style', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 10),
-          SegmentedButton<NoteSearchMode>(
-            segments: const [
-              ButtonSegment(
-                value: NoteSearchMode.keyword,
-                icon: Icon(Icons.text_fields_rounded),
-                label: Text('Keyword'),
-              ),
-              ButtonSegment(
-                value: NoteSearchMode.semantic,
-                icon: Icon(Icons.auto_awesome_rounded),
-                label: Text('Semantic'),
+          Row(
+            children: [
+              Text('Explore', style: theme.textTheme.titleMedium),
+              const Spacer(),
+              AnimatedRotation(
+                turns: showSearch ? 0.0 : -0.02,
+                duration: const Duration(milliseconds: 220),
+                child: IconButton.filledTonal(
+                  onPressed: onToggleSearch,
+                  icon: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    child: Icon(
+                      showSearch ? Icons.close_rounded : Icons.search_rounded,
+                      key: ValueKey(showSearch),
+                    ),
+                  ),
+                  tooltip: showSearch ? 'Hide search' : 'Show search',
+                ),
               ),
             ],
-            selected: {viewState.searchMode},
-            onSelectionChanged: (selection) {
-              ref.read(notesActionsProvider).setSearchMode(selection.first);
-            },
           ),
-          const SizedBox(height: 10),
-          Text(
-            viewState.searchMode.helperLabel,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: const Color(0xFF746487),
-              fontWeight: FontWeight.w600,
-            ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 240),
+            curve: Curves.easeOutCubic,
+            child: showSearch
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextField(
+                          controller: searchController,
+                          onChanged: onSearchChanged,
+                          decoration: InputDecoration(
+                            labelText: viewState.searchMode ==
+                                    NoteSearchMode.semantic
+                                ? 'Search by meaning'
+                                : 'Search notes',
+                            hintText: viewState.searchMode ==
+                                    NoteSearchMode.semantic
+                                ? 'Ideas, themes, or what the note was about'
+                                : 'Title, body, or exact words you remember',
+                            prefixIcon: const Icon(Icons.search_rounded),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Text('Search style', style: theme.textTheme.titleMedium),
+                        const SizedBox(height: 10),
+                        SegmentedButton<NoteSearchMode>(
+                          segments: const [
+                            ButtonSegment(
+                              value: NoteSearchMode.keyword,
+                              icon: Icon(Icons.text_fields_rounded),
+                              label: Text('Keyword'),
+                            ),
+                            ButtonSegment(
+                              value: NoteSearchMode.semantic,
+                              icon: Icon(Icons.auto_awesome_rounded),
+                              label: Text('Semantic'),
+                            ),
+                          ],
+                          selected: {viewState.searchMode},
+                          onSelectionChanged: (selection) {
+                            ref
+                                .read(notesActionsProvider)
+                                .setSearchMode(selection.first);
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          viewState.searchMode.helperLabel,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: const Color(0xFF746487),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : const SizedBox.shrink(),
           ),
           const SizedBox(height: 18),
           Text('Views', style: theme.textTheme.titleMedium),
