@@ -674,13 +674,6 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                   'Body',
                   style: theme.textTheme.titleMedium,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Bold, italic, color, highlight, and more.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFF22333B),
-                  ),
-                ),
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.fromLTRB(
@@ -743,34 +736,15 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Formatting',
-                                  style: theme.textTheme.titleSmall?.copyWith(
-                                    color: const Color(0xFF0A0908),
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Formatting',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  color: const Color(0xFF0A0908),
+                                  fontWeight: FontWeight.w700,
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Style the note with emphasis, color, and highlights.',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: const Color(0xFF22333B),
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: const [
-                                    _FormattingCueChip(label: 'Emphasis'),
-                                    _FormattingCueChip(label: 'Text color'),
-                                    _FormattingCueChip(label: 'Highlight'),
-                                  ],
-                                ),
-                              ],
+                              ),
                             ),
                           ),
                         ],
@@ -821,32 +795,6 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _FormattingCueChip extends StatelessWidget {
-  const _FormattingCueChip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1E7DB),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFC6AC8F)),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: const Color(0xFF5E503F),
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.1,
-            ),
       ),
     );
   }
@@ -911,43 +859,10 @@ class _AiWorkspaceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final snapshot = snapshotAsync?.valueOrNull;
-    final runtimeStatus = runtimeStatusAsync.valueOrNull;
     final effectiveSummary = (summary != null && summary!.trim().isNotEmpty)
         ? summary!.trim()
         : snapshot?.summary;
     final status = snapshot?.embeddingStatus ?? EmbeddingStatus.missing;
-    final runtimeProfile = runtimeStatus?.runtimeProfile;
-    final summaryModelId = runtimeStatus?.summaryModelId;
-    final embeddingModelId = runtimeStatus?.embeddingModelId;
-    final runtimeDirectory = runtimeStatus?.runtimeDirectory;
-    final capabilityMessage = runtimeStatus?.capabilityMessage;
-    final sessionMessage = runtimeStatus?.sessionMessage;
-    final contractMessage = runtimeStatus?.contractMessage;
-    final actualInputNames = runtimeStatus?.actualInputNames ?? const <String>[];
-    final actualOutputNames =
-        runtimeStatus?.actualOutputNames ?? const <String>[];
-    final tokenizationMessage = runtimeStatus?.tokenizationMessage;
-    final previewInputIds = runtimeStatus?.previewInputIds ?? const <int>[];
-    final previewAttentionMask =
-        runtimeStatus?.previewAttentionMask ?? const <int>[];
-    final previewTokenizerLoaded =
-        runtimeStatus?.previewTokenizerLoaded ?? false;
-    final tokenizerMessage = runtimeStatus?.tokenizerMessage;
-    final tokenizerVocabSize = runtimeStatus?.tokenizerVocabSize ?? 0;
-    final tokenizerModelType = runtimeStatus?.tokenizerModelType;
-    final tokenizerPreTokenizerType = runtimeStatus?.tokenizerPreTokenizerType;
-    final tokenizerNormalizerType = runtimeStatus?.tokenizerNormalizerType;
-    final runPreviewMessage = runtimeStatus?.runPreviewMessage;
-    final previewOutputNames =
-        runtimeStatus?.previewOutputNames ?? const <String>[];
-    final previewOutputShapes =
-        runtimeStatus?.previewOutputShapes ?? const <String>[];
-    final previewOutputValueSample =
-        runtimeStatus?.previewOutputValueSample ?? const <String>[];
-    final outputInterpretationMessage =
-        runtimeStatus?.outputInterpretationMessage;
-    final decoderType = runtimeStatus?.decoderType;
-    final canAttemptDecode = runtimeStatus?.canAttemptDecode ?? false;
     final summaryStatusLabel = switch (status) {
       EmbeddingStatus.indexed => 'Summary and note index are ready.',
       EmbeddingStatus.queued => 'Summary is ready. Search index is updating.',
@@ -1074,91 +989,6 @@ class _AiWorkspaceCard extends StatelessWidget {
               ],
             ),
           ),
-          if (runtimeProfile != null ||
-              summaryModelId != null ||
-              embeddingModelId != null ||
-              runtimeDirectory != null) ...[
-            const SizedBox(height: 14),
-            ExpansionTile(
-              tilePadding: EdgeInsets.zero,
-              childrenPadding: EdgeInsets.zero,
-              shape: const Border(),
-              collapsedShape: const Border(),
-              title: Text(
-                'AI details',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: const Color(0xFF0A0908),
-                ),
-              ),
-              subtitle: Text(
-                'Model and runtime info.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: const Color(0xFF22333B),
-                ),
-              ),
-              children: [
-                const SizedBox(height: 8),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.56),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: const Color(0xFFC6AC8F),
-                    ),
-                  ),
-                  child: Text(
-                    [
-                      if (runtimeProfile != null) 'Profile: $runtimeProfile',
-                      if (summaryModelId != null) 'Summary model: $summaryModelId',
-                      if (embeddingModelId != null)
-                        'Embedding model: $embeddingModelId',
-                      if (runtimeDirectory != null) 'Runtime dir: $runtimeDirectory',
-                      if (capabilityMessage != null) 'Backend: $capabilityMessage',
-                      if (sessionMessage != null) 'Session: $sessionMessage',
-                      if (contractMessage != null) 'Contract: $contractMessage',
-                      if (tokenizationMessage != null)
-                        'Tokenization: $tokenizationMessage',
-                      if (tokenizerMessage != null) 'Tokenizer: $tokenizerMessage',
-                      if (runPreviewMessage != null)
-                        'Run preview: $runPreviewMessage',
-                      if (outputInterpretationMessage != null)
-                        'Decode: $outputInterpretationMessage',
-                      if (actualInputNames.isNotEmpty)
-                        'Actual inputs: ${actualInputNames.join(', ')}',
-                      if (actualOutputNames.isNotEmpty)
-                        'Actual outputs: ${actualOutputNames.join(', ')}',
-                      if (tokenizerVocabSize > 0)
-                        'Tokenizer vocab size: $tokenizerVocabSize',
-                      'Preview tokenizer loaded: $previewTokenizerLoaded',
-                      if (tokenizerModelType != null)
-                        'Tokenizer model: $tokenizerModelType',
-                      if (tokenizerPreTokenizerType != null)
-                        'Pre-tokenizer: $tokenizerPreTokenizerType',
-                      if (tokenizerNormalizerType != null)
-                        'Normalizer: $tokenizerNormalizerType',
-                      if (previewInputIds.isNotEmpty)
-                        'Preview input_ids: ${previewInputIds.take(12).join(', ')}',
-                      if (previewAttentionMask.isNotEmpty)
-                        'Preview attention_mask: ${previewAttentionMask.take(12).join(', ')}',
-                      if (previewOutputNames.isNotEmpty)
-                        'Preview outputs: ${previewOutputNames.join(', ')}',
-                      if (previewOutputShapes.isNotEmpty)
-                        'Output shapes: ${previewOutputShapes.join(' | ')}',
-                      if (previewOutputValueSample.isNotEmpty)
-                        'Output sample: ${previewOutputValueSample.join(', ')}',
-                      if (decoderType != null) 'Decoder type: $decoderType',
-                      'Can attempt decode: $canAttemptDecode',
-                    ].join('\n'),
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF22333B),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
         ],
       ),
     );

@@ -405,24 +405,6 @@ class _HeroPanel extends StatelessWidget {
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(height: 12),
-              Text(
-                'Folders, archive, trash, and search are now shaping the note library into a calmer workspace instead of a single stream.',
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.92),
-                  ),
-                ),
-              const SizedBox(height: 20),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: const [
-                  _FeaturePill(label: 'Folders'),
-                  _FeaturePill(label: 'Archive'),
-                  _FeaturePill(label: 'Trash restore'),
-                  _FeaturePill(label: 'Semantic search'),
-                ],
-              ),
             ],
           ),
         ],
@@ -734,33 +716,6 @@ class _SectionHeader extends StatelessWidget {
         const SizedBox(height: 4),
         Text(subtitle, style: theme.textTheme.bodyMedium),
       ],
-    );
-  }
-}
-
-class _FeaturePill extends StatelessWidget {
-  const _FeaturePill({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white24),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
     );
   }
 }
