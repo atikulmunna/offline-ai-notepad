@@ -5,12 +5,10 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../ai/domain/embedding_status.dart';
-import '../../ai/domain/ai_runtime_status.dart';
-import '../../ai/domain/note_ai_snapshot.dart';
 import '../../ai/providers/ai_actions.dart';
 import '../../ai/providers/ai_providers.dart';
 import '../domain/note_document.dart';
+import '../domain/note_folder.dart';
 import '../providers/notes_actions.dart';
 import '../providers/notes_providers.dart';
 
@@ -54,6 +52,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   bool _isSaving = false;
   bool _isGeneratingSummary = false;
   bool _showFormattingToolbar = false;
+  bool _showInlineSummary = false;
   String? _activeNoteId;
   String? _selectedFolderId;
   String? _summary;
@@ -396,94 +395,152 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     );
   }
 
+  Future<void> _toggleInlineSummary() async {
+    setState(() {
+      _showInlineSummary = !_showInlineSummary;
+    });
+    if (_showInlineSummary &&
+        (_summary == null || _summary!.trim().isEmpty) &&
+        !_isGeneratingSummary) {
+      await _generateSummary();
+    }
+  }
+  Future<void> _showFolderPickerSheet(List<NoteFolder> folders) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return _FolderPickerSheet(
+          folders: folders,
+          selectedFolderId: _selectedFolderId,
+          onSelected: (value) {
+            setState(() {
+              _selectedFolderId = value;
+            });
+          },
+        );
+      },
+    );
+  }
+
+  void _cycleAlignment() {
+    final current = _currentAlignmentValue;
+    final next = switch (current) {
+      'center' => Attribute.rightAlignment,
+      'right' => Attribute.justifyAlignment,
+      'justify' => Attribute.leftAlignment,
+      _ => Attribute.centerAlignment,
+    };
+    _bodyController.formatSelection(next);
+    setState(() {});
+  }
+
+  void _cycleIndent() {
+    final currentLevel = _currentIndentLevel;
+    final nextAttribute = switch (currentLevel) {
+      0 => Attribute.indentL1,
+      1 => Attribute.indentL2,
+      2 => Attribute.indentL3,
+      _ => const IndentAttribute(level: null),
+    };
+    _bodyController.formatSelection(nextAttribute);
+    setState(() {});
+  }
+
+  String? get _currentAlignmentValue {
+    return _bodyController
+        .getSelectionStyle()
+        .attributes[Attribute.align.key]
+        ?.value as String?;
+  }
+
+  int get _currentIndentLevel {
+    final value = _bodyController
+        .getSelectionStyle()
+        .attributes[Attribute.indent.key]
+        ?.value;
+    return value is int ? value : 0;
+  }
+
+  IconData get _currentAlignmentIcon {
+    return switch (_currentAlignmentValue) {
+      'center' => Icons.format_align_center_rounded,
+      'right' => Icons.format_align_right_rounded,
+      'justify' => Icons.format_align_justify_rounded,
+      _ => Icons.format_align_left_rounded,
+    };
+  }
+
+  IconData get _currentIndentIcon {
+    return switch (_currentIndentLevel) {
+      1 => Icons.looks_one_rounded,
+      2 => Icons.looks_two_rounded,
+      3 => Icons.looks_3_rounded,
+      _ => Icons.format_indent_increase_rounded,
+    };
+  }
+
+  bool _hasInlineAttribute(Attribute attribute) {
+    return _bodyController
+            .getSelectionStyle()
+            .attributes[attribute.key]
+            ?.value !=
+        null;
+  }
+
+  bool get _isBulletActive {
+    return _bodyController
+            .getSelectionStyle()
+            .attributes[Attribute.list.key]
+            ?.value ==
+        Attribute.ul.value;
+  }
+
+  void _toggleInlineAttribute(Attribute attribute) {
+    final isActive = _hasInlineAttribute(attribute);
+    _bodyController.formatSelection(
+      isActive ? Attribute.clone(attribute, null) : attribute,
+    );
+    setState(() {});
+  }
+
+  void _toggleBullets() {
+    _bodyController.formatSelection(
+      _isBulletActive ? Attribute.clone(Attribute.ul, null) : Attribute.ul,
+    );
+    setState(() {});
+  }
+
+  void _clearFormatting() {
+    final clearAttributes = <Attribute>[
+      Attribute.clone(Attribute.bold, null),
+      Attribute.clone(Attribute.italic, null),
+      Attribute.clone(Attribute.underline, null),
+      Attribute.clone(Attribute.strikeThrough, null),
+      Attribute.clone(Attribute.ul, null),
+      Attribute.clone(Attribute.align, null),
+      const IndentAttribute(level: null),
+      const ColorAttribute(null),
+      const BackgroundAttribute(null),
+    ];
+    for (final attribute in clearAttributes) {
+      _bodyController.formatSelection(attribute);
+    }
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isEditingExisting = _activeNoteId != null;
     final foldersAsync = ref.watch(noteFoldersProvider);
-    final runtimeStatusAsync = ref.watch(aiRuntimeStatusProvider);
     final aiSnapshotAsync = _activeNoteId == null
         ? null
         : ref.watch(noteAiSnapshotProvider(_activeNoteId!));
-    final toolbarIconTheme = QuillIconTheme(
-      iconButtonUnselectedData: IconButtonData(
-        color: const Color(0xFF22333B),
-        style: IconButton.styleFrom(
-          backgroundColor: const Color(0xFFF2E8DC),
-          foregroundColor: const Color(0xFF22333B),
-          hoverColor: const Color(0xFFE5D6C3),
-          highlightColor: const Color(0xFFD9C4AA),
-          padding: const EdgeInsets.all(11),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: Color(0xFFC6AC8F)),
-          ),
-        ),
-      ),
-      iconButtonSelectedData: IconButtonData(
-        color: const Color(0xFFEAE0D5),
-        style: IconButton.styleFrom(
-          backgroundColor: const Color(0xFF5E503F),
-          foregroundColor: const Color(0xFFEAE0D5),
-          hoverColor: const Color(0xFF4F4334),
-          highlightColor: const Color(0xFF3E3429),
-          padding: const EdgeInsets.all(11),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          side: const BorderSide(color: Color(0xFFC6AC8F)),
-          shadowColor: const Color(0x445E503F),
-          elevation: 4,
-        ),
-      ),
-    );
-    final toolbarConfig = QuillSimpleToolbarConfig(
-      showFontFamily: false,
-      showFontSize: false,
-      showBoldButton: true,
-      showItalicButton: true,
-      showUnderLineButton: true,
-      showStrikeThrough: true,
-      showSubscript: false,
-      showSuperscript: false,
-      showHeaderStyle: false,
-      showListNumbers: false,
-      showListBullets: false,
-      showListCheck: false,
-      showCodeBlock: false,
-      showQuote: false,
-      showIndent: false,
-      showLink: false,
-      showSearchButton: false,
-      showUndo: false,
-      showRedo: false,
-      showDividers: false,
-      showSmallButton: false,
-      showInlineCode: false,
-      showDirection: false,
-      multiRowsDisplay: false,
-      toolbarSize: 38,
-      toolbarSectionSpacing: 10,
-      toolbarRunSpacing: 10,
-      color: const Color(0x00000000),
-      iconTheme: toolbarIconTheme,
-      buttonOptions: QuillSimpleToolbarButtonOptions(
-        base: QuillToolbarBaseButtonOptions(
-          iconSize: 18,
-          iconButtonFactor: 1.15,
-          iconTheme: toolbarIconTheme,
-        ),
-        color: QuillToolbarColorButtonOptions(
-          iconTheme: toolbarIconTheme,
-          customOnPressedCallback: _showStyledColorPicker,
-        ),
-        backgroundColor: QuillToolbarColorButtonOptions(
-          iconTheme: toolbarIconTheme,
-          customOnPressedCallback: _showStyledColorPicker,
-        ),
-      ),
-    );
-
+    final effectiveSummary = (_summary != null && _summary!.trim().isNotEmpty)
+        ? _summary!.trim()
+        : aiSnapshotAsync?.valueOrNull?.summary;
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditingExisting ? 'Edit note' : 'New note'),
@@ -523,14 +580,6 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
             ],
           ),
           const SizedBox(height: 20),
-          _AiWorkspaceCard(
-            summary: _summary,
-            snapshotAsync: aiSnapshotAsync,
-            runtimeStatusAsync: runtimeStatusAsync,
-            isGeneratingSummary: _isGeneratingSummary,
-            onGenerateSummary: _generateSummary,
-          ),
-          const SizedBox(height: 20),
           TextField(
             controller: _titleController,
             textInputAction: TextInputAction.next,
@@ -543,39 +592,64 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
           const SizedBox(height: 16),
           foldersAsync.when(
             data: (folders) {
-              return DropdownButtonFormField<String?>(
-                initialValue:
-                    folders.any((folder) => folder.id == _selectedFolderId)
-                    ? _selectedFolderId
-                    : null,
-                decoration: const InputDecoration(
-                  labelText: 'Folder',
-                  hintText: 'Choose a folder',
-                ),
-                items: [
-                  const DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('No folder'),
+              NoteFolder? selectedFolder;
+              for (final folder in folders) {
+                if (folder.id == _selectedFolderId) {
+                  selectedFolder = folder;
+                  break;
+                }
+              }
+              return Row(
+                children: [
+                  _EditorIconButton(
+                    icon: Icons.auto_awesome_rounded,
+                    tooltip: 'AI summary',
+                    isBusy: _isGeneratingSummary,
+                    onPressed: _toggleInlineSummary,
                   ),
-                  ...folders.map(
-                    (folder) => DropdownMenuItem<String?>(
-                      value: folder.id,
-                      child: Text(folder.name),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _FolderTagButton(
+                      label: selectedFolder?.name ?? 'No folder',
+                      onTap: () => _showFolderPickerSheet(folders),
                     ),
                   ),
                 ],
-                onChanged: (value) {
-                  setState(() {
-                    _selectedFolderId = value;
-                  });
-                },
               );
             },
             error: (_, stackTrace) => const SizedBox.shrink(),
-            loading: () => const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: LinearProgressIndicator(),
+            loading: () => Row(
+              children: [
+                _EditorIconButton(
+                  icon: Icons.auto_awesome_rounded,
+                  tooltip: 'AI summary',
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEAE0D5),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+              ],
             ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            child: _showInlineSummary
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: _InlineSummaryPanel(
+                      summary: effectiveSummary,
+                      isGenerating: _isGeneratingSummary,
+                      onRefresh: _generateSummary,
+                    ),
+                  )
+                : const SizedBox.shrink(),
           ),
           const SizedBox(height: 16),
           Row(
@@ -627,9 +701,84 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                 ? Padding(
                     key: const ValueKey('formatting-toolbar'),
                     padding: const EdgeInsets.only(top: 12),
-                    child: QuillSimpleToolbar(
-                      controller: _bodyController,
-                      config: toolbarConfig,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _ToolbarActionButton(
+                            icon: Icons.format_bold_rounded,
+                            tooltip: 'Bold',
+                            isSelected: _hasInlineAttribute(Attribute.bold),
+                            onTap: () => _toggleInlineAttribute(Attribute.bold),
+                          ),
+                          const SizedBox(width: 10),
+                          _ToolbarActionButton(
+                            icon: Icons.format_italic_rounded,
+                            tooltip: 'Italic',
+                            isSelected: _hasInlineAttribute(Attribute.italic),
+                            onTap: () =>
+                                _toggleInlineAttribute(Attribute.italic),
+                          ),
+                          const SizedBox(width: 10),
+                          _ToolbarActionButton(
+                            icon: Icons.format_underline_rounded,
+                            tooltip: 'Underline',
+                            isSelected:
+                                _hasInlineAttribute(Attribute.underline),
+                            onTap: () =>
+                                _toggleInlineAttribute(Attribute.underline),
+                          ),
+                          const SizedBox(width: 10),
+                          _ToolbarActionButton(
+                            icon: Icons.format_strikethrough_rounded,
+                            tooltip: 'Strikethrough',
+                            isSelected:
+                                _hasInlineAttribute(Attribute.strikeThrough),
+                            onTap: () => _toggleInlineAttribute(
+                              Attribute.strikeThrough,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          _ToolbarActionButton(
+                            icon: Icons.format_list_bulleted_rounded,
+                            tooltip: 'Bullets',
+                            isSelected: _isBulletActive,
+                            onTap: _toggleBullets,
+                          ),
+                          const SizedBox(width: 10),
+                          _ToolbarActionButton(
+                            icon: Icons.palette_rounded,
+                            tooltip: 'Text color',
+                            onTap: () =>
+                                _showStyledColorPicker(_bodyController, false),
+                          ),
+                          const SizedBox(width: 10),
+                          _ToolbarActionButton(
+                            icon: Icons.format_color_fill_rounded,
+                            tooltip: 'Highlight',
+                            onTap: () =>
+                                _showStyledColorPicker(_bodyController, true),
+                          ),
+                          const SizedBox(width: 10),
+                          _ToolbarCycleButton(
+                            icon: _currentAlignmentIcon,
+                            tooltip: 'Cycle alignment',
+                            onTap: _cycleAlignment,
+                          ),
+                          const SizedBox(width: 10),
+                          _ToolbarCycleButton(
+                            icon: _currentIndentIcon,
+                            tooltip: 'Cycle indent',
+                            onTap: _cycleIndent,
+                          ),
+                          const SizedBox(width: 10),
+                          _ToolbarActionButton(
+                            icon: Icons.format_clear_rounded,
+                            tooltip: 'Clear formatting',
+                            onTap: _clearFormatting,
+                          ),
+                        ],
+                      ),
                     ),
                   )
                 : const SizedBox.shrink(
@@ -637,27 +786,14 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                   ),
           ),
           const SizedBox(height: 12),
-          Container(
-            constraints: const BoxConstraints(
-              minHeight: 260,
-              maxHeight: 460,
-            ),
-            padding: const EdgeInsets.symmetric(
-              horizontal: 4,
-              vertical: 2,
-            ),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFFBF7),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFC6AC8F)),
-            ),
-            child: QuillEditor.basic(
-              controller: _bodyController,
-              focusNode: _bodyFocusNode,
-              config: QuillEditorConfig(
-                padding: const EdgeInsets.all(12),
-                placeholder: 'Write your note here...',
-              ),
+          QuillEditor.basic(
+            controller: _bodyController,
+            focusNode: _bodyFocusNode,
+            config: const QuillEditorConfig(
+              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              placeholder: 'Start from here',
+              autoFocus: true,
+              scrollable: false,
             ),
           ),
         ],
@@ -706,156 +842,451 @@ class _ColorSwatchButton extends StatelessWidget {
   }
 }
 
-class _AiWorkspaceCard extends StatelessWidget {
-  const _AiWorkspaceCard({
+class _ToolbarCycleButton extends StatelessWidget {
+  const _ToolbarCycleButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF2E8DC),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFC6AC8F)),
+          ),
+          child: Icon(
+            icon,
+            size: 18,
+            color: const Color(0xFF22333B),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ToolbarActionButton extends StatelessWidget {
+  const _ToolbarActionButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    this.isSelected = false,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+  final bool isSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final background =
+        isSelected ? const Color(0xFF5E503F) : const Color(0xFFF2E8DC);
+    final foreground =
+        isSelected ? const Color(0xFFEAE0D5) : const Color(0xFF22333B);
+
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFC6AC8F)),
+            boxShadow: isSelected
+                ? const [
+                    BoxShadow(
+                      color: Color(0x445E503F),
+                      blurRadius: 10,
+                      offset: Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Icon(
+            icon,
+            size: 18,
+            color: foreground,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EditorIconButton extends StatefulWidget {
+  const _EditorIconButton({
+    required this.icon,
+    required this.tooltip,
+    this.isBusy = false,
+    this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final bool isBusy;
+  final VoidCallback? onPressed;
+
+  @override
+  State<_EditorIconButton> createState() => _EditorIconButtonState();
+}
+
+class _EditorIconButtonState extends State<_EditorIconButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    if (widget.isBusy) {
+      _controller.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _EditorIconButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isBusy == oldWidget.isBusy) {
+      return;
+    }
+    if (widget.isBusy) {
+      _controller.repeat(reverse: true);
+    } else {
+      _controller
+        ..stop()
+        ..value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final t = Curves.easeInOut.transform(_controller.value);
+        final scale = widget.isBusy ? 1 + (t * 0.05) : 1.0;
+        final glowOpacity = widget.isBusy ? 0.18 + (t * 0.12) : 0.0;
+        final iconShift = widget.isBusy ? (t * 0.12) - 0.06 : 0.0;
+
+        return Transform.scale(
+          scale: scale,
+          child: Tooltip(
+            message: widget.tooltip,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: widget.onPressed,
+              child: Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFF22333B),
+                      Color(0xFF5E503F),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color.fromRGBO(34, 51, 59, 0.2 + glowOpacity),
+                      blurRadius: widget.isBusy ? 18 : 14,
+                      spreadRadius: widget.isBusy ? 1.5 : 0,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    if (widget.isBusy)
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Color.fromRGBO(234, 224, 213, 0.28 + (t * 0.18)),
+                            ),
+                          ),
+                        ),
+                      ),
+                    Transform.rotate(
+                      angle: iconShift,
+                      child: Icon(
+                        widget.icon,
+                        size: 18,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _FolderTagButton extends StatelessWidget {
+  const _FolderTagButton({
+    required this.label,
+    required this.onTap,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Container(
+          height: 42,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: const Color(0xFF5E503F),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.folder_open_outlined,
+                size: 16,
+                color: Color(0xFFEAE0D5),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: const Color(0xFFEAE0D5),
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.expand_more_rounded,
+                size: 18,
+                color: Color(0xFFEAE0D5),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InlineSummaryPanel extends StatelessWidget {
+  const _InlineSummaryPanel({
     required this.summary,
-    required this.snapshotAsync,
-    required this.runtimeStatusAsync,
-    required this.isGeneratingSummary,
-    required this.onGenerateSummary,
+    required this.isGenerating,
+    required this.onRefresh,
   });
 
   final String? summary;
-  final AsyncValue<NoteAiSnapshot?>? snapshotAsync;
-  final AsyncValue<AiRuntimeStatus> runtimeStatusAsync;
-  final bool isGeneratingSummary;
-  final VoidCallback onGenerateSummary;
+  final bool isGenerating;
+  final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final snapshot = snapshotAsync?.valueOrNull;
-    final effectiveSummary = (summary != null && summary!.trim().isNotEmpty)
-        ? summary!.trim()
-        : snapshot?.summary;
-    final status = snapshot?.embeddingStatus ?? EmbeddingStatus.missing;
-    final summaryStatusLabel = switch (status) {
-      EmbeddingStatus.indexed => 'Summary and note index are ready.',
-      EmbeddingStatus.queued => 'Summary is ready. Search index is updating.',
-      EmbeddingStatus.failed => 'Summary is ready. AI indexing needs attention.',
-      EmbeddingStatus.missing => effectiveSummary == null
-          ? 'Generate a local summary when you want a quick recap.'
-          : 'Summary is ready.',
-    };
-    final summaryStatusIcon = switch (status) {
-      EmbeddingStatus.indexed => Icons.check_circle_outline_rounded,
-      EmbeddingStatus.queued => Icons.schedule_rounded,
-      EmbeddingStatus.failed => Icons.error_outline_rounded,
-      EmbeddingStatus.missing => effectiveSummary == null
-          ? Icons.auto_awesome_outlined
-          : Icons.check_circle_outline_rounded,
-    };
-    final summaryStatusColor = switch (status) {
-      EmbeddingStatus.indexed => const Color(0xFF5E503F),
-      EmbeddingStatus.queued => const Color(0xFF22333B),
-      EmbeddingStatus.failed => const Color(0xFF8A7259),
-      EmbeddingStatus.missing => effectiveSummary == null
-          ? const Color(0xFF22333B)
-          : const Color(0xFF5E503F),
-    };
-
     return Container(
-      padding: const EdgeInsets.all(22),
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
         gradient: const LinearGradient(
           colors: [
-            Color(0xFFEAE0D5),
-            Color(0xFFF6EEE6),
+            Color(0xFFF6F9FB),
+            Color(0xFFE8EEF2),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        border: Border.all(color: const Color(0xFFC6AC8F)),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: const Color(0xFFD5E0E7),
+        ),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x1022333B),
-            blurRadius: 20,
-            offset: Offset(0, 10),
+            color: Color(0x1222333B),
+            blurRadius: 14,
+            offset: Offset(0, 6),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'AI Summary',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-              ),
-              FilledButton.tonalIcon(
-                onPressed: isGeneratingSummary ? null : onGenerateSummary,
-                icon: const Icon(Icons.auto_awesome_rounded),
-                label: Text(
-                  isGeneratingSummary ? 'Generating...' : 'Refresh',
-                ),
-              ),
-            ],
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.tonalIcon(
+              onPressed: isGenerating ? null : onRefresh,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(isGenerating ? 'Refreshing...' : 'Refresh'),
+            ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'A short local recap of the current note.',
-            style: theme.textTheme.bodyMedium?.copyWith(
+          const SizedBox(height: 12),
+          SelectableText(
+            summary?.trim().isNotEmpty == true
+                ? summary!.trim()
+                : 'No summary yet.',
+            style: theme.textTheme.bodyLarge?.copyWith(
+              height: 1.45,
               color: const Color(0xFF22333B),
             ),
           ),
-          const SizedBox(height: 14),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.78),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: const Color(0xFFC6AC8F),
-              ),
-            ),
-            child: Text(
-              effectiveSummary ??
-                  'No summary yet.',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                height: 1.45,
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 12,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.62),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFC6AC8F)),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  summaryStatusIcon,
-                  size: 18,
-                  color: summaryStatusColor,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    summaryStatusLabel,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: summaryStatusColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
+      ),
+    );
+  }
+}
+
+class _FolderPickerSheet extends StatelessWidget {
+  const _FolderPickerSheet({
+    required this.folders,
+    required this.selectedFolderId,
+    required this.onSelected,
+  });
+
+  final List<NoteFolder> folders;
+  final String? selectedFolderId;
+  final ValueChanged<String?> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFFBF7),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: const Color(0xFFC6AC8F)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x1822333B),
+                blurRadius: 20,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Move to folder',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: const Color(0xFF22333B),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _FolderChoiceTag(
+                    label: 'No folder',
+                    selected: selectedFolderId == null,
+                    onTap: () {
+                      onSelected(null);
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                  for (final folder in folders)
+                    _FolderChoiceTag(
+                      label: folder.name,
+                      selected: selectedFolderId == folder.id,
+                      onTap: () {
+                        onSelected(folder.id);
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FolderChoiceTag extends StatelessWidget {
+  const _FolderChoiceTag({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFF5E503F) : const Color(0xFFEAE0D5),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: selected ? const Color(0xFFEAE0D5) : const Color(0xFF22333B),
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ),
       ),
     );
   }
