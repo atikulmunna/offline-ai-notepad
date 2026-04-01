@@ -372,15 +372,25 @@ class OnnxSessionManager {
     }
 
     private fun buildPrompt(title: String?, body: String): String {
-        val normalizedBody = body.replace(Regex("\\s+"), " ").trim()
+        val normalizedBody = body
+            .replace(Regex("\\s+"), " ")
+            .replace(Regex("""[•*]\s*"""), "")
+            .trim()
         val normalizedTitle = title?.replace(Regex("\\s+"), " ")?.trim()
+        val clippedBody = if (normalizedBody.length > 900) {
+            normalizedBody.substring(0, 900).trim()
+        } else {
+            normalizedBody
+        }
         return buildString {
-            append("summarize: ")
+            append("Summarize this note in 2 concrete sentences. Name the subject directly, avoid vague openings like 'it' or 'this', and mention the main takeaway or outcome. ")
             if (!normalizedTitle.isNullOrBlank()) {
+                append("Subject: ")
                 append(normalizedTitle)
                 append(". ")
             }
-            append(normalizedBody)
+            append("Note: ")
+            append(clippedBody)
         }.trim()
     }
 
@@ -722,11 +732,13 @@ class OnnxSessionManager {
             builder.append(token)
         }
 
-        return builder.toString()
+        return cleanupGeneratedSummary(
+            builder.toString()
             .replace("▁", " ")
             .replace(Regex("\\s+([,.!?;:])"), "$1")
             .replace(Regex("\\s+"), " ")
             .trim()
+        )
     }
 
     private fun fallbackSummary(title: String?, body: String): String {
@@ -761,11 +773,64 @@ class OnnxSessionManager {
             }
         }
 
-        return if (chosen.isNotEmpty()) {
+        val summary = if (chosen.isNotEmpty()) {
             chosen.joinToString(" ")
         } else {
             sentences.first()
         }
+        return anchorToTitle(title, cleanupGeneratedSummary(summary))
+    }
+
+    private fun cleanupGeneratedSummary(input: String): String {
+        var output = input.trim()
+        output = output.replace(Regex("^\\s*(summary|summarize)\\s*:\\s*", RegexOption.IGNORE_CASE), "")
+        output = output.replace(Regex("\\s+"), " ").trim()
+        output = output.replace(Regex("^[,:;\\-\\s]+"), "")
+        output = output.replace(Regex("\\s*[:;,-]\\s*$"), "")
+
+        val sentences = output
+            .split(Regex("(?<=[.!?])\\s+"))
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
+
+        output = when {
+            sentences.size >= 2 -> sentences.take(2).joinToString(" ")
+            sentences.isNotEmpty() -> sentences.first()
+            else -> output
+        }
+
+        if (output.length > 280) {
+            output = output.substring(0, 280).trim()
+            output = output.replace(Regex("\\s+[\\p{L}\\p{N}]*$"), "").trim()
+        }
+
+        if (!Regex("[.!?]$").containsMatchIn(output) && output.isNotBlank()) {
+            output += "."
+        }
+
+        return output.trim()
+    }
+
+    private fun anchorToTitle(title: String?, summary: String): String {
+        val cleanedTitle = title?.replace(Regex("\\s+"), " ")?.trim().orEmpty()
+        if (cleanedTitle.isBlank() || summary.isBlank()) {
+            return summary
+        }
+        if (summary.startsWith(cleanedTitle, ignoreCase = true)) {
+            return summary
+        }
+        if (!Regex("^(it|this note|this|these|they|there)\\b", RegexOption.IGNORE_CASE).containsMatchIn(summary)) {
+            return summary
+        }
+
+        val normalizedTitle = cleanedTitle.replaceFirstChar {
+            if (it.isLowerCase()) it.titlecase() else it.toString()
+        }
+        return summary.replaceFirst(
+            Regex("^(it|this note|this|these|they)\\b", RegexOption.IGNORE_CASE),
+            normalizedTitle,
+        ).trim()
     }
 
     private fun argmax(values: FloatArray, offset: Int, size: Int): Int {

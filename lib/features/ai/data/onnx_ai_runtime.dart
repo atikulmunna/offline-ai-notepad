@@ -7,6 +7,43 @@ import '../domain/onnx_runtime_capability.dart';
 import 'onnx_method_channel_client.dart';
 
 class OnnxAiRuntime implements AiRuntime {
+  static const _stopwords = <String>{
+    'a',
+    'an',
+    'and',
+    'are',
+    'as',
+    'at',
+    'be',
+    'but',
+    'by',
+    'for',
+    'from',
+    'in',
+    'into',
+    'is',
+    'it',
+    'its',
+    'main',
+    'note',
+    'of',
+    'on',
+    'or',
+    'subject',
+    'that',
+    'the',
+    'their',
+    'there',
+    'these',
+    'this',
+    'those',
+    'to',
+    'was',
+    'were',
+    'which',
+    'with',
+  };
+
   const OnnxAiRuntime({
     required NoteSummarizer fallbackSummarizer,
     required NoteEmbeddingIndexer fallbackEmbeddingIndexer,
@@ -128,12 +165,18 @@ class OnnxAiRuntime implements AiRuntime {
     if (normalizedCandidate.length < 24) {
       return false;
     }
+    if (normalizedCandidate.length > 320) {
+      return false;
+    }
 
     final words = normalizedCandidate
         .split(RegExp(r'\s+'))
         .where((word) => word.isNotEmpty)
         .toList(growable: false);
     if (words.length < 6) {
+      return false;
+    }
+    if (words.length > 55) {
       return false;
     }
 
@@ -155,9 +198,28 @@ class OnnxAiRuntime implements AiRuntime {
         normalizedCandidate.length < 80) {
       return false;
     }
+    if (_bodyContainsCandidate(
+      normalizedBody: normalizedBody,
+      normalizedCandidate: normalizedCandidate,
+    )) {
+      return false;
+    }
 
     if (RegExp(r'^\s*(summary|summarize)\s*:\s*', caseSensitive: false)
         .hasMatch(normalizedCandidate)) {
+      return false;
+    }
+    if (RegExp(
+      r'\b(main subject|subject of this note|this note is|the main idea)\b',
+      caseSensitive: false,
+    ).hasMatch(normalizedCandidate)) {
+      return false;
+    }
+    if (RegExp(r'^(it|this|these|they|there)\b', caseSensitive: false)
+        .hasMatch(normalizedCandidate)) {
+      return false;
+    }
+    if (RegExp(r'[:;]\s*$').hasMatch(normalizedCandidate)) {
       return false;
     }
 
@@ -177,11 +239,61 @@ class OnnxAiRuntime implements AiRuntime {
     if (semicolonCount >= 2) {
       return false;
     }
+    if (_looksLikeKeywordList(normalizedCandidate)) {
+      return false;
+    }
+    if (!_hasBodyOverlap(
+      normalizedCandidate: normalizedCandidate,
+      normalizedBody: normalizedBody,
+      normalizedTitle: normalizedTitle,
+    )) {
+      return false;
+    }
 
     return true;
   }
 
   String _normalize(String value) {
     return value.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  bool _bodyContainsCandidate({
+    required String normalizedBody,
+    required String normalizedCandidate,
+  }) {
+    if (normalizedCandidate.length < 96) {
+      return false;
+    }
+    return normalizedBody.contains(normalizedCandidate);
+  }
+
+  bool _looksLikeKeywordList(String value) {
+    final commaCount = ','.allMatches(value).length;
+    final semicolonCount = ';'.allMatches(value).length;
+    final sentenceCount = RegExp(r'[.!?]').allMatches(value).length;
+    final hasColonLead = value.contains(':') && !RegExp(r'[.!?]').hasMatch(value);
+    return (commaCount >= 3 && sentenceCount == 0) ||
+        (semicolonCount >= 1 && sentenceCount == 0) ||
+        hasColonLead;
+  }
+
+  bool _hasBodyOverlap({
+    required String normalizedCandidate,
+    required String normalizedBody,
+    required String normalizedTitle,
+  }) {
+    final candidateTerms = _keywords(normalizedCandidate);
+    final bodyTerms = _keywords(normalizedBody);
+    final titleTerms = _keywords(normalizedTitle);
+    final overlap = candidateTerms.intersection({...bodyTerms, ...titleTerms});
+    return overlap.length >= 2;
+  }
+
+  Set<String> _keywords(String value) {
+    return value
+        .toLowerCase()
+        .split(RegExp(r'[^a-z0-9]+'))
+        .where((part) => part.length > 2 && !_stopwords.contains(part))
+        .toSet();
   }
 }
