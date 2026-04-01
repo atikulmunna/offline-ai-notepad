@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,6 +28,9 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
   late final TextEditingController _searchController;
   Timer? _searchDebounce;
   bool _showSearch = false;
+  bool _showViews = false;
+  bool _showFolders = false;
+  bool _isGridView = false;
 
   @override
   void initState() {
@@ -58,36 +62,26 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
     );
   }
 
+  Future<void> _openBackupSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const _BackupSheet(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final notesAsync = ref.watch(notesListProvider);
     final foldersAsync = ref.watch(noteFoldersProvider);
     final viewState = ref.watch(notesViewStateProvider);
     final appLockState = ref.watch(appLockControllerProvider);
+    final topInset = MediaQuery.of(context).padding.top;
+    const headerHeight = 64.0;
+    final bodyTopPadding = topInset + headerHeight + 24;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const _BrandWordmark(),
-        actions: [
-          IconButton(
-            onPressed: _openPrivacySheet,
-            tooltip: 'Privacy controls',
-            icon: Icon(
-              appLockState.isEnabled
-                  ? Icons.lock_rounded
-                  : Icons.lock_open_rounded,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 20),
-            child: Chip(
-              avatar: const Icon(Icons.cloud_off_rounded, size: 16),
-              label: const Text('Offline-ready'),
-              backgroundColor: Colors.white.withValues(alpha: 0.92),
-            ),
-          ),
-        ],
-      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           await Navigator.of(context).push<bool>(
@@ -103,17 +97,17 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
         children: [
           const _BackdropGlow(),
           ListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+            padding: EdgeInsets.fromLTRB(20, bodyTopPadding, 20, 100),
             children: [
               _Entrance(
                 delay: 80,
                 child: _ControlDeck(
                   showSearch: _showSearch,
-                  onToggleSearch: () {
-                    setState(() {
-                      _showSearch = !_showSearch;
-                    });
-                  },
+                  showViews: _showViews,
+                  showFolders: _showFolders,
+                  onToggleSearch: () {},
+                  onToggleViews: () {},
+                  onToggleFolders: () {},
                   searchController: _searchController,
                   onSearchChanged: _onSearchChanged,
                   foldersAsync: foldersAsync,
@@ -135,12 +129,18 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
                     NoteCollection.trash => 'Trash Bin',
                   },
                   subtitle: switch (viewState.collection) {
-                    NoteCollection.active => viewState.searchMode == NoteSearchMode.semantic
-                        ? 'Use local meaning-based search to surface notes that feel related, not just exact matches.'
-                        : 'Keep the current workspace tidy and searchable.',
+                    NoteCollection.active => '',
                     NoteCollection.archived => 'Older notes stay close without crowding the main list.',
                     NoteCollection.trash => 'Restore something valuable or remove it permanently.',
                   },
+                  trailing: _ViewModeToggle(
+                    isGridView: _isGridView,
+                    onChanged: (value) {
+                      setState(() {
+                        _isGridView = value;
+                      });
+                    },
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -149,57 +149,49 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
                   delay: 220,
                   child: notes.isEmpty
                       ? _EmptyNotesCard(viewState: viewState)
-                      : Column(
-                          children: [
-                            for (var i = 0; i < notes.length; i++) ...[
-                              _PreviewCard(
-                                note: notes[i],
-                                accentIndex: i,
-                                collection: viewState.collection,
-                                onTap: () async {
-                                  if (viewState.collection == NoteCollection.trash) {
-                                    return;
-                                  }
-                                  await Navigator.of(context).push<bool>(
-                                    MaterialPageRoute(
-                                      builder: (context) => NoteEditorPage(
-                                        noteId: notes[i].id,
-                                      ),
-                                    ),
-                                  );
-                                },
-                                onTogglePin: () async {
-                                  await ref.read(notesActionsProvider).togglePin(
-                                        id: notes[i].id,
-                                        value: !notes[i].isPinned,
-                                      );
-                                },
-                                onArchiveToggle: () async {
-                                  await ref.read(notesActionsProvider).setArchived(
-                                        id: notes[i].id,
-                                        value: !notes[i].isArchived,
-                                      );
-                                },
-                                onMoveToTrash: () async {
-                                  await ref
-                                      .read(notesActionsProvider)
-                                      .moveToTrash(notes[i].id);
-                                },
-                                onRestore: () async {
-                                  await ref
-                                      .read(notesActionsProvider)
-                                      .restoreFromTrash(notes[i].id);
-                                },
-                                onDeleteForever: () async {
-                                  await ref
-                                      .read(notesActionsProvider)
-                                      .deletePermanently(notes[i].id);
-                                },
+                      : _NotesLayout(
+                          notes: notes,
+                          collection: viewState.collection,
+                          isGridView: _isGridView,
+                          onOpen: (note) async {
+                            if (viewState.collection == NoteCollection.trash) {
+                              return;
+                            }
+                            await Navigator.of(context).push<bool>(
+                              MaterialPageRoute(
+                                builder: (context) => NoteEditorPage(
+                                  noteId: note.id,
+                                ),
                               ),
-                              if (i < notes.length - 1)
-                                const SizedBox(height: 14),
-                            ],
-                          ],
+                            );
+                          },
+                          onTogglePin: (note) async {
+                            await ref.read(notesActionsProvider).togglePin(
+                                  id: note.id,
+                                  value: !note.isPinned,
+                                );
+                          },
+                          onArchiveToggle: (note) async {
+                            await ref.read(notesActionsProvider).setArchived(
+                                  id: note.id,
+                                  value: !note.isArchived,
+                                );
+                          },
+                          onMoveToTrash: (note) async {
+                            await ref
+                                .read(notesActionsProvider)
+                                .moveToTrash(note.id);
+                          },
+                          onRestore: (note) async {
+                            await ref
+                                .read(notesActionsProvider)
+                                .restoreFromTrash(note.id);
+                          },
+                          onDeleteForever: (note) async {
+                            await ref
+                                .read(notesActionsProvider)
+                                .deletePermanently(note.id);
+                          },
                         ),
                 ),
                 error: (error, stackTrace) => _ErrorCard(error: error),
@@ -207,38 +199,188 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
               ),
             ],
           ),
+          Positioned(
+            top: topInset + 10,
+            left: 20,
+            right: 20,
+            child: _GlassHeader(
+              isLocked: appLockState.isEnabled,
+              onOpenPrivacy: _openPrivacySheet,
+              showSearch: _showSearch,
+              showViews: _showViews,
+              showFolders: _showFolders,
+              onToggleSearch: () => setState(() {
+                _showSearch = !_showSearch;
+                if (_showSearch) {
+                  _showViews = false;
+                  _showFolders = false;
+                }
+              }),
+              onToggleViews: () => setState(() {
+                _showViews = !_showViews;
+                if (_showViews) {
+                  _showSearch = false;
+                  _showFolders = false;
+                }
+              }),
+              onToggleFolders: () => setState(() {
+                _showFolders = !_showFolders;
+                if (_showFolders) {
+                  _showSearch = false;
+                  _showViews = false;
+                }
+              }),
+              onOpenBackup: _openBackupSheet,
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _BrandWordmark extends StatelessWidget {
-  const _BrandWordmark();
+class _GlassHeader extends StatelessWidget {
+  const _GlassHeader({
+    required this.isLocked,
+    required this.onOpenPrivacy,
+    required this.showSearch,
+    required this.showViews,
+    required this.showFolders,
+    required this.onToggleSearch,
+    required this.onToggleViews,
+    required this.onToggleFolders,
+    required this.onOpenBackup,
+  });
+
+  final bool isLocked;
+  final VoidCallback onOpenPrivacy;
+  final bool showSearch;
+  final bool showViews;
+  final bool showFolders;
+  final VoidCallback onToggleSearch;
+  final VoidCallback onToggleViews;
+  final VoidCallback onToggleFolders;
+  final VoidCallback onOpenBackup;
 
   @override
   Widget build(BuildContext context) {
-    final style = Theme.of(context).appBarTheme.titleTextStyle ??
-        Theme.of(context).textTheme.titleLarge;
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.zero,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(30),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.white.withValues(alpha: 0.38),
+                    const Color(0xFFEAE0D5).withValues(alpha: 0.24),
+                    const Color(0xFFC6AC8F).withValues(alpha: 0.14),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.34),
+                ),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x1422333B),
+                    blurRadius: 24,
+                    offset: Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  _GlassActionButton(
+                    icon: isLocked
+                        ? Icons.lock_rounded
+                        : Icons.lock_open_rounded,
+                    tooltip: 'Privacy controls',
+                    onPressed: onOpenPrivacy,
+                  ),
+                  const SizedBox(width: 10),
+                  _GlassActionButton(
+                    icon: showSearch
+                        ? Icons.search_off_rounded
+                        : Icons.search_rounded,
+                    tooltip: showSearch ? 'Hide search' : 'Show search',
+                    onPressed: onToggleSearch,
+                  ),
+                  const SizedBox(width: 10),
+                  _GlassActionButton(
+                    icon: showViews
+                        ? Icons.visibility_off_rounded
+                        : Icons.remove_red_eye_outlined,
+                    tooltip: showViews ? 'Hide views' : 'Show views',
+                    onPressed: onToggleViews,
+                  ),
+                  const SizedBox(width: 10),
+                  _GlassActionButton(
+                    icon: showFolders
+                        ? Icons.folder_off_outlined
+                        : Icons.folder_open_rounded,
+                    tooltip: showFolders ? 'Hide folders' : 'Show folders',
+                    onPressed: onToggleFolders,
+                  ),
+                  const SizedBox(width: 10),
+                  _GlassActionButton(
+                    icon: Icons.backup_outlined,
+                    tooltip: 'Encrypted backup',
+                    onPressed: onOpenBackup,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
-    return ShaderMask(
-      shaderCallback: (bounds) {
-        return const LinearGradient(
-          colors: [
-            Color(0xFF22333B),
-            Color(0xFF5E503F),
-            Color(0xFFC6AC8F),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ).createShader(bounds);
-      },
-      blendMode: BlendMode.srcIn,
-      child: Text(
-        'NativeNote',
-        style: style?.copyWith(
-          fontWeight: FontWeight.w800,
-          letterSpacing: 0.2,
+class _GlassActionButton extends StatelessWidget {
+  const _GlassActionButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onPressed,
+          child: Ink(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.28),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.34),
+              ),
+            ),
+            child: Icon(
+              icon,
+              color: const Color(0xFF22333B),
+              size: 20,
+            ),
+          ),
         ),
       ),
     );
@@ -296,7 +438,11 @@ class _BackdropGlow extends StatelessWidget {
 class _ControlDeck extends ConsumerWidget {
   const _ControlDeck({
     required this.showSearch,
+    required this.showViews,
+    required this.showFolders,
     required this.onToggleSearch,
+    required this.onToggleViews,
+    required this.onToggleFolders,
     required this.searchController,
     required this.onSearchChanged,
     required this.foldersAsync,
@@ -304,7 +450,11 @@ class _ControlDeck extends ConsumerWidget {
   });
 
   final bool showSearch;
+  final bool showViews;
+  final bool showFolders;
   final VoidCallback onToggleSearch;
+  final VoidCallback onToggleViews;
+  final VoidCallback onToggleFolders;
   final TextEditingController searchController;
   final ValueChanged<String> onSearchChanged;
   final AsyncValue<List<NoteFolder>> foldersAsync;
@@ -312,200 +462,176 @@ class _ControlDeck extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.white.withValues(alpha: 0.94),
-            const Color(0xFFEAE0D5),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFC6AC8F)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x1422333B),
-            blurRadius: 18,
-            offset: Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text('Explore', style: theme.textTheme.titleMedium),
-              const Spacer(),
-              AnimatedRotation(
-                turns: showSearch ? 0.0 : -0.02,
-                duration: const Duration(milliseconds: 220),
-                child: IconButton.filledTonal(
-                  onPressed: onToggleSearch,
-                  icon: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    child: Icon(
-                      showSearch ? Icons.close_rounded : Icons.search_rounded,
-                      key: ValueKey(showSearch),
-                    ),
-                  ),
-                  tooltip: showSearch ? 'Hide search' : 'Show search',
-                ),
-              ),
-            ],
-          ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 240),
-            curve: Curves.easeOutCubic,
-            child: showSearch
-                ? Padding(
-                    padding: const EdgeInsets.only(top: 14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        TextField(
-                          controller: searchController,
-                          onChanged: onSearchChanged,
-                          decoration: InputDecoration(
-                            labelText: viewState.searchMode ==
-                                    NoteSearchMode.semantic
-                                ? 'Search by meaning'
-                                : 'Search notes',
-                            hintText: viewState.searchMode ==
-                                    NoteSearchMode.semantic
-                                ? 'Ideas, themes, or what the note was about'
-                                : 'Title, body, or exact words you remember',
-                            prefixIcon: const Icon(Icons.search_rounded),
-                          ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AnimatedSize(
+          duration: const Duration(milliseconds: 240),
+          curve: Curves.easeOutCubic,
+          child: showSearch
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: searchController,
+                        onChanged: onSearchChanged,
+                        decoration: InputDecoration(
+                          labelText:
+                              viewState.searchMode == NoteSearchMode.semantic
+                                  ? 'Search by meaning'
+                                  : 'Search notes',
+                          hintText:
+                              viewState.searchMode == NoteSearchMode.semantic
+                                  ? 'Ideas, themes, or what the note was about'
+                                  : 'Title, body, or exact words you remember',
+                          prefixIcon: const Icon(Icons.search_rounded),
                         ),
-                        const SizedBox(height: 14),
-                        Text('Search style', style: theme.textTheme.titleMedium),
-                        const SizedBox(height: 10),
-                        SegmentedButton<NoteSearchMode>(
-                          segments: const [
-                            ButtonSegment(
-                              value: NoteSearchMode.keyword,
-                              icon: Icon(Icons.text_fields_rounded),
-                              label: Text('Keyword'),
-                            ),
-                            ButtonSegment(
-                              value: NoteSearchMode.semantic,
-                              icon: Icon(Icons.auto_awesome_rounded),
-                              label: Text('Semantic'),
-                            ),
-                          ],
-                          selected: {viewState.searchMode},
-                          onSelectionChanged: (selection) {
-                            ref
-                                .read(notesActionsProvider)
-                                .setSearchMode(selection.first);
+                      ),
+                      const SizedBox(height: 14),
+                      SegmentedButton<NoteSearchMode>(
+                        segments: const [
+                          ButtonSegment(
+                            value: NoteSearchMode.keyword,
+                            icon: Icon(Icons.text_fields_rounded),
+                            label: Text('Keyword'),
+                          ),
+                          ButtonSegment(
+                            value: NoteSearchMode.semantic,
+                            icon: Icon(Icons.auto_awesome_rounded),
+                            label: Text('Semantic'),
+                          ),
+                        ],
+                        selected: {viewState.searchMode},
+                        onSelectionChanged: (selection) {
+                          ref
+                              .read(notesActionsProvider)
+                              .setSearchMode(selection.first);
+                        },
+                      ),
+                    ],
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 240),
+          curve: Curves.easeOutCubic,
+          child: showViews
+              ? Padding(
+                  padding: EdgeInsets.only(top: showSearch ? 12 : 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SegmentedButton<NoteCollection>(
+                        segments: const [
+                          ButtonSegment(
+                            value: NoteCollection.active,
+                            icon: Icon(Icons.home_work_outlined),
+                            label: Text('Active'),
+                          ),
+                          ButtonSegment(
+                            value: NoteCollection.archived,
+                            icon: Icon(Icons.archive_outlined),
+                            label: Text('Archive'),
+                          ),
+                          ButtonSegment(
+                            value: NoteCollection.trash,
+                            icon: Icon(Icons.delete_outline),
+                            label: Text('Trash'),
+                          ),
+                        ],
+                        selected: {viewState.collection},
+                        onSelectionChanged: (selection) {
+                          ref
+                              .read(notesActionsProvider)
+                              .showCollection(selection.first);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: FilterChip(
+                          label: const Text('Pinned only'),
+                          selected: viewState.pinnedOnly,
+                          onSelected: (value) {
+                            ref.read(notesActionsProvider).setPinnedOnly(value);
                           },
                         ),
-                        const SizedBox(height: 10),
-                        Text(
-                          viewState.searchMode.helperLabel,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: const Color(0xFF746487),
-                            fontWeight: FontWeight.w600,
+                      ),
+                    ],
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 240),
+          curve: Curves.easeOutCubic,
+          child: showFolders
+              ? Padding(
+                  padding: EdgeInsets.only(
+                    top: showSearch || showViews ? 12 : 10,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Spacer(),
+                          TextButton.icon(
+                            onPressed: foldersAsync.valueOrNull == null
+                                ? null
+                                : () async {
+                                    await showModalBottomSheet<void>(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      backgroundColor: Colors.transparent,
+                                      builder: (context) => _FolderManagerSheet(
+                                        folders:
+                                            foldersAsync.valueOrNull ?? const [],
+                                      ),
+                                    );
+                                  },
+                            icon: const Icon(Icons.edit_note_rounded),
+                            label: const Text('Manage'),
                           ),
-                        ),
-                      ],
-                    ),
-                  )
-                : const SizedBox.shrink(),
-          ),
-          const SizedBox(height: 18),
-          Text('Views', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 10),
-          SegmentedButton<NoteCollection>(
-            segments: const [
-              ButtonSegment(
-                value: NoteCollection.active,
-                icon: Icon(Icons.home_work_outlined),
-                label: Text('Active'),
-              ),
-              ButtonSegment(
-                value: NoteCollection.archived,
-                icon: Icon(Icons.archive_outlined),
-                label: Text('Archive'),
-              ),
-              ButtonSegment(
-                value: NoteCollection.trash,
-                icon: Icon(Icons.delete_outline),
-                label: Text('Trash'),
-              ),
-            ],
-            selected: {viewState.collection},
-            onSelectionChanged: (selection) {
-              ref
-                  .read(notesActionsProvider)
-                  .showCollection(selection.first);
-            },
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Text('Folders', style: theme.textTheme.titleMedium),
-              const Spacer(),
-              TextButton.icon(
-                onPressed: foldersAsync.valueOrNull == null
-                    ? null
-                    : () async {
-                        await showModalBottomSheet<void>(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          builder: (context) => _FolderManagerSheet(
-                            folders: foldersAsync.valueOrNull ?? const [],
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          ChoiceChip(
+                            label: const Text('All'),
+                            selected: viewState.folderId == null,
+                            onSelected: (_) {
+                              ref
+                                  .read(notesActionsProvider)
+                                  .setFolderFilter(null);
+                            },
                           ),
-                        );
-                      },
-                icon: const Icon(Icons.edit_note_rounded),
-                label: const Text('Manage'),
-              ),
-              const SizedBox(width: 8),
-              FilterChip(
-                label: const Text('Pinned only'),
-                selected: viewState.pinnedOnly,
-                onSelected: (value) {
-                  ref.read(notesActionsProvider).setPinnedOnly(value);
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              ChoiceChip(
-                label: const Text('All'),
-                selected: viewState.folderId == null,
-                onSelected: (_) {
-                  ref.read(notesActionsProvider).setFolderFilter(null);
-                },
-              ),
-              ...foldersAsync.valueOrNull?.map((folder) {
-                    return ChoiceChip(
-                      label: Text(folder.name),
-                      selected: viewState.folderId == folder.id,
-                      onSelected: (_) {
-                        ref
-                            .read(notesActionsProvider)
-                            .setFolderFilter(folder.id);
-                      },
-                    );
-                  }) ??
-                  [],
-            ],
-          ),
-        ],
-      ),
+                          ...foldersAsync.valueOrNull?.map((folder) {
+                                return ChoiceChip(
+                                  label: Text(folder.name),
+                                  selected: viewState.folderId == folder.id,
+                                  onSelected: (_) {
+                                    ref
+                                        .read(notesActionsProvider)
+                                        .setFolderFilter(folder.id);
+                                  },
+                                );
+                              }) ??
+                              [],
+                        ],
+                      ),
+                    ],
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
+      ],
     );
   }
 }
@@ -515,31 +641,209 @@ class _SectionHeader extends StatelessWidget {
     required this.eyebrow,
     required this.title,
     required this.subtitle,
+    this.trailing,
   });
 
   final String eyebrow;
   final String title;
   final String subtitle;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final trailingWidget = trailing;
+    final rowChildren = <Widget>[
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              eyebrow.toUpperCase(),
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.primary,
+                letterSpacing: 1.1,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(title, style: theme.textTheme.headlineSmall),
+            if (subtitle.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(subtitle, style: theme.textTheme.bodyMedium),
+            ],
+          ],
+        ),
+      ),
+    ];
+    if (trailingWidget != null) {
+      rowChildren
+        ..add(const SizedBox(width: 12))
+        ..add(trailingWidget);
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          eyebrow.toUpperCase(),
-          style: theme.textTheme.labelLarge?.copyWith(
-            color: theme.colorScheme.primary,
-            letterSpacing: 1.1,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: rowChildren,
+        ),
+      ],
+    );
+  }
+}
+
+class _ViewModeToggle extends StatelessWidget {
+  const _ViewModeToggle({
+    required this.isGridView,
+    required this.onChanged,
+  });
+
+  final bool isGridView;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.84),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFC6AC8F)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ModeIconButton(
+            icon: Icons.view_agenda_rounded,
+            selected: !isGridView,
+            tooltip: 'List view',
+            onPressed: () => onChanged(false),
+          ),
+          const SizedBox(width: 6),
+          _ModeIconButton(
+            icon: Icons.grid_view_rounded,
+            selected: isGridView,
+            tooltip: 'Grid view',
+            onPressed: () => onChanged(true),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModeIconButton extends StatelessWidget {
+  const _ModeIconButton({
+    required this.icon,
+    required this.selected,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final bool selected;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onPressed,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFF22333B) : Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(
+            icon,
+            size: 18,
+            color: selected ? Colors.white : const Color(0xFF5E503F),
           ),
         ),
-        const SizedBox(height: 4),
-        Text(title, style: theme.textTheme.headlineSmall),
-        const SizedBox(height: 4),
-        Text(subtitle, style: theme.textTheme.bodyMedium),
-      ],
+      ),
+    );
+  }
+}
+
+class _NotesLayout extends StatelessWidget {
+  const _NotesLayout({
+    required this.notes,
+    required this.collection,
+    required this.isGridView,
+    required this.onOpen,
+    required this.onTogglePin,
+    required this.onArchiveToggle,
+    required this.onMoveToTrash,
+    required this.onRestore,
+    required this.onDeleteForever,
+  });
+
+  final List<NotePreview> notes;
+  final NoteCollection collection;
+  final bool isGridView;
+  final Future<void> Function(NotePreview note) onOpen;
+  final Future<void> Function(NotePreview note) onTogglePin;
+  final Future<void> Function(NotePreview note) onArchiveToggle;
+  final Future<void> Function(NotePreview note) onMoveToTrash;
+  final Future<void> Function(NotePreview note) onRestore;
+  final Future<void> Function(NotePreview note) onDeleteForever;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isGridView) {
+      return Column(
+        children: [
+          for (var i = 0; i < notes.length; i++) ...[
+            _PreviewCard(
+              note: notes[i],
+              accentIndex: i,
+              collection: collection,
+              isCompact: false,
+              onTap: () => onOpen(notes[i]),
+              onTogglePin: () => onTogglePin(notes[i]),
+              onArchiveToggle: () => onArchiveToggle(notes[i]),
+              onMoveToTrash: () => onMoveToTrash(notes[i]),
+              onRestore: () => onRestore(notes[i]),
+              onDeleteForever: () => onDeleteForever(notes[i]),
+            ),
+            if (i < notes.length - 1) const SizedBox(height: 14),
+          ],
+        ],
+      );
+    }
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: notes.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 14,
+        crossAxisSpacing: 14,
+        mainAxisExtent: 272,
+      ),
+      itemBuilder: (context, index) {
+        final note = notes[index];
+        return _PreviewCard(
+          note: note,
+          accentIndex: index,
+          collection: collection,
+          isCompact: true,
+          onTap: () => onOpen(note),
+          onTogglePin: () => onTogglePin(note),
+          onArchiveToggle: () => onArchiveToggle(note),
+          onMoveToTrash: () => onMoveToTrash(note),
+          onRestore: () => onRestore(note),
+          onDeleteForever: () => onDeleteForever(note),
+        );
+      },
     );
   }
 }
@@ -730,7 +1034,6 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
   final _pinController = TextEditingController();
   final _confirmPinController = TextEditingController();
   bool _isDisabling = false;
-  bool _isProcessingBackup = false;
 
   @override
   void dispose() {
@@ -813,12 +1116,13 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
       _isDisabling = true;
     });
     final controller = ref.read(appLockControllerProvider.notifier);
-    final unlocked = await controller.unlock(enteredPin);
+    final isValidPin = await controller.verifyPin(enteredPin);
     if (!mounted) {
       return;
     }
     var success = false;
-    if (unlocked) {
+    var handledFailure = false;
+    if (isValidPin) {
       await ref
           .read(noteProtectionServiceProvider)
           .decryptExistingNotes(
@@ -827,127 +1131,23 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
           );
       success = await controller.disable(enteredPin);
       ref.invalidate(notesListProvider);
+    } else {
+      handledFailure = true;
+      messenger.showSnackBar(
+        const SnackBar(content: Text('That PIN does not match.')),
+      );
     }
     setState(() {
       _isDisabling = false;
     });
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          success ? 'App lock is off.' : 'Could not disable app lock.',
-        ),
-      ),
-    );
-  }
-
-  Future<String?> _promptBackupPassphrase({
-    required String title,
-    required String actionLabel,
-    bool confirm = false,
-  }) async {
-    return showDialog<String>(
-      context: context,
-      builder: (context) {
-        return _BackupPassphraseDialog(
-          title: title,
-          actionLabel: actionLabel,
-          confirm: confirm,
-        );
-      },
-    );
-  }
-
-  Future<void> _exportBackup() async {
-    final messenger = ScaffoldMessenger.of(context);
-    final appLockController = ref.read(appLockControllerProvider.notifier);
-    final passphrase = await _promptBackupPassphrase(
-      title: 'Export encrypted backup',
-      actionLabel: 'Export',
-      confirm: true,
-    );
-    if (!mounted || passphrase == null) {
-      return;
-    }
-
-    setState(() {
-      _isProcessingBackup = true;
-    });
-    try {
-      final backupService = ref.read(encryptedBackupServiceProvider);
-      final path = await backupService.exportEncryptedBackup(
-        passphrase: passphrase,
-      );
-      appLockController.beginExternalInteraction();
-      await backupService.shareBackupFile(path);
-      if (!mounted) {
-        return;
-      }
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Encrypted backup is ready to save or share.'),
-        ),
-      );
-    } finally {
-      appLockController.endExternalInteraction();
-      if (mounted) {
-        setState(() {
-          _isProcessingBackup = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _importBackup() async {
-    final messenger = ScaffoldMessenger.of(context);
-    final appLockController = ref.read(appLockControllerProvider.notifier);
-    final passphrase = await _promptBackupPassphrase(
-      title: 'Import encrypted backup',
-      actionLabel: 'Import',
-    );
-    if (!mounted || passphrase == null) {
-      return;
-    }
-
-    setState(() {
-      _isProcessingBackup = true;
-    });
-    try {
-      appLockController.beginExternalInteraction();
-      final imported = await ref.read(encryptedBackupServiceProvider).importEncryptedBackup(
-            passphrase: passphrase,
-          );
-      if (!mounted) {
-        return;
-      }
-      if (imported) {
-        ref.invalidate(notesListProvider);
-        ref.invalidate(noteFoldersProvider);
-      }
+    if (!handledFailure) {
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            imported
-                ? 'Encrypted backup imported.'
-                : 'Backup import was cancelled.',
+            success ? 'App lock is off.' : 'Could not disable app lock.',
           ),
         ),
       );
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Could not import that backup. Check the passphrase and file.'),
-        ),
-      );
-    } finally {
-      appLockController.endExternalInteraction();
-      if (mounted) {
-        setState(() {
-          _isProcessingBackup = false;
-        });
-      }
     }
   }
 
@@ -1115,59 +1315,208 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 18),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.66),
-                    borderRadius: BorderRadius.circular(22),
-                    border: Border.all(color: const Color(0xFFC6AC8F)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Encrypted backup',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: const Color(0xFF0A0908),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Export your notes into a passphrase-protected backup file, or import one back into this device.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: const Color(0xFF22333B),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed:
-                                  _isProcessingBackup ? null : _exportBackup,
-                              icon: const Icon(Icons.ios_share_rounded),
-                              label: Text(
-                                _isProcessingBackup ? 'Working...' : 'Export',
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: FilledButton.tonalIcon(
-                              onPressed:
-                                  _isProcessingBackup ? null : _importBackup,
-                              icon: const Icon(Icons.download_rounded),
-                              label: const Text('Import'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
               ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BackupSheet extends ConsumerStatefulWidget {
+  const _BackupSheet();
+
+  @override
+  ConsumerState<_BackupSheet> createState() => _BackupSheetState();
+}
+
+class _BackupSheetState extends ConsumerState<_BackupSheet> {
+  bool _isProcessingBackup = false;
+
+  Future<String?> _promptBackupPassphrase({
+    required String title,
+    required String actionLabel,
+    bool confirm = false,
+  }) async {
+    return showDialog<String>(
+      context: context,
+      builder: (context) {
+        return _BackupPassphraseDialog(
+          title: title,
+          actionLabel: actionLabel,
+          confirm: confirm,
+        );
+      },
+    );
+  }
+
+  Future<void> _exportBackup() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final appLockController = ref.read(appLockControllerProvider.notifier);
+    final passphrase = await _promptBackupPassphrase(
+      title: 'Export encrypted backup',
+      actionLabel: 'Export',
+      confirm: true,
+    );
+    if (!mounted || passphrase == null) {
+      return;
+    }
+
+    setState(() {
+      _isProcessingBackup = true;
+    });
+    try {
+      final backupService = ref.read(encryptedBackupServiceProvider);
+      final path = await backupService.exportEncryptedBackup(
+        passphrase: passphrase,
+      );
+      appLockController.beginExternalInteraction();
+      await backupService.shareBackupFile(path);
+      if (!mounted) {
+        return;
+      }
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Encrypted backup is ready to save or share.'),
+        ),
+      );
+    } finally {
+      appLockController.endExternalInteraction();
+      if (mounted) {
+        setState(() {
+          _isProcessingBackup = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _importBackup() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final appLockController = ref.read(appLockControllerProvider.notifier);
+    final passphrase = await _promptBackupPassphrase(
+      title: 'Import encrypted backup',
+      actionLabel: 'Import',
+    );
+    if (!mounted || passphrase == null) {
+      return;
+    }
+
+    setState(() {
+      _isProcessingBackup = true;
+    });
+    try {
+      appLockController.beginExternalInteraction();
+      final imported = await ref
+          .read(encryptedBackupServiceProvider)
+          .importEncryptedBackup(
+            passphrase: passphrase,
+          );
+      if (!mounted) {
+        return;
+      }
+      if (imported) {
+        ref.invalidate(notesListProvider);
+        ref.invalidate(noteFoldersProvider);
+      }
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            imported
+                ? 'Encrypted backup imported.'
+                : 'Backup import was cancelled.',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not import that backup. Check the passphrase and file.',
+          ),
+        ),
+      );
+    } finally {
+      appLockController.endExternalInteraction();
+      if (mounted) {
+        setState(() {
+          _isProcessingBackup = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [
+                Color(0xFFFFFBF7),
+                Color(0xFFEAE0D5),
+                Color(0xFFC6AC8F),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: const Color(0xFFC6AC8F)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x2222333B),
+                blurRadius: 28,
+                offset: Offset(0, 14),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Encrypted backup', style: theme.textTheme.headlineSmall),
+              const SizedBox(height: 8),
+              Text(
+                'Export your notes into a passphrase-protected backup file, or import one back into this device.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: const Color(0xFF22333B),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _isProcessingBackup ? null : _exportBackup,
+                      icon: const Icon(Icons.ios_share_rounded),
+                      label: Text(
+                        _isProcessingBackup ? 'Working...' : 'Export',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton.tonalIcon(
+                      onPressed: _isProcessingBackup ? null : _importBackup,
+                      icon: const Icon(Icons.download_rounded),
+                      label: const Text('Import'),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -1294,6 +1643,7 @@ class _PreviewCard extends StatelessWidget {
     required this.onTap,
     required this.accentIndex,
     required this.collection,
+    required this.isCompact,
     required this.onTogglePin,
     required this.onArchiveToggle,
     required this.onMoveToTrash,
@@ -1305,6 +1655,7 @@ class _PreviewCard extends StatelessWidget {
   final VoidCallback onTap;
   final int accentIndex;
   final NoteCollection collection;
+  final bool isCompact;
   final VoidCallback onTogglePin;
   final VoidCallback onArchiveToggle;
   final VoidCallback onMoveToTrash;
@@ -1328,11 +1679,12 @@ class _PreviewCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         onTap: collection == NoteCollection.trash ? null : onTap,
         child: Padding(
-          padding: const EdgeInsets.all(18),
+          padding: EdgeInsets.all(isCompact ? 14 : 18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
                     width: 10,
@@ -1344,7 +1696,12 @@ class _PreviewCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(note.title, style: theme.textTheme.titleMedium),
+                    child: Text(
+                      note.title,
+                      maxLines: isCompact ? 2 : 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium,
+                    ),
                   ),
                   PopupMenuButton<_CardAction>(
                     itemBuilder: (context) => _buildActions(),
@@ -1368,11 +1725,11 @@ class _PreviewCard extends StatelessWidget {
               const SizedBox(height: 10),
               Text(
                 note.body,
-                maxLines: 3,
+                maxLines: isCompact ? 3 : 3,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: const Color(0xFF22333B),
-                  height: 1.5,
+                  height: isCompact ? 1.35 : 1.45,
                 ),
               ),
               const SizedBox(height: 12),
@@ -1381,14 +1738,14 @@ class _PreviewCard extends StatelessWidget {
                 runSpacing: 8,
                 children: [
                   if (note.folderName != null)
-                    Chip(
-                      avatar: const Icon(Icons.folder_open_outlined, size: 16),
+                    _MetadataTag(
+                      icon: Icons.folder_open_outlined,
                       label: Text(note.folderName!),
                     ),
-                  Chip(label: Text(note.badge)),
+                  _MetadataTag(label: Text(note.badge)),
                 ],
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: isCompact ? 8 : 10),
               Row(
                 children: [
                   Icon(
@@ -1406,28 +1763,6 @@ class _PreviewCard extends StatelessWidget {
                   ),
                 ],
               ),
-              if (collection != NoteCollection.trash) ...[
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.arrow_outward_rounded,
-                      size: 18,
-                      color: accent,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      collection == NoteCollection.archived
-                          ? 'Review archived note'
-                          : 'Open note',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: accent,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
             ],
           ),
         ),
@@ -1478,6 +1813,47 @@ class _PreviewCard extends StatelessWidget {
   }
 }
 
+class _MetadataTag extends StatelessWidget {
+  const _MetadataTag({
+    required this.label,
+    this.icon,
+  });
+
+  final Widget label;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: const Color(0xFF5E503F),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: DefaultTextStyle.merge(
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: const Color(0xFFEAE0D5),
+                  fontWeight: FontWeight.w600,
+                ) ??
+            const TextStyle(
+              color: Color(0xFFEAE0D5),
+              fontWeight: FontWeight.w600,
+            ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 14, color: const Color(0xFFEAE0D5)),
+              const SizedBox(width: 6),
+            ],
+            label,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 enum _CardAction {
   pin,
   archive,
@@ -1491,18 +1867,18 @@ String _formatUpdatedLabel(DateTime updatedAt) {
   final difference = now.difference(updatedAt);
 
   if (difference.inMinutes < 1) {
-    return 'Updated just now';
+    return 'now';
   }
   if (difference.inHours < 1) {
-    return 'Updated ${difference.inMinutes}m ago';
+    return '${difference.inMinutes}m';
   }
   if (difference.inDays < 1) {
-    return 'Updated ${difference.inHours}h ago';
+    return '${difference.inHours}h';
   }
   if (difference.inDays == 1) {
-    return 'Updated yesterday';
+    return '1d';
   }
-  return 'Updated ${difference.inDays}d ago';
+  return '${difference.inDays}d';
 }
 
 class _EmptyNotesCard extends StatelessWidget {
