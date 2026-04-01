@@ -125,6 +125,10 @@ class AppLockController extends StateNotifier<AppLockState> {
     return true;
   }
 
+  Future<bool> verifyPin(String pin) async {
+    return _repository.verifyPin(pin);
+  }
+
   Future<bool> disable(String pin) async {
     state = state.copyWith(isBusy: true, clearError: true);
     final isValid = await _repository.verifyPin(pin);
