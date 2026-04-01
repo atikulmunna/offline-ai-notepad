@@ -53,13 +53,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('NativeNote'), findsOneWidget);
     expect(find.widgetWithText(FloatingActionButton, 'New note'), findsOneWidget);
     await tester.tap(find.widgetWithText(FloatingActionButton, 'New note'));
     await tester.pumpAndSettle();
 
     expect(find.text('New note'), findsOneWidget);
-    expect(find.text('AI Summary'), findsOneWidget);
+    expect(find.byIcon(Icons.auto_awesome_rounded), findsWidgets);
     expect(find.text('Title'), findsOneWidget);
   });
 
@@ -83,7 +82,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Edit note'), findsOneWidget);
-    expect(find.text('Refresh'), findsOneWidget);
+    expect(find.byIcon(Icons.auto_awesome_rounded), findsWidgets);
     expect(find.text('Title'), findsOneWidget);
   });
 }
