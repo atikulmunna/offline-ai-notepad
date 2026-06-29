@@ -25,26 +25,27 @@
       "notes": "Google FLAN-T5 Small ONNX summarization slot. Local development assets are exported and staged separately to keep model binaries out of Git."
     },
     {
-      "id": "embedding-en-v1",
+      "id": "embedding-minilm-l6-v2-en-v1",
       "task": "embedding",
       "format": "onnx",
       "backend": "onnx-runtime",
-      "input_names": ["input_ids", "attention_mask"],
-      "output_names": ["sentence_embedding"],
-      "max_sequence_length": 512,
+      "input_names": ["input_ids", "attention_mask", "token_type_ids"],
+      "output_names": ["last_hidden_state"],
+      "max_sequence_length": 256,
+      "embedding_dimension": 384,
       "tokenizer_type": "huggingface_json",
-      "decoder_type": "embedding_vector",
+      "decoder_type": "embedding_mean_pool",
       "supports_greedy_decode": false,
       "pad_token_id": 0,
       "unk_token_id": 100,
       "bos_token_id": 101,
       "eos_token_id": 102,
-      "asset_path": "assets/models/embedding-en-v1/model.onnx",
-      "tokenizer_asset_path": "assets/models/embedding-en-v1/tokenizer.json",
-      "packaged": false,
+      "asset_path": "assets/models/embedding-minilm-l6-v2-en-v1/model.onnx",
+      "tokenizer_asset_path": "assets/models/embedding-minilm-l6-v2-en-v1/tokenizer.json",
+      "packaged": true,
       "optional_download": false,
       "max_input_chars": 4000,
-      "notes": "Planned packaged embedding model slot."
+      "notes": "sentence-transformers/all-MiniLM-L6-v2 ONNX embedding model. 384-dim mean-pooled, L2-normalized sentence embeddings. Local development assets are exported and staged separately to keep model binaries out of Git."
     }
   ]
 }

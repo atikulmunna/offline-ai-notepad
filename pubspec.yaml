@@ -71,6 +71,7 @@ flutter:
   assets:
     - assets/models/manifest.json
     - assets/models/flan-t5-small-summarizer-en-v1/
+    - assets/models/embedding-minilm-l6-v2-en-v1/
   fonts:
     - family: Merriweather
       fonts:

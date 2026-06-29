@@ -122,6 +122,10 @@ class AppDatabase {
           if (oldVersion < 2) {
             await db.execute(DatabaseSchema.addNotesBodyDeltaColumn);
           }
+          if (oldVersion < 3) {
+            await db.execute(DatabaseSchema.addEmbeddingVectorColumn);
+            await db.execute(DatabaseSchema.addEmbeddingDimColumn);
+          }
         },
       ),
     );

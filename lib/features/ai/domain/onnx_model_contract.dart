@@ -10,6 +10,7 @@ class OnnxModelContract {
     this.unkTokenId,
     this.bosTokenId,
     this.eosTokenId,
+    this.embeddingDimension,
   });
 
   final List<String> inputNames;
@@ -22,6 +23,7 @@ class OnnxModelContract {
   final int? unkTokenId;
   final int? bosTokenId;
   final int? eosTokenId;
+  final int? embeddingDimension;
 
   factory OnnxModelContract.fromJson(Map<String, dynamic> json) {
     return OnnxModelContract(
@@ -39,6 +41,7 @@ class OnnxModelContract {
       unkTokenId: json['unk_token_id'] as int?,
       bosTokenId: json['bos_token_id'] as int?,
       eosTokenId: json['eos_token_id'] as int?,
+      embeddingDimension: json['embedding_dimension'] as int?,
     );
   }
 }

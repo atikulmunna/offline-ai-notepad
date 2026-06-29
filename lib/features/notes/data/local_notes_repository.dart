@@ -1,8 +1,11 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/database_schema.dart';
+import '../../ai/providers/ai_providers.dart';
 import '../../security/data/note_protection_service.dart';
 import '../domain/note_collection.dart';
 import '../domain/note_document.dart';
@@ -13,6 +16,7 @@ import '../domain/notes_repository.dart';
 import 'folder_record.dart';
 import 'note_record.dart';
 import 'semantic_note_search.dart';
+import 'vector_note_search.dart';
 
 class LocalNotesRepository implements NotesRepository {
   LocalNotesRepository(this._database, this._ref);
@@ -124,25 +128,68 @@ ON folders.id = notes.folder_id
       notes.add(await _readRecord(NoteRecord.fromMap(row)));
     }
 
-    final filteredNotes = query.isEmpty
-        ? notes
-        : searchMode == NoteSearchMode.semantic
-            ? SemanticNoteSearch.rank(
-                notes: notes.map((note) => note.toPreview()),
-                query: query,
-              )
-                .map((preview) => notes.firstWhere((note) => note.id == preview.id))
-                .toList(growable: false)
-            : notes.where((note) {
-                final haystack =
-                    '${note.title ?? ''}\n${note.body}\n${note.summary ?? ''}'
-                        .toLowerCase();
-                return haystack.contains(query.toLowerCase());
-              }).toList(growable: false);
+    if (query.isEmpty) {
+      return notes.map((note) => note.toPreview()).toList(growable: false);
+    }
 
-    return filteredNotes
+    if (searchMode == NoteSearchMode.semantic) {
+      return _rankSemantic(notes, query);
+    }
+
+    return notes
+        .where((note) {
+          final haystack =
+              '${note.title ?? ''}\n${note.body}\n${note.summary ?? ''}'
+                  .toLowerCase();
+          return haystack.contains(query.toLowerCase());
+        })
         .map((note) => note.toPreview())
         .toList(growable: false);
+  }
+
+  /// Ranks notes by meaning. Prefers native vector (cosine) similarity when an
+  /// embedding runtime is available, then appends lexically-matched notes that
+  /// lack a vector yet (e.g. pending backfill). Falls back entirely to the
+  /// lexical [SemanticNoteSearch] when the query cannot be embedded.
+  Future<List<NotePreview>> _rankSemantic(
+    List<NoteRecord> notes,
+    String query,
+  ) async {
+    final previews = notes.map((note) => note.toPreview()).toList(growable: false);
+
+    final embedder = await _ref.read(noteQueryEmbedderProvider.future);
+    final queryVector = await embedder?.embedQuery(query);
+
+    if (queryVector != null && queryVector.isNotEmpty) {
+      final allVectors =
+          await _ref.read(noteAiRepositoryProvider).loadAllEmbeddings();
+      final vectors = <String, Float32List>{};
+      for (final preview in previews) {
+        final vector = allVectors[preview.id];
+        if (vector != null && vector.length == queryVector.length) {
+          vectors[preview.id] = vector;
+        }
+      }
+
+      if (vectors.isNotEmpty) {
+        final withVector =
+            previews.where((preview) => vectors.containsKey(preview.id));
+        final withoutVector =
+            previews.where((preview) => !vectors.containsKey(preview.id));
+        final ranked = VectorNoteSearch.cosineRank(
+          noteVectors: vectors,
+          queryVector: queryVector,
+          notes: withVector,
+        );
+        final lexicalRest = SemanticNoteSearch.rank(
+          notes: withoutVector,
+          query: query,
+        );
+        return [...ranked, ...lexicalRest];
+      }
+    }
+
+    return SemanticNoteSearch.rank(notes: previews, query: query);
   }
 
   @override

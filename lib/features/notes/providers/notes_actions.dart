@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../ai/providers/ai_actions.dart';
 import '../domain/note_collection.dart';
 import '../domain/note_document.dart';
 import '../domain/note_folder.dart';
@@ -30,6 +33,11 @@ class NotesActions {
     );
     _ref.invalidate(notesListProvider);
     _ref.invalidate(noteFoldersProvider);
+    unawaited(_ref.read(aiActionsProvider).indexNoteEmbedding(
+      noteId: id,
+      title: title,
+      body: body,
+    ));
     return id;
   }
 
@@ -55,6 +63,11 @@ class NotesActions {
     );
     _ref.invalidate(notesListProvider);
     _ref.invalidate(noteFoldersProvider);
+    unawaited(_ref.read(aiActionsProvider).indexNoteEmbedding(
+      noteId: id,
+      title: title,
+      body: body,
+    ));
   }
 
   Future<void> togglePin({

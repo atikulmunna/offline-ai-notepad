@@ -193,6 +193,44 @@ class OnnxMethodChannelClient {
     }
   }
 
+  /// Generates a mean-pooled, L2-normalized sentence embedding for [text] via the
+  /// native ONNX encoder. Returns null on platforms without the native bridge or
+  /// when the model/tokenizer cannot be loaded, so callers can fall back.
+  Future<List<double>?> generateEmbedding({
+    required String modelPath,
+    String? tokenizerPath,
+    required String text,
+    int? maxSequenceLength,
+  }) async {
+    if (kIsWeb || text.trim().isEmpty) {
+      return null;
+    }
+
+    final channel = _channel ?? _defaultChannel;
+    try {
+      final raw = await channel.invokeMapMethod<String, dynamic>(
+        'generateEmbedding',
+        {
+          'modelPath': modelPath,
+          'tokenizerPath': tokenizerPath,
+          'text': text,
+          'maxSequenceLength': maxSequenceLength,
+        },
+      );
+      final values = raw?['embedding'] as List<dynamic>?;
+      if (values == null || values.isEmpty) {
+        return null;
+      }
+      return values
+          .map((item) => (item as num).toDouble())
+          .toList(growable: false);
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    }
+  }
+
   Future<OnnxContractInspection?> inspectContract({
     required String modelPath,
     List<String> inputNames = const [],
