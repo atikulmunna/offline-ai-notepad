@@ -1,9 +1,8 @@
 param(
     [string]$PythonExe = ".\.venv-model-export\Scripts\python.exe",
-    [string]$OptimumCli = ".\.venv-model-export\Scripts\optimum-cli.exe",
-    [string]$ModelId = "google/flan-t5-small",
-    [string]$ExportDir = "local_models\flan_t5_small\onnx",
-    [string]$AssetDir = "assets\models\flan-t5-small-summarizer-en-v1"
+    [string]$ModelId = "Falconsai/text_summarization",
+    [string]$ExportDir = "local_models\falconsai_sum\onnx",
+    [string]$AssetDir = "assets\models\falconsai-summarizer-en-v1"
 )
 
 $ErrorActionPreference = "Stop"
@@ -12,14 +11,12 @@ if (-not (Test-Path $PythonExe)) {
     throw "Python executable not found at '$PythonExe'. Create the local export venv first."
 }
 
-if (-not (Test-Path $OptimumCli)) {
-    throw "optimum-cli not found at '$OptimumCli'. Install the export toolchain in the local venv first."
-}
-
 New-Item -ItemType Directory -Force -Path $ExportDir | Out-Null
 New-Item -ItemType Directory -Force -Path $AssetDir | Out-Null
 
-& $OptimumCli export onnx `
+# NOTE: invoke optimum via the python module, not optimum-cli.exe. The .exe
+# wrapper exits silently with code 1 on this toolchain (see memory).
+& $PythonExe -m optimum.commands.optimum_cli export onnx `
     -m $ModelId `
     --task text2text-generation-with-past `
     $ExportDir
@@ -35,11 +32,9 @@ targets = [
 ]
 
 for source_name, target_name in targets:
-    source = base / source_name
-    target = base / target_name
     quantize_dynamic(
-        model_input=str(source),
-        model_output=str(target),
+        model_input=str(base / source_name),
+        model_output=str(base / target_name),
         weight_type=QuantType.QInt8,
         per_channel=False,
         reduce_range=True,
@@ -65,9 +60,7 @@ foreach ($entry in $copyMap.GetEnumerator()) {
     if (-not (Test-Path $source)) {
         throw "Expected export file missing: $source"
     }
-
-    $target = Join-Path $AssetDir $entry.Value
-    Copy-Item -LiteralPath $source -Destination $target -Force
+    Copy-Item -LiteralPath $source -Destination (Join-Path $AssetDir $entry.Value) -Force
 }
 
-Write-Host "FLAN-T5 Small ONNX assets exported to '$ExportDir' and staged to '$AssetDir'."
+Write-Host "Falconsai summarizer ONNX assets exported to '$ExportDir' and staged to '$AssetDir'."
