@@ -78,7 +78,7 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
     final viewState = ref.watch(notesViewStateProvider);
     final appLockState = ref.watch(appLockControllerProvider);
     final topInset = MediaQuery.of(context).padding.top;
-    const headerHeight = 64.0;
+    const headerHeight = 70.0;
     final bodyTopPadding = topInset + headerHeight + 24;
 
     return Scaffold(
@@ -264,7 +264,11 @@ class _GlassHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The parent Positioned already offsets by the status-bar inset
+    // (top: topInset + 10), so SafeArea must not re-apply the top inset —
+    // otherwise the glass pill is pushed down onto the content below it.
     return SafeArea(
+      top: false,
       child: Padding(
         padding: EdgeInsets.zero,
         child: ClipRRect(
