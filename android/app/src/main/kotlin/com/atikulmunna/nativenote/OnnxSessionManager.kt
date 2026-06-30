@@ -390,14 +390,15 @@ class OnnxSessionManager {
         } else {
             normalizedBody
         }
+        // FLAN-T5 follows the canonical "summarize:" task prefix reliably; a
+        // verbose meta-instruction makes the small model degenerate (repeating or
+        // hallucinating). Keep the title as lightweight context only.
         return buildString {
-            append("Summarize this note in 2 concrete sentences. Name the subject directly, avoid vague openings like 'it' or 'this', and mention the main takeaway or outcome. ")
+            append("summarize: ")
             if (!normalizedTitle.isNullOrBlank()) {
-                append("Subject: ")
                 append(normalizedTitle)
                 append(". ")
             }
-            append("Note: ")
             append(clippedBody)
         }.trim()
     }
