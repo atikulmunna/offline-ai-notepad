@@ -1,8 +1,6 @@
 # Offline AI Notepad
 
-A privacy-first, offline-first note-taking app built with Flutter. Notes live on your device, rich-text editing works without a network, and the AI features — semantic search and summarization — run as real models **on the device**, not as cloud calls.
-
-The design is deliberate: an AMOLED-black interface with iOS-style liquid-glass surfaces and optional animated backgrounds, backed by a serious on-device AI architecture with graceful fallbacks when a model or platform can't deliver.
+A privacy-first, offline-first note-taking app built with Flutter. Notes live on your device, rich-text editing works without a network, and the AI features, semantic search and summarization, run as real models **on the device**, not as cloud calls.
 
 ## Screenshots
 
@@ -15,8 +13,8 @@ The design is deliberate: an AMOLED-black interface with iOS-style liquid-glass 
 
 ## Highlights
 
-- **On-device semantic search.** On Android, queries are embedded with a real `all-MiniLM-L6-v2` ONNX model and ranked by cosine similarity against per-note vectors in SQLite — so "car repair" can surface a note about "fixing the brakes." The text never leaves the device.
-- **On-device summarization.** Note summaries run through an ONNX seq2seq model (`Falconsai/text_summarization`, a summary-tuned T5-small) locally — no API key, no server, works in airplane mode.
+- **On-device semantic search.** On Android, queries are embedded with a real `all-MiniLM-L6-v2` ONNX model and ranked by cosine similarity against per-note vectors in SQLite, so "car repair" can surface a note about "fixing the brakes." The text never leaves the device.
+- **On-device summarization.** Note summaries run through an ONNX seq2seq model (`Falconsai/text_summarization`, a summary-tuned T5-small) locally, with no API key, no server, and support for airplane mode.
 - **AMOLED + liquid-glass design.** A switchable System / Light / AMOLED theme, translucent frosted-glass cards and controls, and a pluggable animated backdrop (particles, snow, geometric, space, or shuffle) behind the library.
 - **Privacy by default.** Notes are stored locally in SQLite, with an optional PIN lock and passphrase-encrypted backup/restore.
 - **Graceful degradation.** The native ONNX path is Android-only today; elsewhere the app falls back to lexical search and an extractive summarizer, so features degrade in quality rather than break.
@@ -41,7 +39,7 @@ The interface is built around a true-black AMOLED aesthetic with a reusable liqu
 
 - **Three themes.** `System`, `Light` (the original warm "paper" look), and `AMOLED` (true `#000000` for OLED battery savings and contrast). The choice is persisted and, in `System` mode, follows the OS light/dark setting.
 - **Liquid glass.** Cards, the header, buttons, the FAB, and the editor surfaces are translucent frosted panels (`BackdropFilter` blur over theme-aware tokens), so the background subtly refracts through the UI. A single `GlassSurface` widget backs all of them.
-- **Animated backgrounds.** An optional backdrop plays behind the library: **Particles**, **Snow** (drawn as real six-armed snowflakes), **Geometric**, **Space** (a twinkling starfield), or **Shuffle** (a random style each launch). It respects the OS *reduce-motion* setting, is isolated in a `RepaintBoundary`, and never plays behind the editor — writing stays calm and black.
+- **Animated backgrounds.** An optional backdrop plays behind the library: **Particles**, **Snow** (drawn as real six-armed snowflakes), **Geometric**, **Space** (a twinkling starfield), or **Shuffle** (a random style each launch). It respects the OS *reduce-motion* setting, is isolated in a `RepaintBoundary`, and never plays behind the editor, so writing stays calm and black.
 - **Accessible & configurable.** Everything is chosen from an in-app Appearance sheet; there is no separate settings screen to hunt through.
 
 ## On-Device AI
@@ -53,11 +51,11 @@ The local AI path is built on ONNX Runtime for Android and uses two quantized mo
 
 **Semantic search.** Note vectors are stored as packed `Float32List` BLOBs in the SQLite `embeddings` table (schema v3). Notes are embedded on save (with a startup backfill for existing notes). At query time the app embeds the query, loads note vectors, and ranks by cosine similarity (`lib/features/notes/data/vector_note_search.dart`). If the query or any note lacks a native embedding, it falls back to the lexical `SemanticNoteSearch`.
 
-**Summarization guardrails.** The native summary passes through a `SummaryQualityGate` (`lib/features/ai/data/summary_quality_gate.dart`) that rejects looping, shouty, off-topic, or list-marker-heavy output. The decoder cleanup (`OnnxSessionManager.cleanupGeneratedSummary`) also drops a near-duplicate trailing sentence — one sharing most of its content words with the first, which greedy decode tends to emit as a redundant or contradictory restatement. If a candidate fails the gate, the app falls back to the extractive `LocalNoteSummarizer`.
+**Summarization guardrails.** The native summary passes through a `SummaryQualityGate` (`lib/features/ai/data/summary_quality_gate.dart`) that rejects looping, shouty, off-topic, or list-marker-heavy output. The decoder cleanup (`OnnxSessionManager.cleanupGeneratedSummary`) also drops a near-duplicate trailing sentence, one sharing most of its content words with the first, which greedy decode tends to emit as a redundant or contradictory restatement. If a candidate fails the gate, the app falls back to the extractive `LocalNoteSummarizer`.
 
 **Runtime abstraction.** The app talks to an internal `AiRuntime` interface rather than a specific SDK, so the inference backend can change without reworking the feature layer. High-level flow: check the model manifest → validate/stage assets into a runtime directory → the Android bridge prepares ONNX sessions → summaries and embeddings are computed locally → weak or unavailable native output falls back to the local path.
 
-**Honest caveats.** The real embeddings and native summarizer are **Android-only** today (no iOS bridge yet); model binaries are exported/staged locally rather than committed to Git; and the summarizer is a small quantized model by design — a privacy/offline tradeoff, not GPT-class quality.
+**Honest caveats.** The real embeddings and native summarizer are **Android-only** today (no iOS bridge yet); model binaries are exported/staged locally rather than committed to Git; and the summarizer is a small quantized model by design, a privacy/offline tradeoff, not GPT-class quality.
 
 ## How It Works
 
@@ -97,7 +95,7 @@ If a Windows build fails with a symlink warning, enable Developer Mode in Window
 
 ### Local AI model setup (maintainers only)
 
-**End users don't need this** — the installed app downloads the models on first use. Large model binaries are intentionally kept out of Git and out of the APK; only the per-model `README.md` files are tracked, and the `.onnx`/tokenizer binaries are served from the `models-v1` GitHub release the app downloads at runtime.
+**End users don't need this.** The installed app downloads the models on first use. Large model binaries are intentionally kept out of Git and out of the APK; only the per-model `README.md` files are tracked, and the `.onnx`/tokenizer binaries are served from the `models-v1` GitHub release the app downloads at runtime.
 
 To regenerate the ONNX assets from source (needs a Python env with `optimum`, `onnx`, `onnxruntime`):
 
@@ -123,12 +121,12 @@ flutter analyze
 flutter test
 ```
 
-The unit tests cover the pieces that are easy to get wrong without a device — summary rejection (`test/summary_quality_gate_test.dart`), cosine ranking (`test/vector_note_search_test.dart`), the Float32 BLOB round-trip (`test/embedding_codec_test.dart`), lexical fallback (`test/semantic_search_test.dart`), and appearance persistence (`test/appearance_test.dart`).
+The unit tests cover the pieces that are easy to get wrong without a device: summary rejection (`test/summary_quality_gate_test.dart`), cosine ranking (`test/vector_note_search_test.dart`), the Float32 BLOB round-trip (`test/embedding_codec_test.dart`), lexical fallback (`test/semantic_search_test.dart`), and appearance persistence (`test/appearance_test.dart`).
 
 To verify the AI features on a device:
 
 1. **Build & install:** `flutter build apk --debug && adb install -r build/app/outputs/flutter-apk/app-debug.apk` (or `flutter run`).
-2. **Summarization:** open a multi-paragraph note, open the AI panel, tap **Refresh**. Expect a short, on-topic summary of at most two sentences — or a clean extractive fallback if native output is weak.
+2. **Summarization:** open a multi-paragraph note, open the AI panel, tap **Refresh**. Expect a short, on-topic summary of at most two sentences, or a clean extractive fallback if native output is weak.
 3. **Semantic search:** seed ~20 notes, switch to semantic mode, and query by *meaning* rather than exact words. Vector ranking should beat the old lexical ranking; on Windows/web the same query still returns sensible lexical results.
 4. **Persistence/migration:** launch on an existing v2 database and confirm it upgrades to v3 (adds `embedding` + `dim` columns) without data loss, and that a note's embedding row transitions `queued → indexed` with a non-null vector BLOB.
 
