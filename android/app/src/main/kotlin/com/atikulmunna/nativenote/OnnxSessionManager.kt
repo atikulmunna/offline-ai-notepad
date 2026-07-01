@@ -803,9 +803,21 @@ class OnnxSessionManager {
             .filter { it.isNotEmpty() }
             .distinct()
 
+        // Keep up to two sentences, but drop a trailing sentence that merely
+        // restates an earlier one. Greedy decode on this model tends to emit a
+        // near-duplicate second sentence that only differs in a token or two
+        // (e.g. "...by 11:00 AM." followed by "...by 11:00 PM."), which reads as
+        // a contradiction. distinct() misses these because they are not exact
+        // matches, so compare content-word overlap instead.
+        val kept = mutableListOf<String>()
+        for (sentence in sentences) {
+            if (kept.size >= 2) break
+            if (kept.any { isNearDuplicateSentence(it, sentence) }) continue
+            kept.add(sentence)
+        }
+
         output = when {
-            sentences.size >= 2 -> sentences.take(2).joinToString(" ")
-            sentences.isNotEmpty() -> sentences.first()
+            kept.isNotEmpty() -> kept.joinToString(" ")
             else -> output
         }
 
@@ -819,6 +831,33 @@ class OnnxSessionManager {
         }
 
         return output.trim()
+    }
+
+    /**
+     * True when [candidate] is essentially a restatement of [existing]: the two
+     * share most of their content words. Used to drop a redundant / contradictory
+     * trailing sentence produced by greedy decoding.
+     */
+    private fun isNearDuplicateSentence(existing: String, candidate: String): Boolean {
+        val existingWords = contentWords(existing)
+        val candidateWords = contentWords(candidate)
+        if (existingWords.isEmpty() || candidateWords.isEmpty()) return false
+
+        val overlap = candidateWords.count { existingWords.contains(it) }
+        // Compare against the smaller set so a short paraphrase of a long
+        // sentence still counts as a duplicate.
+        val denominator = min(existingWords.size, candidateWords.size)
+        return overlap.toDouble() / denominator >= 0.6
+    }
+
+    private fun contentWords(sentence: String): Set<String> {
+        // Keep 2-char tokens and digits (e.g. "AM"/"PM"/"11") — they often carry
+        // the distinguishing detail between two otherwise similar sentences.
+        return Regex("[\\p{L}\\p{N}]+")
+            .findAll(sentence.lowercase())
+            .map { it.value }
+            .filter { it.length >= 2 }
+            .toSet()
     }
 
     private fun anchorToTitle(title: String?, summary: String): String {
