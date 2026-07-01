@@ -6,9 +6,9 @@ The design is deliberate: an AMOLED-black interface with iOS-style liquid-glass 
 
 ## Screenshots
 
-| Library (AMOLED + Snow) | Appearance picker | Editor | Semantic search |
+| Library (AMOLED + Snow) | Appearance picker | On-device AI summary | Semantic search |
 |---|---|---|---|
-| ![Library](docs/screenshots/01-library.png) | ![Appearance](docs/screenshots/02-appearance.png) | ![Editor](docs/screenshots/03-editor.png) | ![Semantic search](docs/screenshots/04-semantic-search.png) |
+| ![Library](docs/screenshots/01-library.png) | ![Appearance](docs/screenshots/02-appearance.png) | ![AI summary](docs/screenshots/03-ai-summary.png) | ![Semantic search](docs/screenshots/04-semantic-search.png) |
 
 ## Highlights
 
