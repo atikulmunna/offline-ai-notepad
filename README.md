@@ -15,6 +15,17 @@ Most modern note apps either depend heavily on cloud sync or treat AI as a serve
 
 The current codebase focuses on building a solid local-first foundation first, then layering in on-device AI safely and incrementally.
 
+## What Makes It Unique
+
+A privacy-first notepad where "AI" means real models running **on your device**, not a cloud call — and it is built to stay useful even when the model or platform cannot deliver.
+
+- **Semantic search that is actually semantic, and fully offline.** On Android, the app embeds your query with a real `all-MiniLM-L6-v2` ONNX model, compares it (cosine similarity) against per-note vectors stored in SQLite, and ranks by meaning — so "car repair" can surface a note about "fixing the brakes." The text never leaves the device.
+- **On-device summarization, no account, no network.** Summaries run through an ONNX seq2seq model (`Falconsai/text_summarization`, a T5-small fine-tuned for summaries) on the phone. No API key, no server, works in airplane mode.
+- **Graceful degradation instead of breaking.** The native ONNX path is Android-only today; on Windows/web/iOS the app falls back to lexical search and an extractive summarizer, so the feature still works at lower quality rather than erroring out.
+- **Quality guardrails on AI output.** A `SummaryQualityGate` rejects hallucinated, looping, or off-topic output, and a near-duplicate cleanup drops a redundant/contradictory second sentence — so the model cannot silently ship a garbage summary.
+
+Honest caveats: the real embeddings + native summarizer are **Android-only** today (no iOS bridge yet); model binaries are exported/staged locally rather than committed to Git; and the summarizer is a small quantized model by design (a privacy/offline tradeoff, not GPT-class quality).
+
 ## Current Status
 
 This is an active work-in-progress project with a functioning app foundation.
@@ -26,9 +37,11 @@ What already works:
 - note folders
 - pin, archive, trash, restore, and permanent delete flows
 - local persistence with SQLite
-- on-device AI summary workflow
+- on-device AI summarization (ONNX Falconsai/T5) with a quality gate + extractive fallback
+- real on-device semantic search on Android (MiniLM ONNX embeddings, vectors in SQLite, cosine ranking) with lexical fallback elsewhere
+- auto-embedding of notes on save plus a startup backfill pass
 - local model manifest, installation checks, and runtime staging
-- Android ONNX bridge scaffolding for local model execution
+- Android ONNX bridge for both summarization and embeddings
 
 What is still evolving:
 
@@ -36,6 +49,7 @@ What is still evolving:
 - semantic search and embeddings UX polish
 - encryption and export/import hardening
 - developer diagnostics cleanup in some AI surfaces
+- an iOS native bridge (Android-only today)
 
 ## Core Features
 
@@ -46,7 +60,8 @@ What is still evolving:
 - Pin important notes
 - Archive notes you want to keep but hide from the main list
 - Move notes to trash and restore or delete them permanently
-- Search by note title or body text
+- Search by note title or body text (keyword mode)
+- Semantic search by meaning: on Android, notes are embedded on-device and ranked by cosine similarity to your query; other platforms fall back to lexical ranking automatically
 
 ### Rich Text Editing
 
@@ -136,12 +151,16 @@ The current project includes:
 - packaged asset staging
 - Android ONNX runtime bridge code
 - on-device summarization (Falconsai/text_summarization, a T5-small fine-tuned for summaries)
+- on-device embeddings for semantic search (all-MiniLM-L6-v2), with vectors persisted in SQLite
 
 The app can inspect whether model assets exist, whether they were staged to a runtime directory, and whether the native runtime is available.
 
 ## AI Stack Overview
 
-The current local AI path is based on ONNX Runtime for Android, using Falconsai/text_summarization (a summarization-fine-tuned T5-small) as the summarization model.
+The current local AI path is based on ONNX Runtime for Android and uses two models:
+
+- **Summarization:** `Falconsai/text_summarization` (a summarization-fine-tuned T5-small), exported to ONNX and INT8-quantized. Encoder + decoder seq2seq with greedy decode.
+- **Embeddings (semantic search):** `sentence-transformers/all-MiniLM-L6-v2`, exported to ONNX and INT8-quantized. 384-dim, mean-pooled over the attention mask, L2-normalized.
 
 High-level flow:
 
@@ -149,8 +168,12 @@ High-level flow:
 2. packaged model assets are validated
 3. assets are staged into a runtime-friendly directory
 4. the Android bridge prepares ONNX sessions
-5. a summary is generated locally
-6. if native output is weak or unavailable, the app falls back to a local summarizer
+5. summaries are generated locally; note embeddings are computed on save (with a startup backfill)
+6. if native output is weak or unavailable, the app falls back to a local summarizer / lexical search
+
+**Summary quality guardrails.** The native summary passes through a `SummaryQualityGate` (`lib/features/ai/data/summary_quality_gate.dart`) that rejects looping, shouty, off-topic, or list-marker-heavy output. The native decoder cleanup (`OnnxSessionManager.cleanupGeneratedSummary`) also drops a near-duplicate trailing sentence — a second sentence sharing most of its content words with the first, which greedy decode tends to emit as a redundant or contradictory restatement (e.g. "...by 11:00 AM." followed by "...by 11:00 PM."). If the candidate fails the gate, the app falls back to the extractive `LocalNoteSummarizer`.
+
+**Semantic search flow.** Note vectors are stored as packed `Float32List` BLOBs in the SQLite `embeddings` table (schema v3). At query time the app embeds the query, loads note vectors, and ranks by cosine similarity (`lib/features/notes/data/vector_note_search.dart`). If the query or any note lacks a native embedding, it falls back to the lexical `SemanticNoteSearch`.
 
 This staged approach is intentional. It keeps the app usable while the native inference path is still being improved.
 
@@ -275,22 +298,94 @@ Formatting is stored with the note and should return when the note is reopened.
 
 ### Local AI Model Setup
 
-Large model binaries are intentionally kept out of normal Git history.
+Large model binaries are intentionally kept out of normal Git history. A fresh
+clone must export/stage the models before the native AI path (summaries +
+semantic embeddings) will work on Android. Only the per-model `README.md` files
+are tracked; the `.onnx` and tokenizer binaries are git-ignored.
 
-To export and stage the local summarization model:
+You need a Python environment with `optimum`, `onnx`, and `onnxruntime`
+installed (the scripts default to a local `.venv-model-export` venv). Then:
 
 ```powershell
+# Summarization model -> assets/models/falconsai-summarizer-en-v1/
 .\scripts\export_falconsai.ps1
+
+# Embedding model (semantic search) -> assets/models/embedding-minilm-l6-v2-en-v1/
+.\scripts\export_minilm_l6_v2.ps1
 ```
 
-That script:
+Each script:
 
-1. exports `Falconsai/text_summarization` (summarization-fine-tuned T5-small) to ONNX
-2. quantizes the encoder and decoder to int8
-3. copies the generated files into the expected local asset staging area
-4. makes the tokenizer/config files available for runtime inspection
+1. exports the Hugging Face model to ONNX via the `optimum` Python module
+2. quantizes the ONNX weights to dynamic int8
+3. copies the generated `model.onnx` (+ encoder for the summarizer) into the expected asset staging area
+4. copies the tokenizer/config files needed for runtime inspection
+
+> Note: the scripts invoke optimum as `python -m optimum.commands.optimum_cli`,
+> not `optimum-cli.exe` (the `.exe` wrapper exits silently with code 1 on this
+> toolchain). Do not pass `-ExecutionPolicy Bypass` when running them.
 
 See [docs/LOCAL_MODEL_SETUP.md](docs/LOCAL_MODEL_SETUP.md) for more detail.
+
+## Reproduce Locally (End to End)
+
+The full path — build, stage models, run on an Android device, and verify the
+two AI features — looks like this:
+
+1. **Install dependencies**
+
+   ```powershell
+   flutter pub get
+   ```
+
+2. **Export and stage both models** (see "Local AI Model Setup" above)
+
+   ```powershell
+   .\scripts\export_falconsai.ps1
+   .\scripts\export_minilm_l6_v2.ps1
+   flutter pub get   # re-run so Flutter bundles the freshly staged assets
+   ```
+
+3. **Run the fast checks**
+
+   ```powershell
+   flutter analyze
+   flutter test
+   ```
+
+   The unit tests cover the pieces that are easy to get wrong without a device:
+   `test/summary_quality_gate_test.dart` (bad-summary rejection),
+   `test/vector_note_search_test.dart` (cosine ranking order),
+   `test/embedding_codec_test.dart` (Float32 BLOB pack/unpack round-trip), and
+   `test/semantic_search_test.dart` (lexical fallback).
+
+4. **Build and install on a connected Android device**
+
+   ```powershell
+   flutter build apk --debug
+   adb install -r build\app\outputs\flutter-apk\app-debug.apk
+   ```
+
+   (`flutter run` also works; the standalone build/install is handy when you
+   only want to re-flash after a native Kotlin change.)
+
+5. **Verify on-device summarization**
+   - Open a note with a few paragraphs, open the AI panel, and tap **Refresh**.
+   - Expect a short, on-topic summary of at most two sentences, with no
+     repeated or contradictory second sentence. If the native output is weak,
+     the app falls back to the extractive summarizer rather than showing garbage.
+
+6. **Verify on-device semantic search**
+   - Seed ~20 notes, then switch search to semantic mode and query by *meaning*
+     rather than exact words (e.g. "car repair" against a note about "fixing the
+     brakes"). The vector ranking should beat the old lexical ranking.
+   - Confirm graceful fallback: on Windows/web the same semantic query still
+     returns sensible lexical results and does not error.
+
+7. **Verify persistence / migration** — launch on an existing v2 database and
+   confirm it upgrades to v3 (adds the `embedding` + `dim` columns) without data
+   loss, and that a note's embedding row transitions `queued -> indexed` with a
+   non-null vector BLOB.
 
 ### What Happens When You Tap “Generate Summary”
 
@@ -324,7 +419,9 @@ The app currently prefers the native ONNX path when it looks usable, but falls b
 
 ## Known Limitations
 
-- Native ONNX summary quality is still being tuned
+- Native ONNX summary quality is still being tuned (small quantized model by design)
+- The native AI path (real embeddings + summarizer) is **Android-only**; iOS has no bridge yet and falls back to lexical search + extractive summaries
+- Model binaries are exported/staged locally, so a fresh clone needs the export step before the native path works
 - Android emulators can be unstable for heavier local model work
 - Some setup steps are still more developer-oriented than end-user polished
 - The AI surface is ahead of the final product polish in a few places
