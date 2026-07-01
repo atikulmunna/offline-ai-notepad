@@ -5,6 +5,7 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/theme/app_theme.dart';
 import '../../ai/providers/ai_actions.dart';
 import '../../ai/providers/ai_providers.dart';
 import '../../ai/providers/model_download_controller.dart';
@@ -251,26 +252,19 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
       isScrollControlled: true,
       builder: (context) {
         final theme = Theme.of(context);
+        final surfaces = theme.extension<AppSurfaces>()!;
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Container(
               padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFFFFFBF7),
-                    Color(0xFFEAE0D5),
-                    Color(0xFFC6AC8F),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                color: theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: const Color(0xFFC6AC8F)),
+                border: Border.all(color: surfaces.cardBorder),
                 boxShadow: const [
                   BoxShadow(
-                    color: Color(0x2222333B),
+                    color: Color(0x22000000),
                     blurRadius: 28,
                     offset: Offset(0, 14),
                   ),
@@ -319,7 +313,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                                   ? 'Highlight style'
                                   : 'Text color',
                               style: theme.textTheme.titleMedium?.copyWith(
-                                color: const Color(0xFF0A0908),
+                                color: theme.colorScheme.onSurface,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -329,7 +323,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                                   ? 'Pick a soft highlight for the selected text.'
                                   : 'Choose a color that still reads beautifully on the page.',
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: const Color(0xFF22333B),
+                                color: surfaces.mutedText,
                               ),
                             ),
                           ],
@@ -630,7 +624,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                   child: Container(
                     height: 42,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEAE0D5),
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(999),
                     ),
                   ),
@@ -856,6 +850,8 @@ class _ToolbarCycleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
     return Tooltip(
       message: tooltip,
       child: InkWell(
@@ -865,14 +861,14 @@ class _ToolbarCycleButton extends StatelessWidget {
           width: 42,
           height: 42,
           decoration: BoxDecoration(
-            color: const Color(0xFFF2E8DC),
+            color: surfaces.glassHighlight,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFC6AC8F)),
+            border: Border.all(color: surfaces.cardBorder),
           ),
           child: Icon(
             icon,
             size: 18,
-            color: const Color(0xFF22333B),
+            color: surfaces.onGlass,
           ),
         ),
       ),
@@ -895,10 +891,12 @@ class _ToolbarActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
     final background =
-        isSelected ? const Color(0xFF5E503F) : const Color(0xFFF2E8DC);
+        isSelected ? theme.colorScheme.primary : surfaces.glassHighlight;
     final foreground =
-        isSelected ? const Color(0xFFEAE0D5) : const Color(0xFF22333B);
+        isSelected ? theme.colorScheme.onPrimary : surfaces.onGlass;
 
     return Tooltip(
       message: tooltip,
@@ -911,11 +909,11 @@ class _ToolbarActionButton extends StatelessWidget {
           decoration: BoxDecoration(
             color: background,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFC6AC8F)),
+            border: Border.all(color: surfaces.cardBorder),
             boxShadow: isSelected
                 ? const [
                     BoxShadow(
-                      color: Color(0x445E503F),
+                      color: Color(0x33000000),
                       blurRadius: 10,
                       offset: Offset(0, 4),
                     ),
@@ -1130,25 +1128,19 @@ class _InlineSummaryPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFFF6F9FB),
-            Color(0xFFE8EEF2),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: surfaces.cardFill,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: const Color(0xFFD5E0E7),
+          color: surfaces.cardBorder,
         ),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x1222333B),
+            color: Color(0x22000000),
             blurRadius: 14,
             offset: Offset(0, 6),
           ),
@@ -1173,7 +1165,7 @@ class _InlineSummaryPanel extends StatelessWidget {
                 : 'No summary yet.',
             style: theme.textTheme.bodyLarge?.copyWith(
               height: 1.45,
-              color: const Color(0xFF22333B),
+              color: theme.colorScheme.onSurface,
             ),
           ),
         ],
@@ -1213,6 +1205,7 @@ class _ModelDownloadPrompt extends ConsumerWidget {
     }
 
     final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
     final controller = ref.read(modelDownloadControllerProvider.notifier);
     final fraction = download.fraction;
 
@@ -1228,7 +1221,7 @@ class _ModelDownloadPrompt extends ConsumerWidget {
                   : 'Downloading AI models… ${(fraction * 100).toStringAsFixed(0)}%'
                       ' (${_formatMb(download.received)} / ${_formatMb(download.total)})',
               style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: const Color(0xFF22333B)),
+                  ?.copyWith(color: theme.colorScheme.onSurface),
             ),
             const SizedBox(height: 10),
             ClipRRect(
@@ -1245,7 +1238,7 @@ class _ModelDownloadPrompt extends ConsumerWidget {
             Text(
               'Model download failed. Check your connection and try again.',
               style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: const Color(0xFF8A3B2F)),
+                  ?.copyWith(color: theme.colorScheme.error),
             ),
             const SizedBox(height: 10),
             FilledButton.tonalIcon(
@@ -1264,7 +1257,7 @@ class _ModelDownloadPrompt extends ConsumerWidget {
               'On-device AI models power summaries and semantic search. They '
               'download once and then run fully offline.',
               style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: const Color(0xFF22333B)),
+                  ?.copyWith(color: theme.colorScheme.onSurface),
             ),
             const SizedBox(height: 10),
             FilledButton.tonalIcon(
@@ -1281,9 +1274,9 @@ class _ModelDownloadPrompt extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFDF7EE),
+        color: surfaces.glassHighlight,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE3D2B8)),
+        border: Border.all(color: surfaces.cardBorder),
       ),
       child: body,
     );
@@ -1304,6 +1297,7 @@ class _FolderPickerSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
 
     return SafeArea(
       child: Padding(
@@ -1311,12 +1305,12 @@ class _FolderPickerSheet extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFFBF7),
+            color: theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: const Color(0xFFC6AC8F)),
+            border: Border.all(color: surfaces.cardBorder),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x1822333B),
+                color: Color(0x18000000),
                 blurRadius: 20,
                 offset: Offset(0, 10),
               ),
@@ -1329,7 +1323,7 @@ class _FolderPickerSheet extends StatelessWidget {
               Text(
                 'Move to folder',
                 style: theme.textTheme.titleLarge?.copyWith(
-                  color: const Color(0xFF22333B),
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 14),
@@ -1377,6 +1371,8 @@ class _FolderChoiceTag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1386,13 +1382,17 @@ class _FolderChoiceTag extends StatelessWidget {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFF5E503F) : const Color(0xFFEAE0D5),
+            color: selected
+                ? theme.colorScheme.primary
+                : surfaces.glassHighlight,
             borderRadius: BorderRadius.circular(999),
           ),
           child: Text(
             label,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: selected ? const Color(0xFFEAE0D5) : const Color(0xFF22333B),
+                  color: selected
+                      ? theme.colorScheme.onPrimary
+                      : surfaces.onGlass,
                   fontWeight: FontWeight.w600,
                 ),
           ),

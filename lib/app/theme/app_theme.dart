@@ -1,15 +1,35 @@
 import 'package:flutter/material.dart';
 
+/// Shared brand palette. The light theme keeps the original "paper/sand/bark"
+/// look; the AMOLED theme reuses the same hues on a true-black canvas.
+class _Palette {
+  static const bark = Color(0xFF5E503F);
+  static const sand = Color(0xFFC6AC8F);
+  static const linen = Color(0xFFEAE0D5);
+  static const slate = Color(0xFF22333B);
+  static const coal = Color(0xFF0A0908);
+  static const mist = Color(0xFFF5EEE6);
+  static const paper = Color(0xFFFFFBF7);
+  static const chip = Color(0xFFF1E6D8);
+
+  // AMOLED-specific tones.
+  static const black = Color(0xFF000000);
+  static const nearBlack = Color(0xFF0A0A0A);
+  static const ashSurface = Color(0xFF141414);
+  static const ink = Color(0xFFEDEDED);
+  static const inkMuted = Color(0xFFA8A29A);
+}
+
 class AppTheme {
   static ThemeData light() {
-    const bark = Color(0xFF5E503F);
-    const sand = Color(0xFFC6AC8F);
-    const linen = Color(0xFFEAE0D5);
-    const slate = Color(0xFF22333B);
-    const coal = Color(0xFF0A0908);
-    const mist = Color(0xFFF5EEE6);
-    const paper = Color(0xFFFFFBF7);
-    const chip = Color(0xFFF1E6D8);
+    const bark = _Palette.bark;
+    const sand = _Palette.sand;
+    const linen = _Palette.linen;
+    const slate = _Palette.slate;
+    const coal = _Palette.coal;
+    const mist = _Palette.mist;
+    const paper = _Palette.paper;
+    const chip = _Palette.chip;
 
     final colorScheme = ColorScheme.fromSeed(
       seedColor: bark,
@@ -25,49 +45,7 @@ class AppTheme {
       colorScheme: colorScheme,
       scaffoldBackgroundColor: mist,
       fontFamily: 'Merriweather',
-      textTheme: const TextTheme(
-        headlineLarge: TextStyle(
-          fontSize: 34,
-          fontWeight: FontWeight.w800,
-          color: coal,
-          height: 1.05,
-        ),
-        headlineSmall: TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.w800,
-          color: coal,
-        ),
-        titleLarge: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w700,
-          color: coal,
-        ),
-        titleMedium: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w700,
-          color: coal,
-        ),
-        bodyLarge: TextStyle(
-          fontSize: 16,
-          color: coal,
-          height: 1.4,
-        ),
-        bodyMedium: TextStyle(
-          fontSize: 14,
-          color: coal,
-          height: 1.4,
-        ),
-        labelLarge: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w700,
-          color: coal,
-          letterSpacing: 0.2,
-        ),
-      ).apply(
-        fontFamily: 'Merriweather',
-        bodyColor: coal,
-        displayColor: coal,
-      ),
+      textTheme: _textTheme(coal),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         foregroundColor: coal,
@@ -206,6 +184,10 @@ class AppTheme {
           side: const BorderSide(color: sand),
         ),
       ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: paper,
+        surfaceTintColor: Colors.transparent,
+      ),
       textSelectionTheme: const TextSelectionThemeData(
         cursorColor: bark,
         selectionColor: Color(0x665E503F),
@@ -213,66 +195,347 @@ class AppTheme {
       ),
       dividerColor: sand,
       splashFactory: InkSparkle.splashFactory,
-      extensions: const [
-        _AppColors(
+      extensions: [
+        AppSurfaces(
+          glassFillTop: Colors.white.withValues(alpha: 0.72),
+          glassFillBottom: sand.withValues(alpha: 0.30),
+          glassBorder: Colors.white.withValues(alpha: 0.34),
+          glassHighlight: Colors.white.withValues(alpha: 0.50),
+          cardFill: Colors.white.withValues(alpha: 0.96),
+          cardBorder: sand,
+          blurSigma: 18,
+          mutedText: slate,
           accent: bark,
-          coral: sand,
-          sky: linen,
-          cream: mist,
-          ink: coal,
+          onGlass: coal,
         ),
       ],
     );
   }
+
+  static ThemeData amoled() {
+    const bark = _Palette.bark;
+    const sand = _Palette.sand;
+    const coal = _Palette.coal;
+    const black = _Palette.black;
+    const surface = _Palette.nearBlack;
+    const ink = _Palette.ink;
+    const inkMuted = _Palette.inkMuted;
+
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: bark,
+      brightness: Brightness.dark,
+      // On black, the warm mid-brown reads too dark, so the lighter "sand"
+      // becomes the accent and dark text sits on top of it.
+      primary: sand,
+      onPrimary: coal,
+      secondary: sand,
+      tertiary: sand,
+      surface: surface,
+      onSurface: ink,
+    );
+
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: colorScheme,
+      scaffoldBackgroundColor: black,
+      fontFamily: 'Merriweather',
+      textTheme: _textTheme(ink),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.transparent,
+        foregroundColor: ink,
+        elevation: 0,
+        titleTextStyle: TextStyle(
+          fontFamily: 'Merriweather',
+          fontSize: 22,
+          fontWeight: FontWeight.w700,
+          color: ink,
+        ),
+        toolbarTextStyle: TextStyle(
+          fontFamily: 'Merriweather',
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: ink,
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: sand,
+          foregroundColor: coal,
+          textStyle: const TextStyle(
+            fontFamily: 'Merriweather',
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.2,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          elevation: 0,
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: sand,
+          textStyle: const TextStyle(
+            fontFamily: 'Merriweather',
+            fontWeight: FontWeight.w700,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return coal;
+            }
+            return ink;
+          }),
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return sand;
+            }
+            return Colors.white.withValues(alpha: 0.06);
+          }),
+          side: WidgetStatePropertyAll(
+            BorderSide(color: Colors.white.withValues(alpha: 0.14)),
+          ),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          textStyle: const WidgetStatePropertyAll(
+            TextStyle(
+              fontFamily: 'Merriweather',
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: Colors.white.withValues(alpha: 0.06),
+        selectedColor: sand,
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.14)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(999),
+        ),
+        labelStyle: const TextStyle(
+          fontFamily: 'Merriweather',
+          color: ink,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      cardTheme: CardThemeData(
+        color: _Palette.ashSurface,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(28),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.10)),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white.withValues(alpha: 0.06),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 18,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.14)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.14)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: const BorderSide(color: sand, width: 1.5),
+        ),
+        labelStyle: const TextStyle(
+          fontFamily: 'Merriweather',
+          color: inkMuted,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: sand,
+        foregroundColor: coal,
+        elevation: 8,
+        extendedTextStyle: TextStyle(
+          fontFamily: 'Merriweather',
+          fontWeight: FontWeight.w700,
+          color: coal,
+        ),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: _Palette.ashSurface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
+        ),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: _Palette.ashSurface,
+        surfaceTintColor: Colors.transparent,
+      ),
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: sand,
+        selectionColor: sand.withValues(alpha: 0.35),
+        selectionHandleColor: sand,
+      ),
+      dividerColor: Colors.white.withValues(alpha: 0.10),
+      splashFactory: InkSparkle.splashFactory,
+      extensions: [
+        AppSurfaces(
+          glassFillTop: Colors.white.withValues(alpha: 0.10),
+          glassFillBottom: Colors.white.withValues(alpha: 0.035),
+          glassBorder: Colors.white.withValues(alpha: 0.14),
+          glassHighlight: Colors.white.withValues(alpha: 0.22),
+          cardFill: Colors.white.withValues(alpha: 0.055),
+          cardBorder: Colors.white.withValues(alpha: 0.10),
+          blurSigma: 22,
+          mutedText: inkMuted,
+          accent: sand,
+          onGlass: ink,
+        ),
+      ],
+    );
+  }
+
+  static TextTheme _textTheme(Color ink) {
+    return TextTheme(
+      headlineLarge: TextStyle(
+        fontSize: 34,
+        fontWeight: FontWeight.w800,
+        color: ink,
+        height: 1.05,
+      ),
+      headlineSmall: TextStyle(
+        fontSize: 24,
+        fontWeight: FontWeight.w800,
+        color: ink,
+      ),
+      titleLarge: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w700,
+        color: ink,
+      ),
+      titleMedium: TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w700,
+        color: ink,
+      ),
+      bodyLarge: TextStyle(
+        fontSize: 16,
+        color: ink,
+        height: 1.4,
+      ),
+      bodyMedium: TextStyle(
+        fontSize: 14,
+        color: ink,
+        height: 1.4,
+      ),
+      labelLarge: TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+        color: ink,
+        letterSpacing: 0.2,
+      ),
+    ).apply(
+      fontFamily: 'Merriweather',
+      bodyColor: ink,
+      displayColor: ink,
+    );
+  }
 }
 
-class _AppColors extends ThemeExtension<_AppColors> {
-  const _AppColors({
+/// Theme-aware tokens for the liquid-glass surfaces and note cards. Read via
+/// `Theme.of(context).extension<AppSurfaces>()!` (a non-null default is always
+/// registered by both [AppTheme.light] and [AppTheme.amoled]).
+class AppSurfaces extends ThemeExtension<AppSurfaces> {
+  const AppSurfaces({
+    required this.glassFillTop,
+    required this.glassFillBottom,
+    required this.glassBorder,
+    required this.glassHighlight,
+    required this.cardFill,
+    required this.cardBorder,
+    required this.blurSigma,
+    required this.mutedText,
     required this.accent,
-    required this.coral,
-    required this.sky,
-    required this.cream,
-    required this.ink,
+    required this.onGlass,
   });
 
+  /// Top/bottom stops of the translucent gradient painted inside glass panels.
+  final Color glassFillTop;
+  final Color glassFillBottom;
+
+  /// Hairline outline and inner highlight of a glass panel.
+  final Color glassBorder;
+  final Color glassHighlight;
+
+  /// Fill/border for note-list cards, which use a translucent fill (no live
+  /// blur) for performance.
+  final Color cardFill;
+  final Color cardBorder;
+
+  /// Backdrop blur strength for glass chrome.
+  final double blurSigma;
+
+  /// Secondary text color and the primary accent for the current theme.
+  final Color mutedText;
   final Color accent;
-  final Color coral;
-  final Color sky;
-  final Color cream;
-  final Color ink;
+
+  /// Foreground (text/icon) color that reads well on top of glass.
+  final Color onGlass;
 
   @override
-  ThemeExtension<_AppColors> copyWith({
+  AppSurfaces copyWith({
+    Color? glassFillTop,
+    Color? glassFillBottom,
+    Color? glassBorder,
+    Color? glassHighlight,
+    Color? cardFill,
+    Color? cardBorder,
+    double? blurSigma,
+    Color? mutedText,
     Color? accent,
-    Color? coral,
-    Color? sky,
-    Color? cream,
-    Color? ink,
+    Color? onGlass,
   }) {
-    return _AppColors(
+    return AppSurfaces(
+      glassFillTop: glassFillTop ?? this.glassFillTop,
+      glassFillBottom: glassFillBottom ?? this.glassFillBottom,
+      glassBorder: glassBorder ?? this.glassBorder,
+      glassHighlight: glassHighlight ?? this.glassHighlight,
+      cardFill: cardFill ?? this.cardFill,
+      cardBorder: cardBorder ?? this.cardBorder,
+      blurSigma: blurSigma ?? this.blurSigma,
+      mutedText: mutedText ?? this.mutedText,
       accent: accent ?? this.accent,
-      coral: coral ?? this.coral,
-      sky: sky ?? this.sky,
-      cream: cream ?? this.cream,
-      ink: ink ?? this.ink,
+      onGlass: onGlass ?? this.onGlass,
     );
   }
 
   @override
-  ThemeExtension<_AppColors> lerp(
-    covariant ThemeExtension<_AppColors>? other,
-    double t,
-  ) {
-    if (other is! _AppColors) {
+  AppSurfaces lerp(covariant AppSurfaces? other, double t) {
+    if (other == null) {
       return this;
     }
-
-    return _AppColors(
-      accent: Color.lerp(accent, other.accent, t) ?? accent,
-      coral: Color.lerp(coral, other.coral, t) ?? coral,
-      sky: Color.lerp(sky, other.sky, t) ?? sky,
-      cream: Color.lerp(cream, other.cream, t) ?? cream,
-      ink: Color.lerp(ink, other.ink, t) ?? ink,
+    return AppSurfaces(
+      glassFillTop: Color.lerp(glassFillTop, other.glassFillTop, t)!,
+      glassFillBottom: Color.lerp(glassFillBottom, other.glassFillBottom, t)!,
+      glassBorder: Color.lerp(glassBorder, other.glassBorder, t)!,
+      glassHighlight: Color.lerp(glassHighlight, other.glassHighlight, t)!,
+      cardFill: Color.lerp(cardFill, other.cardFill, t)!,
+      cardBorder: Color.lerp(cardBorder, other.cardBorder, t)!,
+      blurSigma: blurSigma + (other.blurSigma - blurSigma) * t,
+      mutedText: Color.lerp(mutedText, other.mutedText, t)!,
+      accent: Color.lerp(accent, other.accent, t)!,
+      onGlass: Color.lerp(onGlass, other.onGlass, t)!,
     );
   }
 }

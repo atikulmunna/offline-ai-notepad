@@ -9,8 +9,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
 import 'package:offline_ai_notepad/app/app.dart';
+import 'package:offline_ai_notepad/features/appearance/data/appearance_repository.dart';
+import 'package:offline_ai_notepad/features/appearance/domain/app_background.dart';
 import 'package:offline_ai_notepad/features/notes/data/in_memory_notes_repository.dart';
 import 'package:offline_ai_notepad/features/notes/presentation/note_editor_page.dart';
 import 'package:offline_ai_notepad/features/notes/providers/notes_providers.dart';
@@ -39,6 +44,16 @@ class _TestAppLockRepository implements AppLockRepository {
 }
 
 void main() {
+  setUp(() async {
+    // The app reads appearance prefs on startup; back them with an in-memory
+    // store and pin the library background to "none" so the decorative,
+    // continuously-repeating animation doesn't keep pumpAndSettle from settling.
+    SharedPreferencesAsyncPlatform.instance =
+        InMemorySharedPreferencesAsync.empty();
+    await AppearanceRepository(SharedPreferencesAsync())
+        .saveBackground(AppBackground.none);
+  });
+
   testWidgets('app shell renders the project home screen', (
     WidgetTester tester,
   ) async {
