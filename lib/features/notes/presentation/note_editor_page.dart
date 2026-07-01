@@ -5,6 +5,8 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/theme/app_theme.dart';
+import '../../appearance/presentation/glass_surface.dart';
 import '../../ai/providers/ai_actions.dart';
 import '../../ai/providers/ai_providers.dart';
 import '../../ai/providers/model_download_controller.dart';
@@ -251,26 +253,19 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
       isScrollControlled: true,
       builder: (context) {
         final theme = Theme.of(context);
+        final surfaces = theme.extension<AppSurfaces>()!;
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Container(
               padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFFFFFBF7),
-                    Color(0xFFEAE0D5),
-                    Color(0xFFC6AC8F),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                color: theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: const Color(0xFFC6AC8F)),
+                border: Border.all(color: surfaces.cardBorder),
                 boxShadow: const [
                   BoxShadow(
-                    color: Color(0x2222333B),
+                    color: Color(0x22000000),
                     blurRadius: 28,
                     offset: Offset(0, 14),
                   ),
@@ -319,7 +314,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                                   ? 'Highlight style'
                                   : 'Text color',
                               style: theme.textTheme.titleMedium?.copyWith(
-                                color: const Color(0xFF0A0908),
+                                color: theme.colorScheme.onSurface,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -329,7 +324,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                                   ? 'Pick a soft highlight for the selected text.'
                                   : 'Choose a color that still reads beautifully on the page.',
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: const Color(0xFF22333B),
+                                color: surfaces.mutedText,
                               ),
                             ),
                           ],
@@ -534,6 +529,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
     final isEditingExisting = _activeNoteId != null;
     final foldersAsync = ref.watch(noteFoldersProvider);
     final aiSnapshotAsync = _activeNoteId == null
@@ -630,7 +626,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                   child: Container(
                     height: 42,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEAE0D5),
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(999),
                     ),
                   ),
@@ -666,29 +662,18 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                   width: 34,
                   height: 34,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [
-                        Color(0xFF22333B),
-                        Color(0xFF5E503F),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    color: theme.extension<AppSurfaces>()!.glassHighlight,
                     borderRadius: BorderRadius.circular(12),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x3322333B),
-                        blurRadius: 14,
-                        offset: Offset(0, 6),
-                      ),
-                    ],
+                    border: Border.all(
+                      color: theme.extension<AppSurfaces>()!.glassBorder,
+                    ),
                   ),
                   child: Icon(
                     _showFormattingToolbar
                         ? Icons.close_rounded
                         : Icons.draw_rounded,
                     size: 18,
-                    color: Colors.white,
+                    color: theme.extension<AppSurfaces>()!.accent,
                   ),
                 ),
               ),
@@ -787,14 +772,21 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                   ),
           ),
           const SizedBox(height: 12),
-          QuillEditor.basic(
-            controller: _bodyController,
-            focusNode: _bodyFocusNode,
-            config: const QuillEditorConfig(
-              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-              placeholder: 'Start from here',
-              autoFocus: true,
-              scrollable: false,
+          GlassSurface(
+            borderRadius: 20,
+            blur: false,
+            fillColor: surfaces.cardFill,
+            borderColor: surfaces.cardBorder,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            child: QuillEditor.basic(
+              controller: _bodyController,
+              focusNode: _bodyFocusNode,
+              config: const QuillEditorConfig(
+                padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                placeholder: 'Start from here',
+                autoFocus: true,
+                scrollable: false,
+              ),
             ),
           ),
         ],
@@ -856,6 +848,8 @@ class _ToolbarCycleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
     return Tooltip(
       message: tooltip,
       child: InkWell(
@@ -865,14 +859,14 @@ class _ToolbarCycleButton extends StatelessWidget {
           width: 42,
           height: 42,
           decoration: BoxDecoration(
-            color: const Color(0xFFF2E8DC),
+            color: surfaces.glassHighlight,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFC6AC8F)),
+            border: Border.all(color: surfaces.cardBorder),
           ),
           child: Icon(
             icon,
             size: 18,
-            color: const Color(0xFF22333B),
+            color: surfaces.onGlass,
           ),
         ),
       ),
@@ -895,10 +889,12 @@ class _ToolbarActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
     final background =
-        isSelected ? const Color(0xFF5E503F) : const Color(0xFFF2E8DC);
+        isSelected ? theme.colorScheme.primary : surfaces.glassHighlight;
     final foreground =
-        isSelected ? const Color(0xFFEAE0D5) : const Color(0xFF22333B);
+        isSelected ? theme.colorScheme.onPrimary : surfaces.onGlass;
 
     return Tooltip(
       message: tooltip,
@@ -911,11 +907,11 @@ class _ToolbarActionButton extends StatelessWidget {
           decoration: BoxDecoration(
             color: background,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFC6AC8F)),
+            border: Border.all(color: surfaces.cardBorder),
             boxShadow: isSelected
                 ? const [
                     BoxShadow(
-                      color: Color(0x445E503F),
+                      color: Color(0x33000000),
                       blurRadius: 10,
                       offset: Offset(0, 4),
                     ),
@@ -989,66 +985,40 @@ class _EditorIconButtonState extends State<_EditorIconButton>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
         final t = Curves.easeInOut.transform(_controller.value);
         final scale = widget.isBusy ? 1 + (t * 0.05) : 1.0;
-        final glowOpacity = widget.isBusy ? 0.18 + (t * 0.12) : 0.0;
         final iconShift = widget.isBusy ? (t * 0.12) - 0.06 : 0.0;
+        final borderColor = widget.isBusy
+            ? Color.lerp(surfaces.glassBorder, surfaces.accent, 0.4 + t * 0.4)!
+            : surfaces.glassBorder;
 
         return Transform.scale(
           scale: scale,
           child: Tooltip(
             message: widget.tooltip,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
+            child: GlassSurface(
+              borderRadius: 12,
+              blur: false,
+              fillColor: surfaces.glassHighlight,
+              borderColor: borderColor,
               onTap: widget.onPressed,
-              child: Container(
+              child: SizedBox(
                 width: 38,
                 height: 38,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [
-                      Color(0xFF22333B),
-                      Color(0xFF5E503F),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+                child: Center(
+                  child: Transform.rotate(
+                    angle: iconShift,
+                    child: Icon(
+                      widget.icon,
+                      size: 18,
+                      color: surfaces.accent,
+                    ),
                   ),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color.fromRGBO(34, 51, 59, 0.2 + glowOpacity),
-                      blurRadius: widget.isBusy ? 18 : 14,
-                      spreadRadius: widget.isBusy ? 1.5 : 0,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    if (widget.isBusy)
-                      Positioned.fill(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Color.fromRGBO(234, 224, 213, 0.28 + (t * 0.18)),
-                            ),
-                          ),
-                        ),
-                      ),
-                    Transform.rotate(
-                      angle: iconShift,
-                      child: Icon(
-                        widget.icon,
-                        size: 18,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
                 ),
               ),
             ),
@@ -1070,47 +1040,42 @@ class _FolderTagButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(999),
-        onTap: onTap,
-        child: Container(
-          height: 42,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            color: const Color(0xFF5E503F),
-            borderRadius: BorderRadius.circular(999),
+    final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
+    return GlassSurface(
+      borderRadius: 999,
+      blur: false,
+      fillColor: surfaces.glassHighlight,
+      borderColor: surfaces.cardBorder,
+      onTap: onTap,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.folder_open_outlined,
+            size: 16,
+            color: surfaces.accent,
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.folder_open_outlined,
-                size: 16,
-                color: Color(0xFFEAE0D5),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: const Color(0xFFEAE0D5),
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.expand_more_rounded,
-                size: 18,
-                color: Color(0xFFEAE0D5),
-              ),
-            ],
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelLarge?.copyWith(
+                    color: surfaces.onGlass,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
           ),
-        ),
+          const SizedBox(width: 8),
+          Icon(
+            Icons.expand_more_rounded,
+            size: 18,
+            color: surfaces.onGlass,
+          ),
+        ],
       ),
     );
   }
@@ -1130,25 +1095,19 @@ class _InlineSummaryPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFFF6F9FB),
-            Color(0xFFE8EEF2),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: surfaces.cardFill,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: const Color(0xFFD5E0E7),
+          color: surfaces.cardBorder,
         ),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x1222333B),
+            color: Color(0x22000000),
             blurRadius: 14,
             offset: Offset(0, 6),
           ),
@@ -1173,7 +1132,7 @@ class _InlineSummaryPanel extends StatelessWidget {
                 : 'No summary yet.',
             style: theme.textTheme.bodyLarge?.copyWith(
               height: 1.45,
-              color: const Color(0xFF22333B),
+              color: theme.colorScheme.onSurface,
             ),
           ),
         ],
@@ -1213,6 +1172,7 @@ class _ModelDownloadPrompt extends ConsumerWidget {
     }
 
     final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
     final controller = ref.read(modelDownloadControllerProvider.notifier);
     final fraction = download.fraction;
 
@@ -1228,7 +1188,7 @@ class _ModelDownloadPrompt extends ConsumerWidget {
                   : 'Downloading AI models… ${(fraction * 100).toStringAsFixed(0)}%'
                       ' (${_formatMb(download.received)} / ${_formatMb(download.total)})',
               style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: const Color(0xFF22333B)),
+                  ?.copyWith(color: theme.colorScheme.onSurface),
             ),
             const SizedBox(height: 10),
             ClipRRect(
@@ -1245,7 +1205,7 @@ class _ModelDownloadPrompt extends ConsumerWidget {
             Text(
               'Model download failed. Check your connection and try again.',
               style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: const Color(0xFF8A3B2F)),
+                  ?.copyWith(color: theme.colorScheme.error),
             ),
             const SizedBox(height: 10),
             FilledButton.tonalIcon(
@@ -1264,7 +1224,7 @@ class _ModelDownloadPrompt extends ConsumerWidget {
               'On-device AI models power summaries and semantic search. They '
               'download once and then run fully offline.',
               style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: const Color(0xFF22333B)),
+                  ?.copyWith(color: theme.colorScheme.onSurface),
             ),
             const SizedBox(height: 10),
             FilledButton.tonalIcon(
@@ -1281,9 +1241,9 @@ class _ModelDownloadPrompt extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFDF7EE),
+        color: surfaces.glassHighlight,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE3D2B8)),
+        border: Border.all(color: surfaces.cardBorder),
       ),
       child: body,
     );
@@ -1304,6 +1264,7 @@ class _FolderPickerSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
 
     return SafeArea(
       child: Padding(
@@ -1311,12 +1272,12 @@ class _FolderPickerSheet extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFFBF7),
+            color: theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: const Color(0xFFC6AC8F)),
+            border: Border.all(color: surfaces.cardBorder),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x1822333B),
+                color: Color(0x18000000),
                 blurRadius: 20,
                 offset: Offset(0, 10),
               ),
@@ -1329,7 +1290,7 @@ class _FolderPickerSheet extends StatelessWidget {
               Text(
                 'Move to folder',
                 style: theme.textTheme.titleLarge?.copyWith(
-                  color: const Color(0xFF22333B),
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 14),
@@ -1377,6 +1338,8 @@ class _FolderChoiceTag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1386,13 +1349,17 @@ class _FolderChoiceTag extends StatelessWidget {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFF5E503F) : const Color(0xFFEAE0D5),
+            color: selected
+                ? theme.colorScheme.primary
+                : surfaces.glassHighlight,
             borderRadius: BorderRadius.circular(999),
           ),
           child: Text(
             label,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: selected ? const Color(0xFFEAE0D5) : const Color(0xFF22333B),
+                  color: selected
+                      ? theme.colorScheme.onPrimary
+                      : surfaces.onGlass,
                   fontWeight: FontWeight.w600,
                 ),
           ),

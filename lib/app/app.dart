@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'theme/app_theme.dart';
 import '../features/ai/providers/ai_actions.dart';
+import '../features/appearance/domain/app_theme_mode.dart';
+import '../features/appearance/providers/appearance_providers.dart';
 import '../features/notes/presentation/home_page.dart';
 import '../features/security/providers/app_lock_providers.dart';
 
@@ -45,6 +47,9 @@ class _OfflineAiNotepadAppState extends ConsumerState<OfflineAiNotepadApp>
   @override
   Widget build(BuildContext context) {
     final appLockState = ref.watch(appLockControllerProvider);
+    final themeMode = ref.watch(
+      appearanceControllerProvider.select((state) => state.themeMode),
+    );
     final home = !appLockState.isReady
         ? const Scaffold(
             body: Center(
@@ -58,6 +63,12 @@ class _OfflineAiNotepadAppState extends ConsumerState<OfflineAiNotepadApp>
       title: 'NativeNote',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
+      darkTheme: AppTheme.amoled(),
+      themeMode: switch (themeMode) {
+        AppThemeMode.system => ThemeMode.system,
+        AppThemeMode.light => ThemeMode.light,
+        AppThemeMode.amoled => ThemeMode.dark,
+      },
       localizationsDelegates: FlutterQuillLocalizations.localizationsDelegates,
       supportedLocales: FlutterQuillLocalizations.supportedLocales,
       home: home,
@@ -91,10 +102,11 @@ class _AppLockGateState extends ConsumerState<_AppLockGate> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
     final state = ref.watch(appLockControllerProvider);
 
     return ColoredBox(
-      color: const Color(0xFFF5EEE6),
+      color: theme.scaffoldBackgroundColor,
       child: SafeArea(
         child: Material(
           color: Colors.transparent,
@@ -106,20 +118,12 @@ class _AppLockGateState extends ConsumerState<_AppLockGate> {
                 child: Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [
-                        Color(0xFFFFFBF7),
-                        Color(0xFFEAE0D5),
-                        Color(0xFFF1E7DB),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    color: theme.colorScheme.surface,
                     borderRadius: BorderRadius.circular(32),
-                    border: Border.all(color: const Color(0xFFC6AC8F)),
+                    border: Border.all(color: surfaces.cardBorder),
                     boxShadow: const [
                       BoxShadow(
-                        color: Color(0x2A22333B),
+                        color: Color(0x2A000000),
                         blurRadius: 28,
                         offset: Offset(0, 16),
                       ),
@@ -132,42 +136,33 @@ class _AppLockGateState extends ConsumerState<_AppLockGate> {
                         width: 74,
                         height: 74,
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [
-                              Color(0xFF22333B),
-                              Color(0xFF5E503F),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
+                          color: surfaces.accent,
                           borderRadius: BorderRadius.circular(24),
                           boxShadow: const [
                             BoxShadow(
-                              color: Color(0x3322333B),
+                              color: Color(0x33000000),
                               blurRadius: 18,
                               offset: Offset(0, 10),
                             ),
                           ],
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.lock_rounded,
-                          color: Colors.white,
+                          color: theme.colorScheme.onPrimary,
                           size: 34,
                         ),
                       ),
                       const SizedBox(height: 18),
                       Text(
                         'NativeNote is locked',
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          color: const Color(0xFF0A0908),
-                        ),
+                        style: theme.textTheme.headlineSmall,
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 10),
                       Text(
                         'Enter your PIN to get back to your notes.',
                         style: theme.textTheme.bodyLarge?.copyWith(
-                          color: const Color(0xFF22333B),
+                          color: surfaces.mutedText,
                         ),
                         textAlign: TextAlign.center,
                       ),

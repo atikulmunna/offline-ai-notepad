@@ -1,10 +1,13 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/theme/app_theme.dart';
 import '../../../core/database/app_database_provider.dart';
+import '../../appearance/presentation/backgrounds/animated_background.dart';
+import '../../appearance/presentation/glass_surface.dart';
+import '../../appearance/providers/appearance_providers.dart';
 import '../domain/note_collection.dart';
 import '../domain/note_folder.dart';
 import '../domain/note_preview.dart';
@@ -12,6 +15,7 @@ import '../domain/note_search_mode.dart';
 import '../providers/notes_actions.dart';
 import '../providers/notes_providers.dart';
 import '../providers/notes_view_state.dart';
+import '../../appearance/presentation/appearance_sheet.dart';
 import '../../security/data/encrypted_backup_service.dart';
 import '../../security/data/note_protection_service.dart';
 import '../../security/providers/app_lock_providers.dart';
@@ -71,6 +75,8 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
     );
   }
 
+  Future<void> _openAppearanceSheet() => showAppearanceSheet(context);
+
   @override
   Widget build(BuildContext context) {
     final notesAsync = ref.watch(notesListProvider);
@@ -82,7 +88,7 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
     final bodyTopPadding = topInset + headerHeight + 24;
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: _GlassFab(
         onPressed: () async {
           await Navigator.of(context).push<bool>(
             MaterialPageRoute(
@@ -90,12 +96,16 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
             ),
           );
         },
-        icon: const Icon(Icons.add),
-        label: const Text('New note'),
       ),
       body: Stack(
         children: [
-          const _BackdropGlow(),
+          Positioned.fill(
+            child: AnimatedBackground(
+              background: ref.watch(
+                appearanceControllerProvider.select((s) => s.background),
+              ),
+            ),
+          ),
           ListView(
             padding: EdgeInsets.fromLTRB(20, bodyTopPadding, 20, 100),
             children: [
@@ -206,6 +216,7 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
             child: _GlassHeader(
               isLocked: appLockState.isEnabled,
               onOpenPrivacy: _openPrivacySheet,
+              onOpenAppearance: _openAppearanceSheet,
               showSearch: _showSearch,
               showViews: _showViews,
               showFolders: _showFolders,
@@ -243,6 +254,7 @@ class _GlassHeader extends StatelessWidget {
   const _GlassHeader({
     required this.isLocked,
     required this.onOpenPrivacy,
+    required this.onOpenAppearance,
     required this.showSearch,
     required this.showViews,
     required this.showFolders,
@@ -254,6 +266,7 @@ class _GlassHeader extends StatelessWidget {
 
   final bool isLocked;
   final VoidCallback onOpenPrivacy;
+  final VoidCallback onOpenAppearance;
   final bool showSearch;
   final bool showViews;
   final bool showFolders;
@@ -269,39 +282,19 @@ class _GlassHeader extends StatelessWidget {
     // otherwise the glass pill is pushed down onto the content below it.
     return SafeArea(
       top: false,
-      child: Padding(
-        padding: EdgeInsets.zero,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(30),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.white.withValues(alpha: 0.38),
-                    const Color(0xFFEAE0D5).withValues(alpha: 0.24),
-                    const Color(0xFFC6AC8F).withValues(alpha: 0.14),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.34),
-                ),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x1422333B),
-                    blurRadius: 24,
-                    offset: Offset(0, 10),
+      child: GlassSurface(
+        borderRadius: 30,
+        strongBorder: true,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+                  _GlassActionButton(
+                    icon: Icons.tune_rounded,
+                    tooltip: 'Appearance',
+                    onPressed: onOpenAppearance,
                   ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
+                  const SizedBox(width: 10),
                   _GlassActionButton(
                     icon: isLocked
                         ? Icons.lock_rounded
@@ -340,10 +333,39 @@ class _GlassHeader extends StatelessWidget {
                     onPressed: onOpenBackup,
                   ),
                 ],
-              ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassFab extends StatelessWidget {
+  const _GlassFab({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
+    return GlassSurface(
+      borderRadius: 20,
+      strongBorder: true,
+      onTap: onPressed,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.add, color: surfaces.accent, size: 22),
+          const SizedBox(width: 10),
+          Text(
+            'New note',
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: surfaces.onGlass,
+              fontWeight: FontWeight.w700,
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -362,6 +384,7 @@ class _GlassActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surfaces = Theme.of(context).extension<AppSurfaces>()!;
     return Tooltip(
       message: tooltip,
       child: Material(
@@ -373,67 +396,19 @@ class _GlassActionButton extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.28),
+              color: surfaces.glassHighlight,
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.34),
+                color: surfaces.glassBorder,
               ),
             ),
             child: Icon(
               icon,
-              color: const Color(0xFF22333B),
+              color: surfaces.onGlass,
               size: 20,
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _BackdropGlow extends StatelessWidget {
-  const _BackdropGlow();
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Stack(
-        children: [
-          Positioned(
-            top: -60,
-            right: -40,
-            child: Container(
-              height: 220,
-              width: 220,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    Color(0x55C6AC8F),
-                    Color(0x00C6AC8F),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 240,
-            left: -70,
-            child: Container(
-              height: 240,
-              width: 240,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    Color(0x3322333B),
-                    Color(0x0022333B),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -708,12 +683,13 @@ class _ViewModeToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surfaces = Theme.of(context).extension<AppSurfaces>()!;
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.84),
+        color: surfaces.cardFill,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFC6AC8F)),
+        border: Border.all(color: surfaces.cardBorder),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -752,6 +728,8 @@ class _ModeIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
     return Tooltip(
       message: tooltip,
       child: InkWell(
@@ -762,13 +740,13 @@ class _ModeIconButton extends StatelessWidget {
           curve: Curves.easeOutCubic,
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFF22333B) : Colors.transparent,
+            color: selected ? theme.colorScheme.primary : Colors.transparent,
             borderRadius: BorderRadius.circular(14),
           ),
           child: Icon(
             icon,
             size: 18,
-            color: selected ? Colors.white : const Color(0xFF5E503F),
+            color: selected ? theme.colorScheme.onPrimary : surfaces.mutedText,
           ),
         ),
       ),
@@ -949,7 +927,7 @@ class _FolderManagerSheetState extends ConsumerState<_FolderManagerSheet> {
         bottom: MediaQuery.of(context).viewInsets.bottom + 16,
       ),
       child: Material(
-        color: const Color(0xFFFFFBF7),
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(28),
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -1171,20 +1149,14 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
         child: Container(
           padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [
-                Color(0xFFFFFBF7),
-                Color(0xFFEAE0D5),
-                Color(0xFFC6AC8F),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: const Color(0xFFC6AC8F)),
+            border: Border.all(
+              color: theme.extension<AppSurfaces>()!.cardBorder,
+            ),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x2222333B),
+                color: Color(0x22000000),
                 blurRadius: 28,
                 offset: Offset(0, 14),
               ),
@@ -1201,7 +1173,7 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
                     ? 'NativeNote will ask for your PIN whenever the app comes back into view.'
                     : 'Add a local PIN so the app locks itself when you leave it.',
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: const Color(0xFF22333B),
+                  color: theme.extension<AppSurfaces>()!.mutedText,
                 ),
               ),
               const SizedBox(height: 18),
@@ -1247,9 +1219,11 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.7),
+                    color: theme.extension<AppSurfaces>()!.glassHighlight,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFC6AC8F)),
+                    border: Border.all(
+                      color: theme.extension<AppSurfaces>()!.cardBorder,
+                    ),
                   ),
                   child: Row(
                     children: [
@@ -1278,14 +1252,14 @@ class _PrivacySheetState extends ConsumerState<_PrivacySheet> {
                             Text(
                               'App lock is active',
                               style: theme.textTheme.titleMedium?.copyWith(
-                                color: const Color(0xFF0A0908),
+                                color: theme.colorScheme.onSurface,
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               'The app will relock when it goes to the background.',
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: const Color(0xFF22333B),
+                                color: theme.extension<AppSurfaces>()!.mutedText,
                               ),
                             ),
                           ],
@@ -1468,20 +1442,14 @@ class _BackupSheetState extends ConsumerState<_BackupSheet> {
         child: Container(
           padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [
-                Color(0xFFFFFBF7),
-                Color(0xFFEAE0D5),
-                Color(0xFFC6AC8F),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: const Color(0xFFC6AC8F)),
+            border: Border.all(
+              color: theme.extension<AppSurfaces>()!.cardBorder,
+            ),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x2222333B),
+                color: Color(0x22000000),
                 blurRadius: 28,
                 offset: Offset(0, 14),
               ),
@@ -1496,7 +1464,7 @@ class _BackupSheetState extends ConsumerState<_BackupSheet> {
               Text(
                 'Export your notes into a passphrase-protected backup file, or import one back into this device.',
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: const Color(0xFF22333B),
+                  color: theme.extension<AppSurfaces>()!.mutedText,
                 ),
               ),
               const SizedBox(height: 18),
@@ -1669,24 +1637,23 @@ class _PreviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
     final accents = [
-      const Color(0xFF5E503F),
+      theme.colorScheme.primary,
       const Color(0xFFC6AC8F),
-      const Color(0xFF22333B),
+      theme.colorScheme.secondary,
     ];
     final accent = accents[accentIndex % accents.length];
 
-    return Card(
-      elevation: 0,
-      color: Colors.white.withValues(alpha: 0.96),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: collection == NoteCollection.trash ? null : onTap,
-        child: Padding(
-          padding: EdgeInsets.all(isCompact ? 14 : 18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+    return GlassSurface(
+      borderRadius: 24,
+      fillColor: surfaces.cardFill,
+      borderColor: surfaces.cardBorder,
+      padding: EdgeInsets.all(isCompact ? 14 : 18),
+      onTap: collection == NoteCollection.trash ? null : onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1732,7 +1699,7 @@ class _PreviewCard extends StatelessWidget {
                 maxLines: isCompact ? 3 : 3,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: const Color(0xFF22333B),
+                  color: surfaces.mutedText,
                   height: isCompact ? 1.35 : 1.45,
                 ),
               ),
@@ -1761,7 +1728,7 @@ class _PreviewCard extends StatelessWidget {
                   Text(
                     _formatUpdatedLabel(note.updatedAt),
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF22333B),
+                      color: surfaces.mutedText,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -1769,8 +1736,6 @@ class _PreviewCard extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
     );
   }
 
