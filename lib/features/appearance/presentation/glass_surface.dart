@@ -21,6 +21,9 @@ class GlassSurface extends StatelessWidget {
     this.strongBorder = false,
     this.padding,
     this.shadow = true,
+    this.fillColor,
+    this.borderColor,
+    this.onTap,
   });
 
   final Widget child;
@@ -33,24 +36,47 @@ class GlassSurface extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
   final bool shadow;
 
+  /// When set, paints a solid translucent fill instead of the default glass
+  /// gradient (e.g. cards passing `AppSurfaces.cardFill`).
+  final Color? fillColor;
+  final Color? borderColor;
+
+  /// When set, the whole surface becomes tappable with a matching ripple.
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
     final surfaces = Theme.of(context).extension<AppSurfaces>()!;
     final radius = BorderRadius.circular(borderRadius);
+    final border = borderColor ??
+        (strongBorder ? surfaces.glassHighlight : surfaces.glassBorder);
+
+    final padded =
+        padding == null ? child : Padding(padding: padding!, child: child);
 
     Widget content = DecoratedBox(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [surfaces.glassFillTop, surfaces.glassFillBottom],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: fillColor,
+        gradient: fillColor != null
+            ? null
+            : LinearGradient(
+                colors: [surfaces.glassFillTop, surfaces.glassFillBottom],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
         borderRadius: radius,
-        border: Border.all(
-          color: strongBorder ? surfaces.glassHighlight : surfaces.glassBorder,
-        ),
+        border: Border.all(color: border),
       ),
-      child: padding == null ? child : Padding(padding: padding!, child: child),
+      child: onTap == null
+          ? padded
+          : Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: radius,
+                onTap: onTap,
+                child: padded,
+              ),
+            ),
     );
 
     if (blur) {

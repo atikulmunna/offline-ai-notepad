@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme/app_theme.dart';
+import '../../appearance/presentation/glass_surface.dart';
 import '../../ai/providers/ai_actions.dart';
 import '../../ai/providers/ai_providers.dart';
 import '../../ai/providers/model_download_controller.dart';
@@ -528,6 +529,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
     final isEditingExisting = _activeNoteId != null;
     final foldersAsync = ref.watch(noteFoldersProvider);
     final aiSnapshotAsync = _activeNoteId == null
@@ -660,29 +662,18 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                   width: 34,
                   height: 34,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [
-                        Color(0xFF22333B),
-                        Color(0xFF5E503F),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    color: theme.extension<AppSurfaces>()!.glassHighlight,
                     borderRadius: BorderRadius.circular(12),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x3322333B),
-                        blurRadius: 14,
-                        offset: Offset(0, 6),
-                      ),
-                    ],
+                    border: Border.all(
+                      color: theme.extension<AppSurfaces>()!.glassBorder,
+                    ),
                   ),
                   child: Icon(
                     _showFormattingToolbar
                         ? Icons.close_rounded
                         : Icons.draw_rounded,
                     size: 18,
-                    color: Colors.white,
+                    color: theme.extension<AppSurfaces>()!.accent,
                   ),
                 ),
               ),
@@ -781,14 +772,21 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                   ),
           ),
           const SizedBox(height: 12),
-          QuillEditor.basic(
-            controller: _bodyController,
-            focusNode: _bodyFocusNode,
-            config: const QuillEditorConfig(
-              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-              placeholder: 'Start from here',
-              autoFocus: true,
-              scrollable: false,
+          GlassSurface(
+            borderRadius: 20,
+            blur: false,
+            fillColor: surfaces.cardFill,
+            borderColor: surfaces.cardBorder,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            child: QuillEditor.basic(
+              controller: _bodyController,
+              focusNode: _bodyFocusNode,
+              config: const QuillEditorConfig(
+                padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                placeholder: 'Start from here',
+                autoFocus: true,
+                scrollable: false,
+              ),
             ),
           ),
         ],
@@ -987,66 +985,40 @@ class _EditorIconButtonState extends State<_EditorIconButton>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
         final t = Curves.easeInOut.transform(_controller.value);
         final scale = widget.isBusy ? 1 + (t * 0.05) : 1.0;
-        final glowOpacity = widget.isBusy ? 0.18 + (t * 0.12) : 0.0;
         final iconShift = widget.isBusy ? (t * 0.12) - 0.06 : 0.0;
+        final borderColor = widget.isBusy
+            ? Color.lerp(surfaces.glassBorder, surfaces.accent, 0.4 + t * 0.4)!
+            : surfaces.glassBorder;
 
         return Transform.scale(
           scale: scale,
           child: Tooltip(
             message: widget.tooltip,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
+            child: GlassSurface(
+              borderRadius: 12,
+              blur: false,
+              fillColor: surfaces.glassHighlight,
+              borderColor: borderColor,
               onTap: widget.onPressed,
-              child: Container(
+              child: SizedBox(
                 width: 38,
                 height: 38,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [
-                      Color(0xFF22333B),
-                      Color(0xFF5E503F),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+                child: Center(
+                  child: Transform.rotate(
+                    angle: iconShift,
+                    child: Icon(
+                      widget.icon,
+                      size: 18,
+                      color: surfaces.accent,
+                    ),
                   ),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color.fromRGBO(34, 51, 59, 0.2 + glowOpacity),
-                      blurRadius: widget.isBusy ? 18 : 14,
-                      spreadRadius: widget.isBusy ? 1.5 : 0,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    if (widget.isBusy)
-                      Positioned.fill(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Color.fromRGBO(234, 224, 213, 0.28 + (t * 0.18)),
-                            ),
-                          ),
-                        ),
-                      ),
-                    Transform.rotate(
-                      angle: iconShift,
-                      child: Icon(
-                        widget.icon,
-                        size: 18,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
                 ),
               ),
             ),
@@ -1068,47 +1040,42 @@ class _FolderTagButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(999),
-        onTap: onTap,
-        child: Container(
-          height: 42,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            color: const Color(0xFF5E503F),
-            borderRadius: BorderRadius.circular(999),
+    final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
+    return GlassSurface(
+      borderRadius: 999,
+      blur: false,
+      fillColor: surfaces.glassHighlight,
+      borderColor: surfaces.cardBorder,
+      onTap: onTap,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.folder_open_outlined,
+            size: 16,
+            color: surfaces.accent,
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.folder_open_outlined,
-                size: 16,
-                color: Color(0xFFEAE0D5),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: const Color(0xFFEAE0D5),
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.expand_more_rounded,
-                size: 18,
-                color: Color(0xFFEAE0D5),
-              ),
-            ],
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelLarge?.copyWith(
+                    color: surfaces.onGlass,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
           ),
-        ),
+          const SizedBox(width: 8),
+          Icon(
+            Icons.expand_more_rounded,
+            size: 18,
+            color: surfaces.onGlass,
+          ),
+        ],
       ),
     );
   }

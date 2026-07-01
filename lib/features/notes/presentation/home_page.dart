@@ -88,7 +88,7 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
     final bodyTopPadding = topInset + headerHeight + 24;
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: _GlassFab(
         onPressed: () async {
           await Navigator.of(context).push<bool>(
             MaterialPageRoute(
@@ -96,8 +96,6 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
             ),
           );
         },
-        icon: const Icon(Icons.add),
-        label: const Text('New note'),
       ),
       body: Stack(
         children: [
@@ -336,6 +334,38 @@ class _GlassHeader extends StatelessWidget {
                   ),
                 ],
         ),
+      ),
+    );
+  }
+}
+
+class _GlassFab extends StatelessWidget {
+  const _GlassFab({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
+    return GlassSurface(
+      borderRadius: 20,
+      strongBorder: true,
+      onTap: onPressed,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.add, color: surfaces.accent, size: 22),
+          const SizedBox(width: 10),
+          Text(
+            'New note',
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: surfaces.onGlass,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1615,17 +1645,15 @@ class _PreviewCard extends StatelessWidget {
     ];
     final accent = accents[accentIndex % accents.length];
 
-    return Card(
-      elevation: 0,
-      color: surfaces.cardFill,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: collection == NoteCollection.trash ? null : onTap,
-        child: Padding(
-          padding: EdgeInsets.all(isCompact ? 14 : 18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+    return GlassSurface(
+      borderRadius: 24,
+      fillColor: surfaces.cardFill,
+      borderColor: surfaces.cardBorder,
+      padding: EdgeInsets.all(isCompact ? 14 : 18),
+      onTap: collection == NoteCollection.trash ? null : onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1708,8 +1736,6 @@ class _PreviewCard extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
     );
   }
 
