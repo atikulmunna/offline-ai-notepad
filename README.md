@@ -26,6 +26,29 @@ A privacy-first notepad where "AI" means real models running **on your device**,
 
 Honest caveats: the real embeddings + native summarizer are **Android-only** today (no iOS bridge yet); model binaries are exported/staged locally rather than committed to Git; and the summarizer is a small quantized model by design (a privacy/offline tradeoff, not GPT-class quality).
 
+## Download & Try It (Android)
+
+Grab the latest APK from the [**v1.0.0 release**](https://github.com/atikulmunna/offline-ai-notepad/releases/tag/v1.0.0):
+
+| Device | APK | Size |
+|---|---|---|
+| Most phones (last ~7 years, 64-bit) | [arm64-v8a](https://github.com/atikulmunna/offline-ai-notepad/releases/download/v1.0.0/offline-ai-notepad-v1.0.0-arm64-v8a.apk) | ~52 MB |
+| Older 32-bit devices | [armeabi-v7a](https://github.com/atikulmunna/offline-ai-notepad/releases/download/v1.0.0/offline-ai-notepad-v1.0.0-armeabi-v7a.apk) | ~43 MB |
+
+Install: download the APK, allow "install from unknown sources" if prompted, and open it. It's signed with a debug key (side-load/testing build), so Android may warn about an unknown developer.
+
+**Why the app is only ~52 MB:** the on-device AI models (~114 MB, powering summaries and semantic search) are **not** bundled in the APK. The first time you use an AI feature, the app offers to download them once from the `models-v1` release; after that they run fully offline. Core note-taking works without them.
+
+## Screenshots
+
+| Library | On-demand model download | Semantic search |
+|---|---|---|
+| ![Library](docs/screenshots/01-library.png) | ![Download prompt](docs/screenshots/02-download-prompt.png) | ![Semantic toggle](docs/screenshots/04-semantic-toggle.png) |
+
+| Downloading models | AI summary |
+|---|---|
+| ![Downloading](docs/screenshots/03-downloading.png) | ![AI summary](docs/screenshots/05-ai-summary.png) |
+
 ## Current Status
 
 This is an active work-in-progress project with a functioning app foundation.
@@ -298,10 +321,15 @@ Formatting is stored with the note and should return when the note is reopened.
 
 ### Local AI Model Setup
 
-Large model binaries are intentionally kept out of normal Git history. A fresh
-clone must export/stage the models before the native AI path (summaries +
-semantic embeddings) will work on Android. Only the per-model `README.md` files
-are tracked; the `.onnx` and tokenizer binaries are git-ignored.
+**End users don't need this** — the installed app downloads the models on first
+use (see [Download & Try It](#download--try-it-android)). This section is for
+maintainers who want to regenerate the ONNX assets or re-host them.
+
+Large model binaries are intentionally kept out of normal Git history and out of
+the APK. Only the per-model `README.md` files are tracked; the `.onnx` and
+tokenizer binaries are git-ignored and served from a GitHub release
+(`models-v1`) that the app downloads at runtime. To rebuild those assets from
+source and stage them locally for development:
 
 You need a Python environment with `optimum`, `onnx`, and `onnxruntime`
 installed (the scripts default to a local `.venv-model-export` venv). Then:

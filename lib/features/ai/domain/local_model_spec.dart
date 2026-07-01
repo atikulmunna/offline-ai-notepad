@@ -1,4 +1,5 @@
 import 'local_model_task.dart';
+import 'model_download_spec.dart';
 import 'onnx_model_contract.dart';
 
 class LocalModelSpec {
@@ -13,6 +14,7 @@ class LocalModelSpec {
     required this.maxInputChars,
     this.onnxContract,
     this.tokenizerAssetPath,
+    this.download,
     this.notes,
   });
 
@@ -26,7 +28,13 @@ class LocalModelSpec {
   final bool optionalDownload;
   final int maxInputChars;
   final OnnxModelContract? onnxContract;
+
+  /// Present when the model is fetched on demand instead of bundled.
+  final ModelDownloadSpec? download;
   final String? notes;
+
+  /// True when this model is delivered by downloading its files at runtime.
+  bool get isDownloadable => !packaged && optionalDownload && download != null;
 
   factory LocalModelSpec.fromJson(Map<String, dynamic> json) {
     return LocalModelSpec(
@@ -41,6 +49,9 @@ class LocalModelSpec {
       maxInputChars: json['max_input_chars'] as int? ?? 4000,
       onnxContract: (json['input_names'] != null || json['output_names'] != null)
           ? OnnxModelContract.fromJson(json)
+          : null,
+      download: json['download'] != null
+          ? ModelDownloadSpec.fromJson(json['download'] as Map<String, dynamic>)
           : null,
       notes: json['notes'] as String?,
     );

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../ai/providers/ai_actions.dart';
 import '../../ai/providers/ai_providers.dart';
+import '../../ai/providers/model_download_controller.dart';
 import '../domain/note_document.dart';
 import '../domain/note_folder.dart';
 import '../providers/notes_actions.dart';
@@ -1156,6 +1157,7 @@ class _InlineSummaryPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const _ModelDownloadPrompt(),
           Align(
             alignment: Alignment.centerRight,
             child: FilledButton.tonalIcon(
@@ -1176,6 +1178,114 @@ class _InlineSummaryPanel extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Prompt shown inside the AI summary panel when the optional on-device models
+/// have not been downloaded yet. Renders nothing once the models are present.
+class _ModelDownloadPrompt extends ConsumerWidget {
+  const _ModelDownloadPrompt();
+
+  String _formatMb(int bytes) {
+    final mb = bytes / (1024 * 1024);
+    return '${mb.toStringAsFixed(0)} MB';
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final download = ref.watch(modelDownloadControllerProvider);
+    final needsDownloadAsync = ref.watch(modelsNeedDownloadProvider);
+
+    // Once the download completes the models are present, so dismiss the prompt
+    // regardless of the (possibly still-refreshing) needs-download flag.
+    if (download.status == ModelDownloadStatus.completed) {
+      return const SizedBox.shrink();
+    }
+
+    // While actively downloading or after a failure, keep the panel visible so
+    // the user sees progress/errors even before the needs-download flag flips.
+    final isBusyOrFailed = download.status == ModelDownloadStatus.downloading ||
+        download.status == ModelDownloadStatus.failed;
+    final needsDownload = needsDownloadAsync.valueOrNull ?? false;
+    if (!needsDownload && !isBusyOrFailed) {
+      return const SizedBox.shrink();
+    }
+
+    final theme = Theme.of(context);
+    final controller = ref.read(modelDownloadControllerProvider.notifier);
+    final fraction = download.fraction;
+
+    Widget body;
+    switch (download.status) {
+      case ModelDownloadStatus.downloading:
+        body = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              fraction == null
+                  ? 'Downloading AI models…'
+                  : 'Downloading AI models… ${(fraction * 100).toStringAsFixed(0)}%'
+                      ' (${_formatMb(download.received)} / ${_formatMb(download.total)})',
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: const Color(0xFF22333B)),
+            ),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(value: fraction),
+            ),
+          ],
+        );
+        break;
+      case ModelDownloadStatus.failed:
+        body = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Model download failed. Check your connection and try again.',
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: const Color(0xFF8A3B2F)),
+            ),
+            const SizedBox(height: 10),
+            FilledButton.tonalIcon(
+              onPressed: controller.downloadModels,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Retry download'),
+            ),
+          ],
+        );
+        break;
+      default:
+        body = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'On-device AI models power summaries and semantic search. They '
+              'download once and then run fully offline.',
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: const Color(0xFF22333B)),
+            ),
+            const SizedBox(height: 10),
+            FilledButton.tonalIcon(
+              onPressed: controller.downloadModels,
+              icon: const Icon(Icons.download_rounded),
+              label: const Text('Download AI models'),
+            ),
+          ],
+        );
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDF7EE),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE3D2B8)),
+      ),
+      child: body,
     );
   }
 }

@@ -794,7 +794,7 @@ class OnnxSessionManager {
         var output = input.trim()
         output = output.replace(Regex("^\\s*(summary|summarize)\\s*:\\s*", RegexOption.IGNORE_CASE), "")
         output = output.replace(Regex("\\s+"), " ").trim()
-        output = output.replace(Regex("^[,:;\\-\\s]+"), "")
+        output = output.replace(Regex("^[.,:;\\-\\s]+"), "")
         output = output.replace(Regex("\\s*[:;,-]\\s*$"), "")
 
         val sentences = output
