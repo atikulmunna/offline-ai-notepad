@@ -38,7 +38,9 @@ class LocalModelAssetStager {
         results.add(LocalModelStage(
           installation: installation,
           runtimeDirectory: runtimeDirectory,
-          errorMessage: 'Model assets are not bundled yet.',
+          errorMessage: installation.spec.isDownloadable
+              ? 'Model not downloaded yet.'
+              : 'Model assets are not bundled yet.',
         ));
         continue;
       }
@@ -65,9 +67,20 @@ class LocalModelAssetStager {
     required LocalModelInstallation installation,
     required String runtimeDirectory,
   }) async {
-    final bundle = _bundle ?? rootBundle;
     final modelDir = p.join(runtimeDirectory, installation.spec.id);
     await Directory(modelDir).create(recursive: true);
+
+    // On-demand models are already written into the runtime directory by the
+    // downloader — there is nothing in the asset bundle to copy, so just
+    // resolve the on-disk paths.
+    if (installation.spec.isDownloadable) {
+      return _stageDownloaded(
+        installation: installation,
+        modelDir: modelDir,
+      );
+    }
+
+    final bundle = _bundle ?? rootBundle;
 
     try {
       final stagedModelPath = await _copyAsset(
@@ -102,6 +115,40 @@ class LocalModelAssetStager {
         errorMessage: '$error',
       );
     }
+  }
+
+  Future<LocalModelStage> _stageDownloaded({
+    required LocalModelInstallation installation,
+    required String modelDir,
+  }) async {
+    final modelPath = p.join(modelDir, p.basename(installation.spec.assetPath));
+    if (!await File(modelPath).exists()) {
+      return LocalModelStage(
+        installation: installation,
+        runtimeDirectory: modelDir,
+        errorMessage: 'Downloaded model file missing at $modelPath.',
+      );
+    }
+
+    String? tokenizerPath;
+    if (installation.spec.tokenizerAssetPath != null) {
+      tokenizerPath =
+          p.join(modelDir, p.basename(installation.spec.tokenizerAssetPath!));
+      if (!await File(tokenizerPath).exists()) {
+        return LocalModelStage(
+          installation: installation,
+          runtimeDirectory: modelDir,
+          errorMessage: 'Downloaded tokenizer missing at $tokenizerPath.',
+        );
+      }
+    }
+
+    return LocalModelStage(
+      installation: installation,
+      stagedModelPath: modelPath,
+      stagedTokenizerPath: tokenizerPath,
+      runtimeDirectory: modelDir,
+    );
   }
 
   Future<void> _copyCompanionAssets({

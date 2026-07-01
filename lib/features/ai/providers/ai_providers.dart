@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database_provider.dart';
 import '../data/local_model_asset_stager.dart';
+import '../data/local_model_downloader.dart';
 import '../data/local_model_installation_checker.dart';
 import '../data/local_model_manifest_loader.dart';
 import '../data/local_note_embedding_indexer.dart';
@@ -87,9 +88,15 @@ final localModelManifestProvider = FutureProvider<LocalModelManifest>((ref) asyn
   return loader.load();
 });
 
+final localModelDownloaderProvider = Provider<LocalModelDownloader>((ref) {
+  return LocalModelDownloader();
+});
+
 final localModelInstallationCheckerProvider =
     Provider<LocalModelInstallationChecker>((ref) {
-  return const LocalModelInstallationChecker();
+  return LocalModelInstallationChecker(
+    downloader: ref.watch(localModelDownloaderProvider),
+  );
 });
 
 final localModelInstallationsProvider =

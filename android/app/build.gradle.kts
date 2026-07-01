@@ -56,6 +56,15 @@ android {
             } else {
                 signingConfigs.getByName("debug")
             }
+            // Keep code shrinking on, but apply the ONNX Runtime keep rules so
+            // R8 does not obfuscate/strip the classes its JNI layer resolves by
+            // name (otherwise OrtSession.run aborts on first use).
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }
