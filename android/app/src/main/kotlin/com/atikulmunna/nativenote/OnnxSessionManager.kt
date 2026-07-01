@@ -8,6 +8,7 @@ import java.io.File
 import java.nio.FloatBuffer
 import java.nio.LongBuffer
 import kotlin.math.min
+import kotlin.math.sqrt
 import org.json.JSONObject
 
 class OnnxSessionManager {
@@ -23,6 +24,13 @@ class OnnxSessionManager {
     private var tokenToId: Map<String, Int> = emptyMap()
     private var tokenScores: Map<String, Double> = emptyMap()
     private var idToToken: Map<Int, String> = emptyMap()
+
+    // Embedding path (BERT/WordPiece, e.g. all-MiniLM-L6-v2). Kept separate from
+    // the seq2seq summarizer state above because the tokenizers differ.
+    private var embeddingSession: OrtSession? = null
+    private var embeddingModelPath: String? = null
+    private var embeddingTokenizerPath: String? = null
+    private var wordPieceVocab: Map<String, Int> = emptyMap()
 
     fun ensureSummarySession(
         modelPath: String,
@@ -382,14 +390,15 @@ class OnnxSessionManager {
         } else {
             normalizedBody
         }
+        // FLAN-T5 follows the canonical "summarize:" task prefix reliably; a
+        // verbose meta-instruction makes the small model degenerate (repeating or
+        // hallucinating). Keep the title as lightweight context only.
         return buildString {
-            append("Summarize this note in 2 concrete sentences. Name the subject directly, avoid vague openings like 'it' or 'this', and mention the main takeaway or outcome. ")
+            append("summarize: ")
             if (!normalizedTitle.isNullOrBlank()) {
-                append("Subject: ")
                 append(normalizedTitle)
                 append(". ")
             }
-            append("Note: ")
             append(clippedBody)
         }.trim()
     }
@@ -794,9 +803,21 @@ class OnnxSessionManager {
             .filter { it.isNotEmpty() }
             .distinct()
 
+        // Keep up to two sentences, but drop a trailing sentence that merely
+        // restates an earlier one. Greedy decode on this model tends to emit a
+        // near-duplicate second sentence that only differs in a token or two
+        // (e.g. "...by 11:00 AM." followed by "...by 11:00 PM."), which reads as
+        // a contradiction. distinct() misses these because they are not exact
+        // matches, so compare content-word overlap instead.
+        val kept = mutableListOf<String>()
+        for (sentence in sentences) {
+            if (kept.size >= 2) break
+            if (kept.any { isNearDuplicateSentence(it, sentence) }) continue
+            kept.add(sentence)
+        }
+
         output = when {
-            sentences.size >= 2 -> sentences.take(2).joinToString(" ")
-            sentences.isNotEmpty() -> sentences.first()
+            kept.isNotEmpty() -> kept.joinToString(" ")
             else -> output
         }
 
@@ -810,6 +831,33 @@ class OnnxSessionManager {
         }
 
         return output.trim()
+    }
+
+    /**
+     * True when [candidate] is essentially a restatement of [existing]: the two
+     * share most of their content words. Used to drop a redundant / contradictory
+     * trailing sentence produced by greedy decoding.
+     */
+    private fun isNearDuplicateSentence(existing: String, candidate: String): Boolean {
+        val existingWords = contentWords(existing)
+        val candidateWords = contentWords(candidate)
+        if (existingWords.isEmpty() || candidateWords.isEmpty()) return false
+
+        val overlap = candidateWords.count { existingWords.contains(it) }
+        // Compare against the smaller set so a short paraphrase of a long
+        // sentence still counts as a duplicate.
+        val denominator = min(existingWords.size, candidateWords.size)
+        return overlap.toDouble() / denominator >= 0.6
+    }
+
+    private fun contentWords(sentence: String): Set<String> {
+        // Keep 2-char tokens and digits (e.g. "AM"/"PM"/"11") — they often carry
+        // the distinguishing detail between two otherwise similar sentences.
+        return Regex("[\\p{L}\\p{N}]+")
+            .findAll(sentence.lowercase())
+            .map { it.value }
+            .filter { it.length >= 2 }
+            .toSet()
     }
 
     private fun anchorToTitle(title: String?, summary: String): String {
@@ -933,6 +981,288 @@ class OnnxSessionManager {
             is Array<*> -> value.flatMap { flattenSample(it) }
             is Iterable<*> -> value.flatMap { flattenSample(it) }
             else -> listOf(value.toString())
+        }
+    }
+
+    fun ensureEmbeddingSession(modelPath: String): Boolean {
+        val modelFile = File(modelPath)
+        if (!modelFile.exists()) {
+            return false
+        }
+
+        if (embeddingSession != null && embeddingModelPath == modelFile.absolutePath) {
+            return true
+        }
+
+        closeEmbeddingSession()
+
+        val env = environment ?: OrtEnvironment.getEnvironment().also {
+            environment = it
+        }
+
+        return try {
+            embeddingSession = env.createSession(
+                modelFile.absolutePath,
+                OrtSession.SessionOptions(),
+            )
+            embeddingModelPath = modelFile.absolutePath
+            true
+        } catch (_: OrtException) {
+            closeEmbeddingSession()
+            false
+        }
+    }
+
+    /**
+     * Produces a mean-pooled, L2-normalized sentence embedding for [text] using a
+     * BERT-style encoder (all-MiniLM-L6-v2). Returns null when the model or
+     * tokenizer cannot be loaded so the Dart layer can fall back to lexical search.
+     */
+    fun generateEmbedding(
+        text: String,
+        modelPath: String,
+        tokenizerPath: String?,
+        maxSequenceLength: Int? = null,
+    ): FloatArray? {
+        if (text.isBlank()) {
+            return null
+        }
+        if (!ensureEmbeddingSession(modelPath)) {
+            return null
+        }
+        if (!loadWordPieceVocab(tokenizerPath)) {
+            return null
+        }
+
+        val maxLen = maxSequenceLength ?: 256
+        val (inputIds, attentionMask) = wordPieceTokenize(text, maxLen)
+        if (inputIds.isEmpty()) {
+            return null
+        }
+
+        return runEmbeddingEncoder(inputIds, attentionMask)
+    }
+
+    private fun loadWordPieceVocab(path: String?): Boolean {
+        if (path.isNullOrBlank()) {
+            return false
+        }
+        if (embeddingTokenizerPath == path && wordPieceVocab.isNotEmpty()) {
+            return true
+        }
+
+        val tokenizerFile = File(path)
+        if (!tokenizerFile.exists()) {
+            embeddingTokenizerPath = path
+            wordPieceVocab = emptyMap()
+            return false
+        }
+
+        return try {
+            val parsed = mutableMapOf<String, Int>()
+            val json = JSONObject(tokenizerFile.readText())
+            // WordPiece tokenizer.json stores model.vocab as a {token: id} object.
+            val vocab = json.optJSONObject("model")?.optJSONObject("vocab")
+            if (vocab != null) {
+                val keys = vocab.keys()
+                while (keys.hasNext()) {
+                    val token = keys.next()
+                    parsed[token] = vocab.optInt(token)
+                }
+            }
+
+            // Fallback: a sibling vocab.txt (one token per line, line index = id).
+            if (parsed.isEmpty()) {
+                val vocabTxt = File(tokenizerFile.parentFile, "vocab.txt")
+                if (vocabTxt.exists()) {
+                    vocabTxt.readLines().forEachIndexed { index, line ->
+                        val token = line.trim()
+                        if (token.isNotEmpty()) {
+                            parsed[token] = index
+                        }
+                    }
+                }
+            }
+
+            embeddingTokenizerPath = path
+            wordPieceVocab = parsed
+            parsed.isNotEmpty()
+        } catch (_: Exception) {
+            embeddingTokenizerPath = path
+            wordPieceVocab = emptyMap()
+            false
+        }
+    }
+
+    private fun wordPieceTokenize(text: String, maxLen: Int): Pair<LongArray, LongArray> {
+        val clsId = wordPieceVocab["[CLS]"] ?: 101
+        val sepId = wordPieceVocab["[SEP]"] ?: 102
+        val unkId = wordPieceVocab["[UNK]"] ?: 100
+
+        val pieceIds = mutableListOf<Int>()
+        // Reserve two slots for [CLS]/[SEP].
+        val budget = maxLen - 2
+        outer@ for (word in basicTokenize(text)) {
+            if (word.length > 100) {
+                pieceIds.add(unkId)
+                if (pieceIds.size >= budget) break
+                continue
+            }
+            var start = 0
+            val wordPieces = mutableListOf<Int>()
+            while (start < word.length) {
+                var end = word.length
+                var matchedId: Int? = null
+                while (start < end) {
+                    val sub = if (start > 0) "##${word.substring(start, end)}" else word.substring(start, end)
+                    val id = wordPieceVocab[sub]
+                    if (id != null) {
+                        matchedId = id
+                        break
+                    }
+                    end -= 1
+                }
+                if (matchedId == null) {
+                    wordPieces.clear()
+                    wordPieces.add(unkId)
+                    break
+                }
+                wordPieces.add(matchedId)
+                start = end
+            }
+            for (id in wordPieces) {
+                if (pieceIds.size >= budget) break@outer
+                pieceIds.add(id)
+            }
+        }
+
+        val ids = ArrayList<Long>(pieceIds.size + 2)
+        ids.add(clsId.toLong())
+        pieceIds.forEach { ids.add(it.toLong()) }
+        ids.add(sepId.toLong())
+
+        val inputIds = LongArray(ids.size) { ids[it] }
+        val attentionMask = LongArray(ids.size) { 1L }
+        return inputIds to attentionMask
+    }
+
+    private fun basicTokenize(text: String): List<String> {
+        // Lowercase + whitespace/punctuation split, matching BERT uncased basic
+        // tokenization closely enough for retrieval-quality embeddings.
+        val lowered = text.lowercase()
+        val tokens = mutableListOf<String>()
+        val builder = StringBuilder()
+        for (ch in lowered) {
+            when {
+                ch.isWhitespace() -> {
+                    if (builder.isNotEmpty()) {
+                        tokens.add(builder.toString())
+                        builder.clear()
+                    }
+                }
+                ch.isLetterOrDigit() -> builder.append(ch)
+                else -> {
+                    if (builder.isNotEmpty()) {
+                        tokens.add(builder.toString())
+                        builder.clear()
+                    }
+                    tokens.add(ch.toString())
+                }
+            }
+        }
+        if (builder.isNotEmpty()) {
+            tokens.add(builder.toString())
+        }
+        return tokens
+    }
+
+    private fun runEmbeddingEncoder(
+        inputIds: LongArray,
+        attentionMask: LongArray,
+    ): FloatArray? {
+        val env = environment ?: return null
+        val session = embeddingSession ?: return null
+        return try {
+            val shape = longArrayOf(1, inputIds.size.toLong())
+            val idsTensor = OnnxTensor.createTensor(env, LongBuffer.wrap(inputIds), shape)
+            val maskTensor = OnnxTensor.createTensor(env, LongBuffer.wrap(attentionMask), shape)
+            val typeIds = LongArray(inputIds.size) { 0L }
+            val typeTensor = OnnxTensor.createTensor(env, LongBuffer.wrap(typeIds), shape)
+
+            idsTensor.use { ids ->
+                maskTensor.use { mask ->
+                    typeTensor.use { types ->
+                        val feed = linkedMapOf<String, OnnxTensor>()
+                        feed["input_ids"] = ids
+                        feed["attention_mask"] = mask
+                        // Only feed token_type_ids if the exported graph declares it.
+                        if (session.inputNames.contains("token_type_ids")) {
+                            feed["token_type_ids"] = types
+                        }
+                        session.run(feed).use { results ->
+                            val hidden = results[0] as? OnnxTensor ?: return null
+                            val outShape = hidden.info.shape // [1, seq, hidden]
+                            val seq = outShape.getOrNull(1)?.toInt() ?: return null
+                            val hiddenSize = outShape.getOrNull(2)?.toInt() ?: return null
+                            val flat = FloatArray(hidden.floatBuffer.remaining())
+                            hidden.floatBuffer.get(flat)
+                            meanPoolAndNormalize(flat, attentionMask, seq, hiddenSize)
+                        }
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun meanPoolAndNormalize(
+        hidden: FloatArray,
+        attentionMask: LongArray,
+        seq: Int,
+        hiddenSize: Int,
+    ): FloatArray {
+        val pooled = FloatArray(hiddenSize)
+        var counted = 0
+        for (t in 0 until seq) {
+            if (t < attentionMask.size && attentionMask[t] == 0L) {
+                continue
+            }
+            val base = t * hiddenSize
+            for (h in 0 until hiddenSize) {
+                pooled[h] += hidden[base + h]
+            }
+            counted += 1
+        }
+        if (counted > 0) {
+            for (h in 0 until hiddenSize) {
+                pooled[h] /= counted
+            }
+        }
+
+        var norm = 0.0
+        for (value in pooled) {
+            norm += value * value
+        }
+        norm = sqrt(norm)
+        if (norm > 0) {
+            val inv = (1.0 / norm).toFloat()
+            for (h in pooled.indices) {
+                pooled[h] *= inv
+            }
+        }
+        return pooled
+    }
+
+    private fun closeEmbeddingSession() {
+        try {
+            embeddingSession?.close()
+        } catch (_: Exception) {
+        } finally {
+            embeddingSession = null
+            embeddingModelPath = null
+            embeddingTokenizerPath = null
+            wordPieceVocab = emptyMap()
         }
     }
 

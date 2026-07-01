@@ -1,6 +1,6 @@
 class DatabaseSchema {
   static const databaseName = 'offline_ai_notepad.db';
-  static const databaseVersion = 2;
+  static const databaseVersion = 3;
 
   static const notesTable = 'notes';
   static const foldersTable = 'folders';
@@ -63,11 +63,19 @@ CREATE TABLE embeddings (
   note_id TEXT PRIMARY KEY,
   model_ver TEXT NOT NULL,
   status TEXT NOT NULL,
+  embedding BLOB,
+  dim INTEGER,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
 );
 ''';
+
+  static const addEmbeddingVectorColumn =
+      'ALTER TABLE embeddings ADD COLUMN embedding BLOB;';
+
+  static const addEmbeddingDimColumn =
+      'ALTER TABLE embeddings ADD COLUMN dim INTEGER;';
 
   static const allCreateStatements = [
     createNotesTable,

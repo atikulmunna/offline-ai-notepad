@@ -135,13 +135,13 @@ The current project includes:
 - installation checks
 - packaged asset staging
 - Android ONNX runtime bridge code
-- FLAN-T5 small local summarization experiments
+- on-device summarization (Falconsai/text_summarization, a T5-small fine-tuned for summaries)
 
 The app can inspect whether model assets exist, whether they were staged to a runtime directory, and whether the native runtime is available.
 
 ## AI Stack Overview
 
-The current local AI path is based on ONNX Runtime for Android, with FLAN-T5-small as the first summarization target.
+The current local AI path is based on ONNX Runtime for Android, using Falconsai/text_summarization (a summarization-fine-tuned T5-small) as the summarization model.
 
 High-level flow:
 
@@ -277,16 +277,16 @@ Formatting is stored with the note and should return when the note is reopened.
 
 Large model binaries are intentionally kept out of normal Git history.
 
-To export and stage the local FLAN-T5 small summarization model:
+To export and stage the local summarization model:
 
 ```powershell
-.\scripts\export_flan_t5_small.ps1
+.\scripts\export_falconsai.ps1
 ```
 
 That script:
 
-1. exports `google/flan-t5-small` to ONNX
-2. quantizes the encoder and decoder
+1. exports `Falconsai/text_summarization` (summarization-fine-tuned T5-small) to ONNX
+2. quantizes the encoder and decoder to int8
 3. copies the generated files into the expected local asset staging area
 4. makes the tokenizer/config files available for runtime inspection
 

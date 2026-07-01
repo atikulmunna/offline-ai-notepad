@@ -9,6 +9,7 @@ import '../data/local_note_summarizer.dart';
 import '../data/note_ai_repository.dart';
 import '../data/onnx_ai_runtime.dart';
 import '../data/onnx_method_channel_client.dart';
+import '../data/onnx_note_embedding_indexer.dart';
 import '../domain/ai_runtime.dart';
 import '../domain/ai_runtime_status.dart';
 import '../domain/local_model_installation.dart';
@@ -17,6 +18,7 @@ import '../domain/local_model_stage.dart';
 import '../domain/local_model_task.dart';
 import '../domain/note_ai_snapshot.dart';
 import '../domain/note_embedding_indexer.dart';
+import '../domain/note_query_embedder.dart';
 import '../domain/note_summarizer.dart';
 import '../domain/onnx_runtime_capability.dart';
 
@@ -24,8 +26,33 @@ final noteSummarizerProvider = Provider<NoteSummarizer>((ref) {
   return LocalNoteSummarizer();
 });
 
-final noteEmbeddingIndexerProvider = Provider<NoteEmbeddingIndexer>((ref) {
-  return LocalNoteEmbeddingIndexer();
+final noteEmbeddingIndexerProvider =
+    FutureProvider<NoteEmbeddingIndexer>((ref) async {
+  final capability = await ref.watch(onnxRuntimeCapabilityProvider.future);
+  final stages = await ref.watch(localModelStagesProvider.future);
+  final embeddingStage = stages
+      .where((stage) => stage.installation.spec.task == LocalModelTask.embedding)
+      .cast<LocalModelStage?>()
+      .firstWhere((stage) => stage != null, orElse: () => null);
+
+  return OnnxNoteEmbeddingIndexer(
+    methodChannelClient: ref.watch(onnxMethodChannelClientProvider),
+    embeddingStage: embeddingStage,
+    capability: capability,
+    fallback: LocalNoteEmbeddingIndexer(),
+  );
+});
+
+/// The query-side embedder for semantic search, when a native embedding runtime
+/// is available. Null on platforms that fall back to lexical ranking.
+final noteQueryEmbedderProvider =
+    FutureProvider<NoteQueryEmbedder?>((ref) async {
+  final capability = await ref.watch(onnxRuntimeCapabilityProvider.future);
+  if (!capability.isUsable) {
+    return null;
+  }
+  final indexer = await ref.watch(noteEmbeddingIndexerProvider.future);
+  return indexer is NoteQueryEmbedder ? indexer as NoteQueryEmbedder : null;
 });
 
 final onnxMethodChannelClientProvider = Provider<OnnxMethodChannelClient>((ref) {
@@ -43,7 +70,8 @@ final aiRuntimeProvider = FutureProvider<AiRuntime>((ref) async {
   final stages = await ref.watch(localModelStagesProvider.future);
   return OnnxAiRuntime(
     fallbackSummarizer: ref.watch(noteSummarizerProvider),
-    fallbackEmbeddingIndexer: ref.watch(noteEmbeddingIndexerProvider),
+    fallbackEmbeddingIndexer:
+        await ref.watch(noteEmbeddingIndexerProvider.future),
     capability: capability,
     stages: stages,
     methodChannelClient: ref.watch(onnxMethodChannelClientProvider),
@@ -85,13 +113,18 @@ final aiRuntimeStatusProvider = FutureProvider<AiRuntimeStatus>((ref) async {
   final capability = await ref.watch(onnxRuntimeCapabilityProvider.future);
   final manifest = await ref.watch(localModelManifestProvider.future);
   final installations = await ref.watch(localModelInstallationsProvider.future);
+  final stages = await ref.watch(localModelStagesProvider.future);
   final summaryModel = manifest.byTask(LocalModelTask.summarization);
   final embeddingModel = manifest.byTask(LocalModelTask.embedding);
   final packagedModels = manifest.packagedCount;
   final installedModels = installations.where((item) => item.isInstalled).length;
   final totalModels = manifest.models.length;
-  final stagedModels = 0;
-  final packagedRuntimeReady = false;
+  final stagedModels = stages.where((stage) => stage.isStaged).length;
+  final runtimeDirectory = stages
+      .map((stage) => stage.runtimeDirectory)
+      .firstWhere((dir) => dir != null, orElse: () => null);
+  final packagedRuntimeReady =
+      capability.nativeLibraryLinked && stagedModels > 0;
   final runtimeLabel = capability.nativeLibraryLinked
       ? 'ONNX runtime ready on demand'
       : capability.bridgeAvailable
@@ -120,7 +153,7 @@ final aiRuntimeStatusProvider = FutureProvider<AiRuntimeStatus>((ref) async {
     totalModels: totalModels,
     summaryModelId: summaryModel?.id,
     embeddingModelId: embeddingModel?.id,
-    runtimeDirectory: null,
+    runtimeDirectory: runtimeDirectory,
     capabilityMessage: capability.message,
     sessionMessage:
         'Runs when you generate a summary.',

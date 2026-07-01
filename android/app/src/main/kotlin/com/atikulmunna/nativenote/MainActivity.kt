@@ -140,6 +140,44 @@ class MainActivity : FlutterActivity() {
                     }
                 }
 
+                "generateEmbedding" -> {
+                    val modelPath = call.argument<String>("modelPath")
+                    val tokenizerPath = call.argument<String>("tokenizerPath")
+                    val text = call.argument<String>("text")
+                    val maxSequenceLength = call.argument<Int>("maxSequenceLength")
+                    if (modelPath.isNullOrBlank() || text.isNullOrBlank()) {
+                        result.error(
+                            "missing_arguments",
+                            "Both modelPath and text are required.",
+                            null,
+                        )
+                        return@setMethodCallHandler
+                    }
+
+                    val embedding = onnxSessionManager.generateEmbedding(
+                        text = text,
+                        modelPath = modelPath,
+                        tokenizerPath = tokenizerPath,
+                        maxSequenceLength = maxSequenceLength,
+                    )
+                    if (embedding == null) {
+                        result.error(
+                            "embedding_unavailable",
+                            "ONNX embedding session could not be opened for the staged model.",
+                            null,
+                        )
+                    } else {
+                        result.success(
+                            mapOf(
+                                "embedding" to embedding.map { it.toDouble() },
+                                "dim" to embedding.size,
+                                "engine" to "android-onnx-embedding",
+                                "message" to "Embedding generated through the native ONNX mean-pooled encoder path.",
+                            ),
+                        )
+                    }
+                }
+
                 "inspectContract" -> {
                     val modelPath = call.argument<String>("modelPath")
                     val inputNames = call.argument<List<String>>("inputNames") ?: emptyList()

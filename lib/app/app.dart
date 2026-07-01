@@ -3,6 +3,7 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'theme/app_theme.dart';
+import '../features/ai/providers/ai_actions.dart';
 import '../features/notes/presentation/home_page.dart';
 import '../features/security/providers/app_lock_providers.dart';
 
@@ -19,6 +20,11 @@ class _OfflineAiNotepadAppState extends ConsumerState<OfflineAiNotepadApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Backfill embeddings for existing notes once the first frame is up, so
+    // semantic search works on notes created before this build / model version.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(aiActionsProvider).backfillEmbeddings();
+    });
   }
 
   @override
