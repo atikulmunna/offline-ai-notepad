@@ -15,6 +15,9 @@ A privacy-first, offline-first note-taking app built with Flutter. Notes live on
 
 - **On-device semantic search.** On Android, queries are embedded with a real `all-MiniLM-L6-v2` ONNX model and ranked by cosine similarity against per-note vectors in SQLite, so "car repair" can surface a note about "fixing the brakes." The text never leaves the device.
 - **On-device summarization.** Note summaries run through an ONNX seq2seq model (`Falconsai/text_summarization`, a summary-tuned T5-small) locally, with no API key, no server, and support for airplane mode.
+- **Ask your notes.** Ask a natural-language question and get an answer synthesized from your own notes, with tap-through citations — retrieval-augmented over the on-device embeddings, fully offline. Plus a "related notes" strip and smart title/folder/tag suggestions while you write.
+- **Voice → note, on-device.** Dictate a note with the platform's built-in recognizer running in on-device mode, so captured audio never leaves the phone; the transcript becomes an editable, searchable note.
+- **Rich capture.** Inline images, checklists, tags and folders, and lossless-enough Markdown import/export — the everyday note-taking table stakes, all local.
 - **AMOLED + liquid-glass design.** A switchable System / Light / AMOLED theme, translucent frosted-glass cards and controls, and a pluggable animated backdrop (particles, snow, geometric, space, or shuffle) behind the library.
 - **Privacy by default.** Notes are stored locally in SQLite, with an optional PIN lock and passphrase-encrypted backup/restore.
 - **Graceful degradation.** The native ONNX path is Android-only today; elsewhere the app falls back to lexical search and an extractive summarizer, so features degrade in quality rather than break.
@@ -22,12 +25,12 @@ A privacy-first, offline-first note-taking app built with Flutter. Notes live on
 
 ## Download & Try It (Android)
 
-Grab the latest APK from the [**v1.1.0 release**](https://github.com/atikulmunna/offline-ai-notepad/releases/tag/v1.1.0):
+Grab the latest APK from the [**v1.2.0 release**](https://github.com/atikulmunna/offline-ai-notepad/releases/tag/v1.2.0):
 
 | Device | APK | Size |
 |---|---|---|
-| Most phones (last ~7 years, 64-bit) | [arm64-v8a](https://github.com/atikulmunna/offline-ai-notepad/releases/download/v1.1.0/offline-ai-notepad-v1.1.0-arm64-v8a.apk) | ~52 MB |
-| Older 32-bit devices | [armeabi-v7a](https://github.com/atikulmunna/offline-ai-notepad/releases/download/v1.1.0/offline-ai-notepad-v1.1.0-armeabi-v7a.apk) | ~43 MB |
+| Most phones (last ~7 years, 64-bit) | [arm64-v8a](https://github.com/atikulmunna/offline-ai-notepad/releases/download/v1.2.0/offline-ai-notepad-v1.2.0-arm64-v8a.apk) | ~54 MB |
+| Older 32-bit devices | [armeabi-v7a](https://github.com/atikulmunna/offline-ai-notepad/releases/download/v1.2.0/offline-ai-notepad-v1.2.0-armeabi-v7a.apk) | ~45 MB |
 
 **Install:** download the APK, allow "install from unknown sources" if prompted, and open it. It is signed with a debug key (a side-load/testing build), so Android may warn about an unknown developer.
 
@@ -63,9 +66,11 @@ The local AI path is built on ONNX Runtime for Android and uses two quantized mo
 
 **Editor.** A title field, a folder picker, and a `flutter_quill` rich-text body. Autosave persists changes locally after a short debounce.
 
-**Rich text.** Bold, italic, underline, strikethrough, text color, highlight, and clear-formatting. Formatting is stored with the note and restored on reopen.
+**Rich text.** Bold, italic, underline, strikethrough, text color, highlight, checklists, inline images, and clear-formatting. Formatting is stored with the note and restored on reopen. Images are copied into a local `attachments/` folder and referenced from the delta by file name, so they never bloat the searchable text.
 
-**Note management.** Create/edit, folders, pin, archive, trash/restore/permanent-delete, and keyword or semantic search.
+**Voice notes.** A mic button captures speech via the platform's on-device recognizer (`speech_to_text` with `onDevice: true`); the transcript is saved as a normal note and opened in the editor for review.
+
+**Note management.** Create/edit, folders, tags, pin, archive, trash/restore/permanent-delete, keyword or semantic search, and Markdown import/export.
 
 ## Technology Stack
 
@@ -126,7 +131,7 @@ The unit tests cover the pieces that are easy to get wrong without a device: sum
 To verify the AI features on a device:
 
 1. **Build & install:** `flutter build apk --debug && adb install -r build/app/outputs/flutter-apk/app-debug.apk` (or `flutter run`).
-2. **Summarization:** open a multi-paragraph note, open the AI panel, tap **Refresh**. Expect a short, on-topic summary of at most two sentences, or a clean extractive fallback if native output is weak.
+2. **Summarization:** open a multi-paragraph note, open the AI panel, tap the refresh icon. Expect a short, on-topic summary of at most two sentences, or a clean extractive fallback if native output is weak.
 3. **Semantic search:** seed ~20 notes, switch to semantic mode, and query by *meaning* rather than exact words. Vector ranking should beat the old lexical ranking; on Windows/web the same query still returns sensible lexical results.
 4. **Persistence/migration:** launch on an existing v2 database and confirm it upgrades to v3 (adds `embedding` + `dim` columns) without data loss, and that a note's embedding row transitions `queued → indexed` with a non-null vector BLOB.
 
