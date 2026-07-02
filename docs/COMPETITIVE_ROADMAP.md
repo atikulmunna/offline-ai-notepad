@@ -45,12 +45,18 @@ source notes.
 
 **Dependencies:** existing embeddings + ONNX runtime. Benefits from A5 chunking.
 
-### A2. Auto-Everything on Save  `[ ]`
+### A2. Auto-Everything on Save  `[~]`
 **Why:** Turns AI from a button you press into an assistant that quietly
 organizes. Uses models already loaded.
 
 **Scope:** On save (debounced), optionally: auto-title untitled notes,
 auto-generate/refresh a summary, and suggest a folder and tags.
+
+**Status (v1 shipped):** title + folder suggestions surfaced as non-destructive
+tappable chips in the editor (debounced after typing), gated by a persisted
+"Smart suggestions" toggle in the Appearance sheet. Deferred: auto-summary on
+save (battery-sensitive; summary already exists as a manual action) and tag
+suggestions (blocked on B3 tags).
 
 **Approach:**
 - Reuse the summarizer for title + summary generation.

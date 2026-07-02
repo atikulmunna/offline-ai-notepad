@@ -82,6 +82,21 @@ class _AppearanceSheet extends ConsumerWidget {
                   ),
               ],
             ),
+            const SizedBox(height: 24),
+            Text('Assistant', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 4),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: state.smartSuggestions,
+              onChanged: controller.setSmartSuggestions,
+              title: const Text('Smart suggestions'),
+              subtitle: Text(
+                'Suggest a title and folder while you write, on device.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: surfaces.mutedText,
+                ),
+              ),
+            ),
           ],
         ),
       ),

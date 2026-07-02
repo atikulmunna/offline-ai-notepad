@@ -11,26 +11,31 @@ class AppearanceState {
     required this.isReady,
     required this.themeMode,
     required this.background,
+    required this.smartSuggestions,
   });
 
   const AppearanceState.initial()
       : isReady = false,
         themeMode = AppThemeMode.system,
-        background = AppBackground.particles;
+        background = AppBackground.particles,
+        smartSuggestions = true;
 
   final bool isReady;
   final AppThemeMode themeMode;
   final AppBackground background;
+  final bool smartSuggestions;
 
   AppearanceState copyWith({
     bool? isReady,
     AppThemeMode? themeMode,
     AppBackground? background,
+    bool? smartSuggestions,
   }) {
     return AppearanceState(
       isReady: isReady ?? this.isReady,
       themeMode: themeMode ?? this.themeMode,
       background: background ?? this.background,
+      smartSuggestions: smartSuggestions ?? this.smartSuggestions,
     );
   }
 }
@@ -55,10 +60,12 @@ class AppearanceController extends StateNotifier<AppearanceState> {
   Future<void> _load() async {
     final mode = await _repository.loadThemeMode();
     final background = await _repository.loadBackground();
+    final smartSuggestions = await _repository.loadSmartSuggestions();
     state = AppearanceState(
       isReady: true,
       themeMode: mode,
       background: background,
+      smartSuggestions: smartSuggestions,
     );
   }
 
@@ -76,5 +83,13 @@ class AppearanceController extends StateNotifier<AppearanceState> {
     }
     state = state.copyWith(background: background);
     await _repository.saveBackground(background);
+  }
+
+  Future<void> setSmartSuggestions(bool enabled) async {
+    if (state.smartSuggestions == enabled) {
+      return;
+    }
+    state = state.copyWith(smartSuggestions: enabled);
+    await _repository.saveSmartSuggestions(enabled);
   }
 }

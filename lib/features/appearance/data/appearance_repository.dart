@@ -12,6 +12,7 @@ class AppearanceRepository {
 
   static const _themeModeKey = 'appearance.theme_mode';
   static const _backgroundKey = 'appearance.background';
+  static const _smartSuggestionsKey = 'assist.smart_suggestions';
 
   Future<AppThemeMode> loadThemeMode() async {
     return AppThemeMode.fromStorage(await _preferences.getString(_themeModeKey));
@@ -29,5 +30,15 @@ class AppearanceRepository {
 
   Future<void> saveBackground(AppBackground background) async {
     await _preferences.setString(_backgroundKey, background.storageValue);
+  }
+
+  /// Whether the on-device assistant offers title/folder suggestions while
+  /// writing. Defaults to enabled.
+  Future<bool> loadSmartSuggestions() async {
+    return await _preferences.getBool(_smartSuggestionsKey) ?? true;
+  }
+
+  Future<void> saveSmartSuggestions(bool enabled) async {
+    await _preferences.setBool(_smartSuggestionsKey, enabled);
   }
 }
