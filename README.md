@@ -32,7 +32,7 @@ Grab the latest APK from the [**v1.2.0 release**](https://github.com/atikulmunna
 | Most phones (last ~7 years, 64-bit) | [arm64-v8a](https://github.com/atikulmunna/offline-ai-notepad/releases/download/v1.2.0/offline-ai-notepad-v1.2.0-arm64-v8a.apk) | ~54 MB |
 | Older 32-bit devices | [armeabi-v7a](https://github.com/atikulmunna/offline-ai-notepad/releases/download/v1.2.0/offline-ai-notepad-v1.2.0-armeabi-v7a.apk) | ~45 MB |
 
-**Install:** download the APK, allow "install from unknown sources" if prompted, and open it. It is signed with a debug key (a side-load/testing build), so Android may warn about an unknown developer.
+**Install:** download the APK, allow "install from unknown sources" if prompted, and open it. It is signed with the project's release key (`CN=NativeNote`), so updates install cleanly in place; Android may still warn about an unknown developer simply because it's side-loaded rather than installed from a store.
 
 **Why it's only ~52 MB:** the on-device AI models (~114 MB, powering summaries and semantic search) are **not** bundled in the APK. The first time you use an AI feature, the app offers to download them once from the `models-v1` release; after that they run fully offline. Core note-taking works without them.
 
