@@ -623,6 +623,24 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     setState(() {});
   }
 
+  bool get _isChecklistActive {
+    final value = _bodyController
+        .getSelectionStyle()
+        .attributes[Attribute.list.key]
+        ?.value;
+    return value == Attribute.unchecked.value ||
+        value == Attribute.checked.value;
+  }
+
+  void _toggleChecklist() {
+    _bodyController.formatSelection(
+      _isChecklistActive
+          ? Attribute.clone(Attribute.unchecked, null)
+          : Attribute.unchecked,
+    );
+    setState(() {});
+  }
+
   void _clearFormatting() {
     final clearAttributes = <Attribute>[
       Attribute.clone(Attribute.bold, null),
@@ -874,6 +892,13 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                             tooltip: 'Bullets',
                             isSelected: _isBulletActive,
                             onTap: _toggleBullets,
+                          ),
+                          const SizedBox(width: 10),
+                          _ToolbarActionButton(
+                            icon: Icons.checklist_rounded,
+                            tooltip: 'Checklist',
+                            isSelected: _isChecklistActive,
+                            onTap: _toggleChecklist,
                           ),
                           const SizedBox(width: 10),
                           _ToolbarActionButton(
