@@ -81,18 +81,28 @@ typing path).
 
 **Dependencies:** existing embeddings.
 
-### A4. On-Device Voice → Note  `[ ]`
+### A4. On-Device Voice → Note  `[x]`
 **Why:** Voice memos that become searchable text with no cloud round-trip is a
 strong, demoable hook.
 
 **Scope:** Record audio, transcribe offline, create a note; optionally
 auto-summarize the transcript.
 
-**Approach:** Add a small Whisper (or equivalent) ONNX model to the manifest,
-delivered on demand like the current models. Feed the transcript through the
-existing summarizer. Android-first; graceful "not available" elsewhere.
+**Status:** shipped via the platform's built-in recognizer (`speech_to_text`)
+with `onDevice: true`, so captured audio never leaves the device — consistent
+with the offline/private thesis. A mic FAB on the home screen opens a live
+transcript sheet; saving creates a note from the transcript and opens it in the
+editor (where A2 can suggest a title/folder/tags). Chosen over a hand-rolled
+Whisper-ONNX pipeline as the pragmatic, verifiable on-device path; if a device
+has no offline language installed the sheet reports "unavailable" rather than
+routing audio to the cloud.
 
-**Dependencies:** model export/delivery pipeline (existing pattern).
+**Approach (original):** Add a small Whisper (or equivalent) ONNX model to the
+manifest, delivered on demand like the current models. Feed the transcript
+through the existing summarizer. Android-first; graceful "not available"
+elsewhere. — superseded by the platform-recognizer approach above.
+
+**Dependencies:** none (uses the platform recognizer).
 
 ### A5. On-Device OCR  `[ ]`
 **Why:** Snap a whiteboard/receipt/page and make it semantically searchable —
@@ -116,11 +126,18 @@ runtime-consistent). Extracted text flows into the normal embed-on-save path.
 **Approach:** Use flutter_quill's list/checkbox attributes; ensure the plain-text
 `body` projection stays sensible for search/AI.
 
-### B2. Images & Attachments  `[ ]`
+### B2. Images & Attachments  `[x]`
 **Why:** Baseline expectation; also unlocks A5 (OCR).
 **Scope:** Insert images inline; store files locally; show in editor and preview.
-**Approach:** Local file storage with a DB reference; embed in the Quill delta;
-keep binaries out of the text body. Consider size/perf on the note list.
+**Status:** images insert inline in the editor via a toolbar button. Files are
+copied into a stable `attachments/` folder under app documents and referenced
+from the Quill delta by file name only, so the searchable/AI-indexed body stays
+free of binary noise (a pure `normalizeNoteBodyText` strips the embed
+object-replacement char). A custom `LocalImageEmbedBuilder` renders them, with a
+calm placeholder if a file is missing. Home-list thumbnails are deferred (the
+preview model carries only plain text today).
+**Approach:** Local file storage with a delta reference; embed in the Quill
+delta; keep binaries out of the text body. Consider size/perf on the note list.
 
 ### B3. Tags  `[x]`
 **Why:** Flexible complement to folders; feeds A2 auto-tagging.

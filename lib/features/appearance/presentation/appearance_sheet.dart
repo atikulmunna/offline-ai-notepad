@@ -40,13 +40,6 @@ class _AppearanceSheet extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Appearance', style: theme.textTheme.headlineSmall),
-            const SizedBox(height: 4),
-            Text(
-              'Pick a theme and an animated backdrop for your library.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: surfaces.mutedText,
-              ),
-            ),
             const SizedBox(height: 20),
             Text('Theme', style: theme.textTheme.titleMedium),
             const SizedBox(height: 10),
@@ -62,13 +55,6 @@ class _AppearanceSheet extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
             Text('Library background', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 4),
-            Text(
-              'Plays behind your notes. The editor always stays calm and black.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: surfaces.mutedText,
-              ),
-            ),
             const SizedBox(height: 12),
             Wrap(
               spacing: 10,

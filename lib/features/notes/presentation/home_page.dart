@@ -22,6 +22,7 @@ import '../../appearance/presentation/appearance_sheet.dart';
 import '../../security/data/encrypted_backup_service.dart';
 import '../../security/data/note_protection_service.dart';
 import '../../security/providers/app_lock_providers.dart';
+import '../../voice/voice_capture_sheet.dart';
 import 'note_editor_page.dart';
 
 class NotesHomePage extends ConsumerStatefulWidget {
@@ -87,6 +88,38 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
     );
   }
 
+  /// Captures a voice note on-device, creates a note from the transcript, and
+  /// opens it in the editor for review. Guarded by the app-lock external-
+  /// interaction pause so the mic-permission dialog doesn't trip the lock.
+  Future<void> _startVoiceNote() async {
+    final navigator = Navigator.of(context);
+    final appLockController = ref.read(appLockControllerProvider.notifier);
+    appLockController.beginExternalInteraction();
+    String? transcript;
+    try {
+      transcript = await showModalBottomSheet<String>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => const VoiceCaptureSheet(),
+      );
+    } finally {
+      appLockController.endExternalInteraction();
+    }
+
+    final text = transcript?.trim();
+    if (text == null || text.isEmpty || !mounted) {
+      return;
+    }
+    final id = await ref.read(notesActionsProvider).createNote(body: text);
+    if (!mounted) {
+      return;
+    }
+    await navigator.push<bool>(
+      MaterialPageRoute(builder: (context) => NoteEditorPage(noteId: id)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final notesAsync = ref.watch(notesListProvider);
@@ -98,14 +131,22 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
     final bodyTopPadding = topInset + headerHeight + 24;
 
     return Scaffold(
-      floatingActionButton: _GlassFab(
-        onPressed: () async {
-          await Navigator.of(context).push<bool>(
-            MaterialPageRoute(
-              builder: (context) => const NoteEditorPage(),
-            ),
-          );
-        },
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          _VoiceFab(onPressed: _startVoiceNote),
+          const SizedBox(height: 12),
+          _GlassFab(
+            onPressed: () async {
+              await Navigator.of(context).push<bool>(
+                MaterialPageRoute(
+                  builder: (context) => const NoteEditorPage(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: Stack(
         children: [
@@ -409,6 +450,28 @@ class _AskNotesBar extends StatelessWidget {
   }
 }
 
+/// A compact glass FAB that starts an on-device voice note (A4).
+class _VoiceFab extends StatelessWidget {
+  const _VoiceFab({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final surfaces = Theme.of(context).extension<AppSurfaces>()!;
+    return Tooltip(
+      message: 'New voice note',
+      child: GlassSurface(
+        borderRadius: 18,
+        strongBorder: true,
+        onTap: onPressed,
+        padding: const EdgeInsets.all(14),
+        child: Icon(Icons.mic_rounded, color: surfaces.accent, size: 22),
+      ),
+    );
+  }
+}
+
 class _GlassFab extends StatelessWidget {
   const _GlassFab({required this.onPressed});
 
@@ -416,26 +479,15 @@ class _GlassFab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final surfaces = theme.extension<AppSurfaces>()!;
-    return GlassSurface(
-      borderRadius: 20,
-      strongBorder: true,
-      onTap: onPressed,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.add, color: surfaces.accent, size: 22),
-          const SizedBox(width: 10),
-          Text(
-            'New note',
-            style: theme.textTheme.labelLarge?.copyWith(
-              color: surfaces.onGlass,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
+    final surfaces = Theme.of(context).extension<AppSurfaces>()!;
+    return Tooltip(
+      message: 'New note',
+      child: GlassSurface(
+        borderRadius: 18,
+        strongBorder: true,
+        onTap: onPressed,
+        padding: const EdgeInsets.all(14),
+        child: Icon(Icons.add_rounded, color: surfaces.accent, size: 24),
       ),
     );
   }

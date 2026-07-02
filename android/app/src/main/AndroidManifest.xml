@@ -2,6 +2,9 @@
     <!-- Used only to download the optional on-device AI models on first use.
          All note data stays local; the app is otherwise fully offline. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- On-device voice→note transcription (A4). Recording is processed by the
+         platform's on-device recognizer; no audio leaves the device. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <application
         android:label="NativeNote"
         android:name="${applicationName}"
@@ -43,6 +46,11 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Lets speech_to_text discover the on-device recognition service on
+             Android 11+ (package visibility). -->
+        <intent>
+            <action android:name="android.speech.RecognitionService"/>
         </intent>
     </queries>
 </manifest>

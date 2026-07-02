@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/attachment_store.dart';
 import '../data/markdown_io_service.dart';
 import '../domain/note_folder.dart';
 import '../domain/note_preview.dart';
@@ -14,6 +15,13 @@ final notesRepositoryProvider = Provider<NotesRepository>((ref) {
 
 final markdownIoServiceProvider = Provider<MarkdownIoService>((ref) {
   return const MarkdownIoService();
+});
+
+/// Local file store for image attachments. Held as a singleton so its cached
+/// directory path is shared across the editor and the inline image embed
+/// builder.
+final attachmentStoreProvider = Provider<AttachmentStore>((ref) {
+  return AttachmentStore();
 });
 
 final notesViewStateProvider = StateProvider<NotesViewState>((ref) {
