@@ -1,11 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme/app_theme.dart';
+import '../../security/providers/app_lock_providers.dart';
+import '../domain/note_body_text.dart';
+import 'note_image_embed.dart';
 import '../../ai/domain/note_suggestions.dart';
 import '../../ai/providers/ai_actions.dart';
 import '../../ai/providers/ai_providers.dart';
@@ -76,7 +80,18 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     _activeNoteId = widget.noteId;
     _titleController.addListener(_onEdited);
     _bodyController.addListener(_onEdited);
+    _warmAttachments();
     _loadInitialNote();
+  }
+
+  /// Prepares the attachments directory so the inline image embed builder can
+  /// resolve stored file names synchronously. Rebuilds once ready so any images
+  /// in an existing note render on first frame.
+  Future<void> _warmAttachments() async {
+    await ref.read(attachmentStoreProvider).ensureReady();
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _loadInitialNote() async {
@@ -375,7 +390,47 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   }
 
   String get _plainBody =>
-      _bodyController.document.toPlainText().replaceAll('\u00a0', ' ').trim();
+      normalizeNoteBodyText(_bodyController.document.toPlainText());
+
+  /// Picks an image, copies it into the attachment store, and inserts it as an
+  /// inline block embed at the cursor. Guarded by the app-lock external-
+  /// interaction pause so the picker doesn't trip the lock screen.
+  Future<void> _insertImage() async {
+    final appLock = ref.read(appLockControllerProvider.notifier);
+    final store = ref.read(attachmentStoreProvider);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      appLock.beginExternalInteraction();
+      final result = await FilePicker.platform.pickFiles(type: FileType.image);
+      final path = result?.files.single.path;
+      if (path == null) {
+        return;
+      }
+      final fileName = await store.importImage(path);
+      if (!mounted) {
+        return;
+      }
+      final selection = _bodyController.selection;
+      final index = selection.baseOffset < 0 ? 0 : selection.baseOffset;
+      final length = selection.isValid ? selection.extentOffset - index : 0;
+      _bodyController.replaceText(
+        index,
+        length < 0 ? 0 : length,
+        BlockEmbed.image(fileName),
+        TextSelection.collapsed(offset: index + 1),
+      );
+      setState(() {});
+      _scheduleAutosave();
+    } catch (_) {
+      if (mounted) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Could not insert that image.')),
+        );
+      }
+    } finally {
+      appLock.endExternalInteraction();
+    }
+  }
 
   String get _encodedBodyDelta =>
       jsonEncode(_bodyController.document.toDelta().toJson());
@@ -978,6 +1033,12 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                           ),
                           const SizedBox(width: 10),
                           _ToolbarActionButton(
+                            icon: Icons.image_rounded,
+                            tooltip: 'Insert image',
+                            onTap: _insertImage,
+                          ),
+                          const SizedBox(width: 10),
+                          _ToolbarActionButton(
                             icon: Icons.palette_rounded,
                             tooltip: 'Text color',
                             onTap: () =>
@@ -1026,11 +1087,14 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
             child: QuillEditor.basic(
               controller: _bodyController,
               focusNode: _bodyFocusNode,
-              config: const QuillEditorConfig(
-                padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              config: QuillEditorConfig(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                 placeholder: 'Start from here',
                 autoFocus: true,
                 scrollable: false,
+                embedBuilders: [
+                  LocalImageEmbedBuilder(ref.read(attachmentStoreProvider)),
+                ],
               ),
             ),
           ),
