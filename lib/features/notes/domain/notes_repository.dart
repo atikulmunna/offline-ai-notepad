@@ -3,6 +3,7 @@ import 'note_document.dart';
 import 'note_folder.dart';
 import 'note_preview.dart';
 import 'note_search_mode.dart';
+import 'note_tag.dart';
 
 abstract class NotesRepository {
   Future<List<NotePreview>> listNotes({
@@ -10,9 +11,16 @@ abstract class NotesRepository {
     String searchQuery = '',
     NoteSearchMode searchMode = NoteSearchMode.keyword,
     String? folderId,
+    String? tagId,
     bool pinnedOnly = false,
   });
   Future<List<NoteFolder>> listFolders();
+  Future<List<NoteTag>> listTags();
+  Future<NoteTag> getOrCreateTag(String name);
+  Future<void> setNoteTags({
+    required String noteId,
+    required List<String> tagIds,
+  });
   Future<NoteFolder> createFolder(String name);
   Future<NoteFolder?> renameFolder({
     required String id,

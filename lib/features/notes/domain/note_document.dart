@@ -1,3 +1,5 @@
+import 'note_tag.dart';
+
 class NoteDocument {
   const NoteDocument({
     required this.id,
@@ -12,6 +14,7 @@ class NoteDocument {
     this.isArchived = false,
     this.isDeleted = false,
     this.deletedAt,
+    this.tags = const [],
   });
 
   final String id;
@@ -26,4 +29,5 @@ class NoteDocument {
   final bool isArchived;
   final bool isDeleted;
   final DateTime? deletedAt;
+  final List<NoteTag> tags;
 }

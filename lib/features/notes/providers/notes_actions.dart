@@ -7,6 +7,7 @@ import '../domain/note_collection.dart';
 import '../domain/note_document.dart';
 import '../domain/note_folder.dart';
 import '../domain/note_search_mode.dart';
+import '../domain/note_tag.dart';
 import 'notes_providers.dart';
 
 final notesActionsProvider = Provider<NotesActions>((ref) {
@@ -112,6 +113,33 @@ class NotesActions {
     _ref.invalidate(noteFoldersProvider);
     _ref.invalidate(notesListProvider);
     return folder;
+  }
+
+  Future<NoteTag> getOrCreateTag(String name) async {
+    final repository = _ref.read(notesRepositoryProvider);
+    final tag = await repository.getOrCreateTag(name);
+    _ref.invalidate(noteTagsProvider);
+    return tag;
+  }
+
+  Future<void> setNoteTags({
+    required String noteId,
+    required List<String> tagIds,
+  }) async {
+    final repository = _ref.read(notesRepositoryProvider);
+    await repository.setNoteTags(noteId: noteId, tagIds: tagIds);
+    _ref.invalidate(notesListProvider);
+    _ref.invalidate(noteTagsProvider);
+  }
+
+  void setTagFilter({String? tagId, String? tagName}) {
+    _ref.read(notesViewStateProvider.notifier).state = _ref
+        .read(notesViewStateProvider)
+        .copyWith(
+          tagId: tagId,
+          tagName: tagName,
+          clearTag: tagId == null,
+        );
   }
 
   Future<NoteFolder?> renameFolder({

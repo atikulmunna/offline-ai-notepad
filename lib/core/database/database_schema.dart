@@ -1,6 +1,6 @@
 class DatabaseSchema {
   static const databaseName = 'offline_ai_notepad.db';
-  static const databaseVersion = 3;
+  static const databaseVersion = 4;
 
   static const notesTable = 'notes';
   static const foldersTable = 'folders';
@@ -37,8 +37,10 @@ CREATE TABLE folders (
 );
 ''';
 
+  // IF NOT EXISTS so the same statements are safe on a fresh onCreate and on the
+  // v4 upgrade for databases that were created before these tables existed.
   static const createTagsTable = '''
-CREATE TABLE tags (
+CREATE TABLE IF NOT EXISTS tags (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
   color_hex TEXT DEFAULT '#607D8B',
@@ -47,7 +49,7 @@ CREATE TABLE tags (
 ''';
 
   static const createNoteTagsTable = '''
-CREATE TABLE note_tags (
+CREATE TABLE IF NOT EXISTS note_tags (
   note_id TEXT NOT NULL,
   tag_id TEXT NOT NULL,
   confidence REAL,

@@ -126,6 +126,12 @@ class AppDatabase {
             await db.execute(DatabaseSchema.addEmbeddingVectorColumn);
             await db.execute(DatabaseSchema.addEmbeddingDimColumn);
           }
+          if (oldVersion < 4) {
+            // Databases created before the tags feature only got columns added
+            // above; ensure the tag tables exist regardless of install history.
+            await db.execute(DatabaseSchema.createTagsTable);
+            await db.execute(DatabaseSchema.createNoteTagsTable);
+          }
         },
       ),
     );

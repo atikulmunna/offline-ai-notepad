@@ -14,6 +14,7 @@ import '../domain/note_collection.dart';
 import '../domain/note_folder.dart';
 import '../domain/note_preview.dart';
 import '../domain/note_search_mode.dart';
+import '../domain/note_tag.dart';
 import '../providers/notes_actions.dart';
 import '../providers/notes_providers.dart';
 import '../providers/notes_view_state.dart';
@@ -139,6 +140,14 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
                 ),
               ),
               const SizedBox(height: 24),
+              if (viewState.tagId != null) ...[
+                _TagFilterBanner(
+                  tagName: viewState.tagName ?? 'Tag',
+                  onClear: () =>
+                      ref.read(notesActionsProvider).setTagFilter(tagId: null),
+                ),
+                const SizedBox(height: 16),
+              ],
               _Entrance(
                 delay: 160,
                 child: _SectionHeader(
@@ -1670,7 +1679,7 @@ class _BackupPassphraseDialogState extends State<_BackupPassphraseDialog> {
   }
 }
 
-class _PreviewCard extends StatelessWidget {
+class _PreviewCard extends ConsumerWidget {
   const _PreviewCard({
     required this.note,
     required this.onTap,
@@ -1696,7 +1705,7 @@ class _PreviewCard extends StatelessWidget {
   final VoidCallback onDeleteForever;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final surfaces = theme.extension<AppSurfaces>()!;
     final accents = [
@@ -1775,6 +1784,13 @@ class _PreviewCard extends StatelessWidget {
                       label: Text(note.folderName!),
                     ),
                   _MetadataTag(label: Text(note.badge)),
+                  for (final tag in note.tags)
+                    _NoteTagChip(
+                      tag: tag,
+                      onTap: () => ref
+                          .read(notesActionsProvider)
+                          .setTagFilter(tagId: tag.id, tagName: tag.name),
+                    ),
                 ],
               ),
               SizedBox(height: isCompact ? 8 : 10),
@@ -1879,6 +1895,106 @@ class _MetadataTag extends StatelessWidget {
             label,
           ],
         ),
+      ),
+    );
+  }
+}
+
+Color _tagColor(String hex) {
+  var value = hex.replaceFirst('#', '');
+  if (value.length == 6) {
+    value = 'FF$value';
+  }
+  return Color(int.tryParse(value, radix: 16) ?? 0xFF607D8B);
+}
+
+/// A tappable colored tag chip on a note card; tapping filters to that tag.
+class _NoteTagChip extends StatelessWidget {
+  const _NoteTagChip({required this.tag, required this.onTap});
+
+  final NoteTag tag;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _tagColor(tag.colorHex);
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: color.withValues(alpha: 0.55)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.label_rounded, size: 13, color: color),
+            const SizedBox(width: 5),
+            Text(
+              tag.name,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: Theme.of(context)
+                        .extension<AppSurfaces>()!
+                        .onGlass,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Banner shown while the library is filtered to a single tag, with a clear
+/// affordance to exit the filter.
+class _TagFilterBanner extends StatelessWidget {
+  const _TagFilterBanner({required this.tagName, required this.onClear});
+
+  final String tagName;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
+    return GlassSurface(
+      borderRadius: 18,
+      strongBorder: true,
+      padding: const EdgeInsets.fromLTRB(16, 12, 10, 12),
+      child: Row(
+        children: [
+          Icon(Icons.label_rounded, size: 18, color: surfaces.accent),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'Filtered by tag  ',
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: surfaces.mutedText),
+                  ),
+                  TextSpan(
+                    text: tagName,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: surfaces.onGlass,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          TextButton.icon(
+            onPressed: onClear,
+            icon: const Icon(Icons.close_rounded, size: 18),
+            label: const Text('Clear'),
+          ),
+        ],
       ),
     );
   }
