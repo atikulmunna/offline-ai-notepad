@@ -109,7 +109,7 @@ runtime-consistent). Extracted text flows into the normal embed-on-save path.
 
 ## Track B — Table Stakes
 
-### B1. Checklists / To-Do Items  `[ ]`
+### B1. Checklists / To-Do Items  `[x]`
 **Why:** The #1 thing people do in Keep/Apple Notes; absence is disqualifying.
 **Scope:** Tappable checkbox list items inside a note; check/uncheck persists.
 **Approach:** Use flutter_quill's list/checkbox attributes; ensure the plain-text
