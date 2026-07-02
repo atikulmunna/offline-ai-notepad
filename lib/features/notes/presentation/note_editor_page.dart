@@ -205,11 +205,9 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     }
 
     final enabled = ref.read(appearanceControllerProvider).smartSuggestions;
-    final needTitle = _titleController.text.trim().isEmpty;
-    final needFolder = _selectedFolderId == null;
     final body = _plainBody;
 
-    if (!enabled || body.isEmpty || (!needTitle && !needFolder)) {
+    if (!enabled || body.isEmpty) {
       if (_suggestions.isNotEmpty) {
         setState(() => _suggestions = const NoteSuggestions.none());
       }
@@ -223,6 +221,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
         currentTitle: _titleController.text,
         body: body,
         currentFolderId: _selectedFolderId,
+        currentTags: _selectedTags,
       );
       if (!mounted) {
         return;
@@ -237,7 +236,10 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     _titleController.text = title;
     _titleController.selection = TextSelection.collapsed(offset: title.length);
     setState(() {
-      _suggestions = NoteSuggestions(folder: _suggestions.folder);
+      _suggestions = NoteSuggestions(
+        folder: _suggestions.folder,
+        tags: _suggestions.tags,
+      );
     });
     _scheduleAutosave();
   }
@@ -245,7 +247,24 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   void _applyFolderSuggestion(FolderSuggestion folder) {
     setState(() {
       _selectedFolderId = folder.id;
-      _suggestions = NoteSuggestions(title: _suggestions.title);
+      _suggestions = NoteSuggestions(
+        title: _suggestions.title,
+        tags: _suggestions.tags,
+      );
+    });
+    _scheduleAutosave();
+  }
+
+  void _applyTagSuggestion(NoteTag tag) {
+    setState(() {
+      _selectedTags = [..._selectedTags, tag];
+      _suggestions = NoteSuggestions(
+        title: _suggestions.title,
+        folder: _suggestions.folder,
+        tags: _suggestions.tags
+            .where((t) => t.id != tag.id)
+            .toList(growable: false),
+      );
     });
     _scheduleAutosave();
   }
@@ -829,6 +848,12 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                             label: 'File in ${_suggestions.folder!.name}',
                             onTap: () =>
                                 _applyFolderSuggestion(_suggestions.folder!),
+                          ),
+                        for (final tag in _suggestions.tags)
+                          _SuggestionChip(
+                            icon: Icons.label_rounded,
+                            label: 'Tag: ${tag.name}',
+                            onTap: () => _applyTagSuggestion(tag),
                           ),
                       ],
                     ),

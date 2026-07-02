@@ -5,7 +5,9 @@ import 'package:offline_ai_notepad/features/ai/data/note_assistant.dart';
 import 'package:offline_ai_notepad/features/ai/domain/folder_suggester.dart';
 import 'package:offline_ai_notepad/features/ai/domain/note_query_embedder.dart';
 import 'package:offline_ai_notepad/features/ai/domain/note_title_suggester.dart';
+import 'package:offline_ai_notepad/features/ai/domain/tag_suggester.dart';
 import 'package:offline_ai_notepad/features/notes/domain/note_preview.dart';
+import 'package:offline_ai_notepad/features/notes/domain/note_tag.dart';
 
 NotePreview _note({
   required String id,
@@ -13,6 +15,7 @@ NotePreview _note({
   required String body,
   String? folderId,
   String? folderName,
+  List<NoteTag> tags = const [],
 }) {
   return NotePreview(
     id: id,
@@ -22,6 +25,7 @@ NotePreview _note({
     updatedAt: DateTime(2026, 1, 1),
     folderId: folderId,
     folderName: folderName,
+    tags: tags,
   );
 }
 
@@ -185,6 +189,91 @@ void main() {
       expect(result.folder, isNotNull);
       expect(result.folder!.id, 'work');
       expect(result.folder!.name, 'Work');
+    });
+
+    test('suggests tags carried by similar neighbors', () async {
+      const urgent = NoteTag(id: 't-urgent', name: 'urgent');
+      final assistant = NoteAssistant(
+        embedder: _FakeEmbedder(Float32List.fromList([1, 0, 0])),
+        loadNotes: () async => [
+          _note(id: 'self', body: 'current'),
+          _note(id: 'a', body: 'x', tags: [urgent]),
+          _note(id: 'b', body: 'y', tags: [urgent]),
+        ],
+        loadVectors: () async => {
+          'a': Float32List.fromList([1, 0, 0]),
+          'b': Float32List.fromList([0.95, 0.05, 0]),
+        },
+      );
+
+      final result = await assistant.suggest(
+        noteId: 'self',
+        currentTitle: 'Titled',
+        body: 'a note that is similar to the tagged ones',
+        currentFolderId: 'somewhere',
+      );
+
+      expect(result.tags.map((t) => t.id), contains('t-urgent'));
+    });
+
+    test('does not re-suggest tags already on the note', () async {
+      const urgent = NoteTag(id: 't-urgent', name: 'urgent');
+      final assistant = NoteAssistant(
+        embedder: _FakeEmbedder(Float32List.fromList([1, 0, 0])),
+        loadNotes: () async => [
+          _note(id: 'a', body: 'x', tags: [urgent]),
+          _note(id: 'b', body: 'y', tags: [urgent]),
+        ],
+        loadVectors: () async => {
+          'a': Float32List.fromList([1, 0, 0]),
+          'b': Float32List.fromList([0.95, 0.05, 0]),
+        },
+      );
+
+      final result = await assistant.suggest(
+        noteId: 'self',
+        currentTitle: 'Titled',
+        body: 'similar note',
+        currentFolderId: 'somewhere',
+        currentTags: const [urgent],
+      );
+
+      expect(result.tags, isEmpty);
+    });
+  });
+
+  group('TagSuggester', () {
+    const suggester = TagSuggester();
+    const work = NoteTag(id: 'work', name: 'Work');
+    const misc = NoteTag(id: 'misc', name: 'Misc');
+
+    test('surfaces tags whose summed weight clears the floor', () {
+      final result = suggester.suggest(neighbors: [
+        (tags: const [work], weight: 0.5),
+        (tags: const [work], weight: 0.4),
+        (tags: const [misc], weight: 0.2),
+      ]);
+      expect(result.map((t) => t.id), ['work']);
+    });
+
+    test('excludes tags the note already has', () {
+      final result = suggester.suggest(
+        neighbors: [
+          (tags: const [work], weight: 0.9),
+        ],
+        exclude: {'work'},
+      );
+      expect(result, isEmpty);
+    });
+
+    test('caps the number of suggestions', () {
+      const limited = TagSuggester(maxSuggestions: 1, minWeight: 0.1);
+      final result = limited.suggest(neighbors: [
+        (tags: const [work], weight: 0.9),
+        (tags: const [misc], weight: 0.8),
+      ]);
+      expect(result, hasLength(1));
+      expect(result.first.id, 'work');
     });
   });
 }

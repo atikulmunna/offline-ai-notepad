@@ -52,11 +52,12 @@ organizes. Uses models already loaded.
 **Scope:** On save (debounced), optionally: auto-title untitled notes,
 auto-generate/refresh a summary, and suggest a folder and tags.
 
-**Status (v1 shipped):** title + folder suggestions surfaced as non-destructive
+**Status:** title, folder, and tag suggestions surfaced as non-destructive
 tappable chips in the editor (debounced after typing), gated by a persisted
-"Smart suggestions" toggle in the Appearance sheet. Deferred: auto-summary on
-save (battery-sensitive; summary already exists as a manual action) and tag
-suggestions (blocked on B3 tags).
+"Smart suggestions" toggle in the Appearance sheet. Folder and tag suggestions
+both come from a similarity-weighted vote over the note's nearest neighbors.
+Only deferred: auto-summary on save (battery-sensitive; summary already exists
+as a manual action).
 
 **Approach:**
 - Reuse the summarizer for title + summary generation.
