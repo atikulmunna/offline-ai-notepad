@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -130,6 +131,21 @@ class NotesActions {
     await repository.setNoteTags(noteId: noteId, tagIds: tagIds);
     _ref.invalidate(notesListProvider);
     _ref.invalidate(noteTagsProvider);
+  }
+
+  /// Imports a Markdown file as a new note. Returns the new note id, or null if
+  /// the user cancelled the file picker.
+  Future<String?> importMarkdownNote() async {
+    final note =
+        await _ref.read(markdownIoServiceProvider).pickMarkdownFile();
+    if (note == null) {
+      return null;
+    }
+    return createNote(
+      title: note.title,
+      body: note.plainText,
+      bodyDelta: jsonEncode(note.deltaOps),
+    );
   }
 
   void setTagFilter({String? tagId, String? tagName}) {

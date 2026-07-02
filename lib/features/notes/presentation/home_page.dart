@@ -1497,6 +1497,43 @@ class _BackupSheetState extends ConsumerState<_BackupSheet> {
     }
   }
 
+  Future<void> _importMarkdown() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final appLockController = ref.read(appLockControllerProvider.notifier);
+
+    setState(() {
+      _isProcessingBackup = true;
+    });
+    try {
+      appLockController.beginExternalInteraction();
+      final id = await ref.read(notesActionsProvider).importMarkdownNote();
+      if (!mounted) {
+        return;
+      }
+      if (id != null) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Markdown note imported.')),
+        );
+        navigator.maybePop();
+      }
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not import that Markdown file.')),
+      );
+    } finally {
+      appLockController.endExternalInteraction();
+      if (mounted) {
+        setState(() {
+          _isProcessingBackup = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1558,6 +1595,26 @@ class _BackupSheetState extends ConsumerState<_BackupSheet> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 20),
+              const Divider(height: 1),
+              const SizedBox(height: 16),
+              Text('Markdown', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 4),
+              Text(
+                'Import a .md file as a new note. Export is available from the share button inside any note.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.extension<AppSurfaces>()!.mutedText,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: _isProcessingBackup ? null : _importMarkdown,
+                  icon: const Icon(Icons.article_outlined),
+                  label: const Text('Import Markdown'),
+                ),
               ),
             ],
           ),
