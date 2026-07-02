@@ -20,6 +20,23 @@ class VectorNoteSearch {
     required Iterable<NotePreview> notes,
     double minSimilarity = defaultMinSimilarity,
   }) {
+    return cosineRankScored(
+      noteVectors: noteVectors,
+      queryVector: queryVector,
+      notes: notes,
+      minSimilarity: minSimilarity,
+    ).map((entry) => entry.note).toList(growable: false);
+  }
+
+  /// Like [cosineRank] but keeps each note's similarity score, ordered best
+  /// first. Used by retrieval-augmented flows (e.g. "Ask your notes") that need
+  /// the score to build citations and cut off weak matches.
+  static List<({NotePreview note, double score})> cosineRankScored({
+    required Map<String, Float32List> noteVectors,
+    required Float32List queryVector,
+    required Iterable<NotePreview> notes,
+    double minSimilarity = defaultMinSimilarity,
+  }) {
     final queryNorm = _norm(queryVector);
     if (queryNorm == 0) {
       return const [];
@@ -45,7 +62,7 @@ class VectorNoteSearch {
       return _defaultSort(a.note, b.note);
     });
 
-    return ranked.map((entry) => entry.note).toList(growable: false);
+    return ranked;
   }
 
   static double _cosine(Float32List query, Float32List value, double queryNorm) {
