@@ -1,0 +1,8 @@
+v1.2.0
+
+New:
+- Voice to note: dictate a note with the on-device speech recognizer; audio never leaves the device.
+- Inline images: insert images into a note from the editor toolbar.
+
+Changed:
+- Cleaner UI: trimmed redundant labels (icon-only summary refresh, simpler Appearance sheet, "+" new-note button).

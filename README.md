@@ -175,3 +175,7 @@ docs/                       Development, model, and architecture notes
 
 - Local planning artifacts (e.g. the SRS) are intentionally not tracked in Git.
 - Large local model files are intentionally excluded from standard Git history and served from a GitHub release at runtime.
+
+## License
+
+Licensed under the **GNU General Public License v3.0** — see [LICENSE](LICENSE). You may use, study, share, and modify it; distributed or forked versions must remain open-source under the same license.
