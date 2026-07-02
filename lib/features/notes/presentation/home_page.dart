@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme/app_theme.dart';
 import '../../../core/database/app_database_provider.dart';
+import '../../ai/presentation/ask_notes_page.dart';
+import '../../ai/providers/ask_notes_providers.dart';
 import '../../appearance/presentation/backgrounds/animated_background.dart';
 import '../../appearance/presentation/glass_surface.dart';
 import '../../appearance/providers/appearance_providers.dart';
@@ -77,6 +79,13 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
 
   Future<void> _openAppearanceSheet() => showAppearanceSheet(context);
 
+  Future<void> _openAskNotes() async {
+    ref.read(askNotesControllerProvider.notifier).reset();
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (context) => const AskNotesPage()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final notesAsync = ref.watch(notesListProvider);
@@ -109,6 +118,11 @@ class _NotesHomePageState extends ConsumerState<NotesHomePage> {
           ListView(
             padding: EdgeInsets.fromLTRB(20, bodyTopPadding, 20, 100),
             children: [
+              _Entrance(
+                delay: 40,
+                child: _AskNotesBar(onTap: _openAskNotes),
+              ),
+              const SizedBox(height: 16),
               _Entrance(
                 delay: 80,
                 child: _ControlDeck(
@@ -334,6 +348,53 @@ class _GlassHeader extends StatelessWidget {
                   ),
                 ],
         ),
+      ),
+    );
+  }
+}
+
+class _AskNotesBar extends StatelessWidget {
+  const _AskNotesBar({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
+    return GlassSurface(
+      borderRadius: 22,
+      strongBorder: true,
+      onTap: onTap,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      child: Row(
+        children: [
+          Icon(Icons.auto_awesome_rounded, color: surfaces.accent, size: 22),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Ask your notes',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: surfaces.onGlass,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Answer questions from your library, on device',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: surfaces.mutedText),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right_rounded, color: surfaces.mutedText),
+        ],
       ),
     );
   }
