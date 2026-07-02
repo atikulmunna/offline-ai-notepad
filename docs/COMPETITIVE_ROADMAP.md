@@ -67,7 +67,7 @@ suggestions (blocked on B3 tags).
 
 **Dependencies:** B3 (tags) for tag suggestions.
 
-### A3. Smart "Related Notes"  `[ ]`
+### A3. Smart "Related Notes"  `[x]`
 **Why:** Cheap, feels magical, gives Obsidian-style connection without manual
 `[[links]]`. Pure reuse of similarity we already compute.
 
