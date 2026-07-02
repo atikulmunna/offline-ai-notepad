@@ -1,5 +1,6 @@
 import '../domain/note_document.dart';
 import '../domain/note_preview.dart';
+import '../domain/note_tag.dart';
 
 class NoteRecord {
   const NoteRecord({
@@ -90,7 +91,7 @@ class NoteRecord {
     );
   }
 
-  NoteDocument toDocument() {
+  NoteDocument toDocument({List<NoteTag> tags = const []}) {
     return NoteDocument(
       id: id,
       title: title,
@@ -104,6 +105,7 @@ class NoteRecord {
       isArchived: isArchived,
       isDeleted: isDeleted,
       deletedAt: deletedAt,
+      tags: tags,
     );
   }
 }

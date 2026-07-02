@@ -17,6 +17,7 @@ import '../../appearance/providers/appearance_providers.dart';
 import '../domain/note_document.dart';
 import '../domain/note_folder.dart';
 import '../domain/note_preview.dart';
+import '../domain/note_tag.dart';
 import '../providers/notes_actions.dart';
 import '../providers/notes_providers.dart';
 
@@ -67,6 +68,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   String? _summary;
   NoteSuggestions _suggestions = const NoteSuggestions.none();
   List<NotePreview> _related = const [];
+  List<NoteTag> _selectedTags = const [];
 
   @override
   void initState() {
@@ -116,6 +118,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     );
     _selectedFolderId = note.folderId;
     _summary = note.summary;
+    _selectedTags = List<NoteTag>.from(note.tags);
   }
 
   void _onEdited() {
@@ -181,6 +184,19 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (context) => NoteEditorPage(noteId: noteId)),
     );
+  }
+
+  Future<void> _openTagPicker() async {
+    final result = await showModalBottomSheet<List<NoteTag>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _TagPickerSheet(selected: _selectedTags),
+    );
+    if (result != null && mounted) {
+      setState(() => _selectedTags = result);
+      _scheduleAutosave();
+    }
   }
 
   Future<void> _refreshSuggestions() async {
@@ -320,6 +336,11 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
               folderId: _selectedFolderId,
             );
       }
+
+      await ref.read(notesActionsProvider).setNoteTags(
+            noteId: _activeNoteId!,
+            tagIds: _selectedTags.map((tag) => tag.id).toList(growable: false),
+          );
 
       if (!mounted || !closeAfterSave) {
         return;
@@ -766,6 +787,23 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              for (final tag in _selectedTags)
+                _TagChip(
+                  tag: tag,
+                  onRemove: () => setState(
+                    () => _selectedTags =
+                        _selectedTags.where((t) => t.id != tag.id).toList(),
+                  ),
+                ),
+              _AddTagButton(onTap: _openTagPicker),
+            ],
           ),
           AnimatedSize(
             duration: const Duration(milliseconds: 220),
@@ -1379,6 +1417,245 @@ class _RelatedNoteCard extends StatelessWidget {
           const SizedBox(width: 8),
           Icon(Icons.chevron_right_rounded, color: surfaces.mutedText, size: 20),
         ],
+      ),
+    );
+  }
+}
+
+Color _tagColor(String hex) {
+  var value = hex.replaceFirst('#', '');
+  if (value.length == 6) {
+    value = 'FF$value';
+  }
+  return Color(int.tryParse(value, radix: 16) ?? 0xFF607D8B);
+}
+
+/// A removable tag chip shown on a note in the editor.
+class _TagChip extends StatelessWidget {
+  const _TagChip({required this.tag, required this.onRemove});
+
+  final NoteTag tag;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
+    final color = _tagColor(tag.colorHex);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.label_rounded, size: 13, color: color),
+          const SizedBox(width: 6),
+          Text(
+            tag.name,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: surfaces.onGlass,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 2),
+          InkWell(
+            borderRadius: BorderRadius.circular(999),
+            onTap: onRemove,
+            child: Icon(Icons.close_rounded, size: 15, color: surfaces.mutedText),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AddTagButton extends StatelessWidget {
+  const _AddTagButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: surfaces.glassBorder),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.add_rounded, size: 15, color: surfaces.accent),
+            const SizedBox(width: 4),
+            Text(
+              'Tag',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: surfaces.mutedText,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A bottom sheet for choosing existing tags and creating new ones. Returns the
+/// resulting selected-tag list on close.
+class _TagPickerSheet extends ConsumerStatefulWidget {
+  const _TagPickerSheet({required this.selected});
+
+  final List<NoteTag> selected;
+
+  @override
+  ConsumerState<_TagPickerSheet> createState() => _TagPickerSheetState();
+}
+
+class _TagPickerSheetState extends ConsumerState<_TagPickerSheet> {
+  late final Map<String, NoteTag> _selected;
+  final _createController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = {for (final tag in widget.selected) tag.id: tag};
+  }
+
+  @override
+  void dispose() {
+    _createController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _createTag() async {
+    final name = _createController.text.trim();
+    if (name.isEmpty) {
+      return;
+    }
+    final tag = await ref.read(notesActionsProvider).getOrCreateTag(name);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _selected[tag.id] = tag;
+      _createController.clear();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
+    final allTags = ref.watch(noteTagsProvider);
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          16,
+          20,
+          16 + MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: surfaces.cardBorder),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Tags', style: theme.textTheme.titleLarge),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _createController,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => _createTag(),
+                      decoration: const InputDecoration(
+                        hintText: 'Create a new tag',
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: _createTag,
+                    icon: Icon(Icons.add_rounded, color: surfaces.accent),
+                    tooltip: 'Create tag',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              allTags.when(
+                data: (tags) {
+                  final combined = <String, NoteTag>{
+                    for (final tag in tags) tag.id: tag,
+                    ..._selected,
+                  };
+                  if (combined.isEmpty) {
+                    return Text(
+                      'No tags yet. Create one above.',
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: surfaces.mutedText),
+                    );
+                  }
+                  return ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 260),
+                    child: SingleChildScrollView(
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final tag in combined.values)
+                            FilterChip(
+                              label: Text(tag.name),
+                              selected: _selected.containsKey(tag.id),
+                              onSelected: (on) => setState(() {
+                                if (on) {
+                                  _selected[tag.id] = tag;
+                                } else {
+                                  _selected.remove(tag.id);
+                                }
+                              }),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+                loading: () => const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (_, _) => const SizedBox.shrink(),
+              ),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(context)
+                      .pop(_selected.values.toList(growable: false)),
+                  child: const Text('Done'),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

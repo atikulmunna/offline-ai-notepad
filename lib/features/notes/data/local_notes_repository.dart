@@ -12,6 +12,7 @@ import '../domain/note_document.dart';
 import '../domain/note_folder.dart';
 import '../domain/note_preview.dart';
 import '../domain/note_search_mode.dart';
+import '../domain/note_tag.dart';
 import '../domain/notes_repository.dart';
 import 'folder_record.dart';
 import 'note_record.dart';
@@ -82,6 +83,7 @@ class LocalNotesRepository implements NotesRepository {
     String searchQuery = '',
     NoteSearchMode searchMode = NoteSearchMode.keyword,
     String? folderId,
+    String? tagId,
     bool pinnedOnly = false,
   }) async {
     await _seedCoreData();
@@ -95,6 +97,14 @@ ON folders.id = notes.folder_id
 
     final whereClauses = <String>[];
     final whereArgs = <Object?>[];
+
+    if (tagId != null) {
+      buffer.write(
+        'JOIN ${DatabaseSchema.noteTagsTable} nt ON nt.note_id = notes.id\n',
+      );
+      whereClauses.add('nt.tag_id = ?');
+      whereArgs.add(tagId);
+    }
 
     switch (collection) {
       case NoteCollection.active:
@@ -128,23 +138,24 @@ ON folders.id = notes.folder_id
       notes.add(await _readRecord(NoteRecord.fromMap(row)));
     }
 
+    final List<NotePreview> previews;
     if (query.isEmpty) {
-      return notes.map((note) => note.toPreview()).toList(growable: false);
+      previews = notes.map((note) => note.toPreview()).toList(growable: false);
+    } else if (searchMode == NoteSearchMode.semantic) {
+      previews = await _rankSemantic(notes, query);
+    } else {
+      previews = notes
+          .where((note) {
+            final haystack =
+                '${note.title ?? ''}\n${note.body}\n${note.summary ?? ''}'
+                    .toLowerCase();
+            return haystack.contains(query.toLowerCase());
+          })
+          .map((note) => note.toPreview())
+          .toList(growable: false);
     }
 
-    if (searchMode == NoteSearchMode.semantic) {
-      return _rankSemantic(notes, query);
-    }
-
-    return notes
-        .where((note) {
-          final haystack =
-              '${note.title ?? ''}\n${note.body}\n${note.summary ?? ''}'
-                  .toLowerCase();
-          return haystack.contains(query.toLowerCase());
-        })
-        .map((note) => note.toPreview())
-        .toList(growable: false);
+    return _attachTags(previews);
   }
 
   /// Ranks notes by meaning. Prefers native vector (cosine) similarity when an
@@ -253,6 +264,131 @@ ON folders.id = notes.folder_id
     return updated.toFolder();
   }
 
+  @override
+  Future<List<NoteTag>> listTags() async {
+    final rows = await _database.query(
+      DatabaseSchema.tagsTable,
+      orderBy: 'name COLLATE NOCASE ASC',
+    );
+    return rows.map(_tagFromRow).toList(growable: false);
+  }
+
+  @override
+  Future<NoteTag> getOrCreateTag(String name) async {
+    final trimmed = name.trim();
+    final existing = await _database.query(
+      DatabaseSchema.tagsTable,
+      where: 'name = ? COLLATE NOCASE',
+      whereArgs: [trimmed],
+      limit: 1,
+    );
+    if (existing.isNotEmpty) {
+      return _tagFromRow(existing.first);
+    }
+
+    final tag = NoteTag(
+      id: 'tag-${DateTime.now().microsecondsSinceEpoch}',
+      name: trimmed,
+      colorHex: _colorForName(trimmed),
+    );
+    await _database.insert(
+      DatabaseSchema.tagsTable,
+      {
+        'id': tag.id,
+        'name': tag.name,
+        'color_hex': tag.colorHex,
+        'is_custom': 1,
+      },
+      conflictAlgorithm: ConflictAlgorithm.abort,
+    );
+    return tag;
+  }
+
+  @override
+  Future<void> setNoteTags({
+    required String noteId,
+    required List<String> tagIds,
+  }) async {
+    await _database.delete(
+      DatabaseSchema.noteTagsTable,
+      where: 'note_id = ?',
+      whereArgs: [noteId],
+    );
+    for (final tagId in tagIds.toSet()) {
+      await _database.insert(
+        DatabaseSchema.noteTagsTable,
+        {'note_id': noteId, 'tag_id': tagId, 'source': 'user'},
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+  }
+
+  /// Batch-loads tags for the given note ids, keyed by note id.
+  Future<Map<String, List<NoteTag>>> _tagsForNotes(List<String> noteIds) async {
+    if (noteIds.isEmpty) {
+      return const {};
+    }
+    final placeholders = List.filled(noteIds.length, '?').join(',');
+    final rows = await _database.rawQuery(
+      '''
+SELECT nt.note_id AS note_id, t.id AS id, t.name AS name, t.color_hex AS color_hex
+FROM ${DatabaseSchema.noteTagsTable} nt
+JOIN ${DatabaseSchema.tagsTable} t ON t.id = nt.tag_id
+WHERE nt.note_id IN ($placeholders)
+ORDER BY t.name COLLATE NOCASE ASC
+''',
+      noteIds,
+    );
+
+    final result = <String, List<NoteTag>>{};
+    for (final row in rows) {
+      final noteId = row['note_id'] as String;
+      (result[noteId] ??= <NoteTag>[]).add(_tagFromRow(row));
+    }
+    return result;
+  }
+
+  Future<List<NotePreview>> _attachTags(List<NotePreview> previews) async {
+    if (previews.isEmpty) {
+      return previews;
+    }
+    final tags = await _tagsForNotes(
+      previews.map((preview) => preview.id).toList(growable: false),
+    );
+    return previews
+        .map((preview) => preview.withTags(tags[preview.id] ?? const []))
+        .toList(growable: false);
+  }
+
+  NoteTag _tagFromRow(Map<String, Object?> row) {
+    return NoteTag(
+      id: row['id'] as String,
+      name: row['name'] as String,
+      colorHex: (row['color_hex'] as String?) ?? '#607D8B',
+    );
+  }
+
+  static const _tagPalette = [
+    '#E57373',
+    '#F06292',
+    '#BA68C8',
+    '#7986CB',
+    '#4FC3F7',
+    '#4DB6AC',
+    '#81C784',
+    '#FFB74D',
+    '#A1887F',
+    '#90A4AE',
+  ];
+
+  String _colorForName(String name) {
+    if (name.isEmpty) {
+      return '#607D8B';
+    }
+    final hash = name.toLowerCase().codeUnits.fold<int>(0, (a, b) => a + b);
+    return _tagPalette[hash % _tagPalette.length];
+  }
+
   Future<void> upsert(NoteRecord note) {
     return _database.insert(
       DatabaseSchema.notesTable,
@@ -306,7 +442,9 @@ LIMIT 1
       return null;
     }
 
-    return (await _readRecord(NoteRecord.fromMap(rows.first))).toDocument();
+    final record = await _readRecord(NoteRecord.fromMap(rows.first));
+    final tags = await _tagsForNotes([record.id]);
+    return record.toDocument(tags: tags[record.id] ?? const []);
   }
 
   @override

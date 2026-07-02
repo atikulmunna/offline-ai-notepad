@@ -7,6 +7,8 @@ class NotesViewState {
     this.searchQuery = '',
     this.searchMode = NoteSearchMode.keyword,
     this.folderId,
+    this.tagId,
+    this.tagName,
     this.pinnedOnly = false,
   });
 
@@ -14,6 +16,8 @@ class NotesViewState {
   final String searchQuery;
   final NoteSearchMode searchMode;
   final String? folderId;
+  final String? tagId;
+  final String? tagName;
   final bool pinnedOnly;
 
   NotesViewState copyWith({
@@ -22,6 +26,9 @@ class NotesViewState {
     NoteSearchMode? searchMode,
     String? folderId,
     bool clearFolder = false,
+    String? tagId,
+    String? tagName,
+    bool clearTag = false,
     bool? pinnedOnly,
   }) {
     return NotesViewState(
@@ -29,6 +36,8 @@ class NotesViewState {
       searchQuery: searchQuery ?? this.searchQuery,
       searchMode: searchMode ?? this.searchMode,
       folderId: clearFolder ? null : (folderId ?? this.folderId),
+      tagId: clearTag ? null : (tagId ?? this.tagId),
+      tagName: clearTag ? null : (tagName ?? this.tagName),
       pinnedOnly: pinnedOnly ?? this.pinnedOnly,
     );
   }

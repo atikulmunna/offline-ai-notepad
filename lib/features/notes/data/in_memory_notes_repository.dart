@@ -2,12 +2,16 @@ import '../domain/note_collection.dart';
 import '../domain/note_document.dart';
 import '../domain/note_folder.dart';
 import '../domain/note_search_mode.dart';
+import '../domain/note_tag.dart';
 import 'note_record.dart';
 import '../domain/note_preview.dart';
 import '../domain/notes_repository.dart';
 import 'semantic_note_search.dart';
 
 class InMemoryNotesRepository implements NotesRepository {
+  final _tags = <String, NoteTag>{};
+  final _noteTags = <String, Set<String>>{};
+
   static final _folders = [
     NoteFolder(id: 'all', name: 'All Notes', icon: 'folder'),
     NoteFolder(id: 'product', name: 'Product', icon: 'lightbulb'),
@@ -52,6 +56,7 @@ class InMemoryNotesRepository implements NotesRepository {
     String searchQuery = '',
     NoteSearchMode searchMode = NoteSearchMode.keyword,
     String? folderId,
+    String? tagId,
     bool pinnedOnly = false,
   }) async {
     final query = searchQuery.trim().toLowerCase();
@@ -65,6 +70,8 @@ class InMemoryNotesRepository implements NotesRepository {
       final matchesFolder = folderId == null || folderId == 'all'
           ? true
           : note.folderId == folderId;
+      final matchesTag =
+          tagId == null || (_noteTags[note.id]?.contains(tagId) ?? false);
       final matchesPinned = !pinnedOnly || note.isPinned;
       final matchesQuery = searchMode == NoteSearchMode.semantic
           ? true
@@ -72,6 +79,7 @@ class InMemoryNotesRepository implements NotesRepository {
               '${note.title ?? ''}\n${note.body}'.toLowerCase().contains(query);
       return matchesCollection &&
           matchesFolder &&
+          matchesTag &&
           matchesPinned &&
           matchesQuery;
     }).toList(growable: false)
@@ -83,8 +91,9 @@ class InMemoryNotesRepository implements NotesRepository {
         return b.updatedAt.compareTo(a.updatedAt);
       });
 
-    final previews =
-        filtered.map((note) => note.toPreview()).toList(growable: false);
+    final previews = filtered
+        .map((note) => note.toPreview().withTags(_tagsFor(note.id)))
+        .toList(growable: false);
     if (query.isNotEmpty && searchMode == NoteSearchMode.semantic) {
       return SemanticNoteSearch.rank(
         notes: previews,
@@ -92,6 +101,48 @@ class InMemoryNotesRepository implements NotesRepository {
       );
     }
     return previews;
+  }
+
+  List<NoteTag> _tagsFor(String noteId) {
+    final ids = _noteTags[noteId];
+    if (ids == null || ids.isEmpty) {
+      return const [];
+    }
+    return ids
+        .map((id) => _tags[id])
+        .whereType<NoteTag>()
+        .toList(growable: false)
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+  }
+
+  @override
+  Future<List<NoteTag>> listTags() async {
+    return _tags.values.toList(growable: false)
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+  }
+
+  @override
+  Future<NoteTag> getOrCreateTag(String name) async {
+    final trimmed = name.trim();
+    for (final tag in _tags.values) {
+      if (tag.name.toLowerCase() == trimmed.toLowerCase()) {
+        return tag;
+      }
+    }
+    final tag = NoteTag(
+      id: 'tag-${DateTime.now().microsecondsSinceEpoch}',
+      name: trimmed,
+    );
+    _tags[tag.id] = tag;
+    return tag;
+  }
+
+  @override
+  Future<void> setNoteTags({
+    required String noteId,
+    required List<String> tagIds,
+  }) async {
+    _noteTags[noteId] = tagIds.toSet();
   }
 
   @override
@@ -182,7 +233,7 @@ class InMemoryNotesRepository implements NotesRepository {
   Future<NoteDocument?> getNote(String id) async {
     for (final note in _notes) {
       if (note.id == id) {
-        return note.toDocument();
+        return note.toDocument(tags: _tagsFor(note.id));
       }
     }
     return null;

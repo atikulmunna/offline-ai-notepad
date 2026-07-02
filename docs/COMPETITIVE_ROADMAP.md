@@ -121,7 +121,7 @@ runtime-consistent). Extracted text flows into the normal embed-on-save path.
 **Approach:** Local file storage with a DB reference; embed in the Quill delta;
 keep binaries out of the text body. Consider size/perf on the note list.
 
-### B3. Tags  `[ ]`
+### B3. Tags  `[x]`
 **Why:** Flexible complement to folders; feeds A2 auto-tagging.
 **Scope:** Add/remove tags on a note; filter/search by tag.
 **Approach:** Tags table already anticipated in the schema (Epic 2). Add UI +
