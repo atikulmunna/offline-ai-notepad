@@ -11,10 +11,12 @@ import '../../ai/providers/ai_actions.dart';
 import '../../ai/providers/ai_providers.dart';
 import '../../ai/providers/model_download_controller.dart';
 import '../../ai/providers/note_assistant_providers.dart';
+import '../../ai/providers/related_notes_providers.dart';
 import '../../appearance/presentation/glass_surface.dart';
 import '../../appearance/providers/appearance_providers.dart';
 import '../domain/note_document.dart';
 import '../domain/note_folder.dart';
+import '../domain/note_preview.dart';
 import '../providers/notes_actions.dart';
 import '../providers/notes_providers.dart';
 
@@ -64,6 +66,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   String? _selectedFolderId;
   String? _summary;
   NoteSuggestions _suggestions = const NoteSuggestions.none();
+  List<NotePreview> _related = const [];
 
   @override
   void initState() {
@@ -94,6 +97,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
         _didLoadInitialData = true;
         _isLoading = false;
       });
+      unawaited(_refreshRelated());
     } else {
       _didLoadInitialData = true;
     }
@@ -138,7 +142,45 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     }
 
     _assistTimer?.cancel();
-    _assistTimer = Timer(const Duration(milliseconds: 1500), _refreshSuggestions);
+    _assistTimer = Timer(const Duration(milliseconds: 1500), _runAssistPass);
+  }
+
+  Future<void> _runAssistPass() async {
+    await _refreshSuggestions();
+    await _refreshRelated();
+  }
+
+  /// Loads notes semantically related to the current one for the "See also"
+  /// strip. Uses the stored embedding (no model call) with a lexical fallback.
+  Future<void> _refreshRelated() async {
+    if (!mounted) {
+      return;
+    }
+    final noteId = _activeNoteId;
+    if (noteId == null) {
+      if (_related.isNotEmpty) {
+        setState(() => _related = const []);
+      }
+      return;
+    }
+
+    try {
+      final related = await ref
+          .read(relatedNotesServiceProvider)
+          .relatedTo(noteId: noteId, body: _plainBody);
+      if (!mounted) {
+        return;
+      }
+      setState(() => _related = related);
+    } catch (_) {
+      // "See also" is a best-effort enhancement; ignore failures.
+    }
+  }
+
+  Future<void> _openRelated(String noteId) async {
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (context) => NoteEditorPage(noteId: noteId)),
+    );
   }
 
   Future<void> _refreshSuggestions() async {
@@ -891,6 +933,32 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
               ),
             ),
           ),
+          if (_related.isNotEmpty) ...[
+            const SizedBox(height: 26),
+            Row(
+              children: [
+                Icon(Icons.hub_outlined, size: 16, color: surfaces.accent),
+                const SizedBox(width: 8),
+                Text(
+                  'Related notes',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: surfaces.mutedText,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            for (final note in _related)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _RelatedNoteCard(
+                  note: note,
+                  onTap: () => _openRelated(note.id),
+                ),
+              ),
+          ],
         ],
       ),
     );
@@ -1228,6 +1296,63 @@ class _SuggestionChip extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           Icon(Icons.add_rounded, size: 16, color: surfaces.accent),
+        ],
+      ),
+    );
+  }
+}
+
+/// A tappable "See also" entry linking to a semantically related note.
+class _RelatedNoteCard extends StatelessWidget {
+  const _RelatedNoteCard({required this.note, required this.onTap});
+
+  final NotePreview note;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
+    final preview = note.body.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return GlassSurface(
+      borderRadius: 16,
+      blur: false,
+      fillColor: surfaces.cardFill,
+      borderColor: surfaces.cardBorder,
+      onTap: onTap,
+      padding: const EdgeInsets.all(13),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  note.title.trim().isEmpty ? 'Untitled note' : note.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: surfaces.onGlass,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (preview.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    preview,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: surfaces.mutedText,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(Icons.chevron_right_rounded, color: surfaces.mutedText, size: 20),
         ],
       ),
     );
