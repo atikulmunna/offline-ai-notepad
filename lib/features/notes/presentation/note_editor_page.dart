@@ -1801,10 +1801,16 @@ class _InlineSummaryPanel extends StatelessWidget {
           const _ModelDownloadPrompt(),
           Align(
             alignment: Alignment.centerRight,
-            child: FilledButton.tonalIcon(
+            child: IconButton.filledTonal(
               onPressed: isGenerating ? null : onRefresh,
-              icon: const Icon(Icons.refresh_rounded),
-              label: Text(isGenerating ? 'Refreshing...' : 'Refresh'),
+              tooltip: 'Refresh summary',
+              icon: isGenerating
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh_rounded),
             ),
           ),
           const SizedBox(height: 12),

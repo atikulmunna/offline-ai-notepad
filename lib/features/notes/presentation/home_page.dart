@@ -479,26 +479,15 @@ class _GlassFab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final surfaces = theme.extension<AppSurfaces>()!;
-    return GlassSurface(
-      borderRadius: 20,
-      strongBorder: true,
-      onTap: onPressed,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.add, color: surfaces.accent, size: 22),
-          const SizedBox(width: 10),
-          Text(
-            'New note',
-            style: theme.textTheme.labelLarge?.copyWith(
-              color: surfaces.onGlass,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
+    final surfaces = Theme.of(context).extension<AppSurfaces>()!;
+    return Tooltip(
+      message: 'New note',
+      child: GlassSurface(
+        borderRadius: 18,
+        strongBorder: true,
+        onTap: onPressed,
+        padding: const EdgeInsets.all(14),
+        child: Icon(Icons.add_rounded, color: surfaces.accent, size: 24),
       ),
     );
   }
