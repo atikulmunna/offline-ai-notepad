@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/markdown_io_service.dart';
 import '../domain/note_folder.dart';
 import '../domain/note_preview.dart';
 import '../domain/note_tag.dart';
@@ -9,6 +10,10 @@ import 'notes_view_state.dart';
 
 final notesRepositoryProvider = Provider<NotesRepository>((ref) {
   return createDefaultNotesRepository(ref);
+});
+
+final markdownIoServiceProvider = Provider<MarkdownIoService>((ref) {
+  return const MarkdownIoService();
 });
 
 final notesViewStateProvider = StateProvider<NotesViewState>((ref) {

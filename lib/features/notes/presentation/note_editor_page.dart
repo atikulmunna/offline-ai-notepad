@@ -680,6 +680,14 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     setState(() {});
   }
 
+  Future<void> _exportMarkdown() async {
+    final title = _titleController.text.trim();
+    await ref.read(markdownIoServiceProvider).shareNoteAsMarkdown(
+          title: title.isEmpty ? null : title,
+          deltaOps: _bodyController.document.toDelta().toJson(),
+        );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -696,6 +704,11 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
       appBar: AppBar(
         title: Text(isEditingExisting ? 'Edit note' : 'New note'),
         actions: [
+          IconButton(
+            onPressed: _exportMarkdown,
+            icon: const Icon(Icons.ios_share_rounded),
+            tooltip: 'Export as Markdown',
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: FilledButton(

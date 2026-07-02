@@ -140,7 +140,7 @@ note-create flow. Android-only.
 **Approach:** Local notifications plugin; store due date on the note; simple
 "upcoming" filter.
 
-### B6. Markdown Import/Export  `[ ]`
+### B6. Markdown Import/Export  `[x]`
 **Why:** Wins the Obsidian/Joplin crowd and reinforces the no-lock-in privacy
 story.
 **Scope:** Export notes to Markdown and import Markdown files.
