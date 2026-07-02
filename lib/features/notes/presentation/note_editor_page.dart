@@ -6,10 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme/app_theme.dart';
-import '../../appearance/presentation/glass_surface.dart';
+import '../../ai/domain/note_suggestions.dart';
 import '../../ai/providers/ai_actions.dart';
 import '../../ai/providers/ai_providers.dart';
 import '../../ai/providers/model_download_controller.dart';
+import '../../ai/providers/note_assistant_providers.dart';
+import '../../appearance/presentation/glass_surface.dart';
+import '../../appearance/providers/appearance_providers.dart';
 import '../domain/note_document.dart';
 import '../domain/note_folder.dart';
 import '../providers/notes_actions.dart';
@@ -50,6 +53,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   final _bodyController = QuillController.basic();
   final _bodyFocusNode = FocusNode();
   Timer? _autosaveTimer;
+  Timer? _assistTimer;
   bool _didLoadInitialData = false;
   bool _isLoading = false;
   bool _isSaving = false;
@@ -59,13 +63,14 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   String? _activeNoteId;
   String? _selectedFolderId;
   String? _summary;
+  NoteSuggestions _suggestions = const NoteSuggestions.none();
 
   @override
   void initState() {
     super.initState();
     _activeNoteId = widget.noteId;
-    _titleController.addListener(_scheduleAutosave);
-    _bodyController.addListener(_scheduleAutosave);
+    _titleController.addListener(_onEdited);
+    _bodyController.addListener(_onEdited);
     _loadInitialNote();
   }
 
@@ -109,6 +114,11 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     _summary = note.summary;
   }
 
+  void _onEdited() {
+    _scheduleAutosave();
+    _scheduleAssist();
+  }
+
   void _scheduleAutosave() {
     if (!_didLoadInitialData || _isLoading) {
       return;
@@ -120,9 +130,72 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     });
   }
 
+  /// Recomputes title/folder suggestions after the user pauses typing. Longer
+  /// debounce than autosave so we don't run the embedder on every keystroke.
+  void _scheduleAssist() {
+    if (!_didLoadInitialData || _isLoading) {
+      return;
+    }
+
+    _assistTimer?.cancel();
+    _assistTimer = Timer(const Duration(milliseconds: 1500), _refreshSuggestions);
+  }
+
+  Future<void> _refreshSuggestions() async {
+    if (!mounted) {
+      return;
+    }
+
+    final enabled = ref.read(appearanceControllerProvider).smartSuggestions;
+    final needTitle = _titleController.text.trim().isEmpty;
+    final needFolder = _selectedFolderId == null;
+    final body = _plainBody;
+
+    if (!enabled || body.isEmpty || (!needTitle && !needFolder)) {
+      if (_suggestions.isNotEmpty) {
+        setState(() => _suggestions = const NoteSuggestions.none());
+      }
+      return;
+    }
+
+    try {
+      final assistant = await ref.read(noteAssistantProvider.future);
+      final result = await assistant.suggest(
+        noteId: _activeNoteId ?? '',
+        currentTitle: _titleController.text,
+        body: body,
+        currentFolderId: _selectedFolderId,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() => _suggestions = result);
+    } catch (_) {
+      // Suggestions are a best-effort enhancement; ignore failures.
+    }
+  }
+
+  void _applyTitleSuggestion(String title) {
+    _titleController.text = title;
+    _titleController.selection = TextSelection.collapsed(offset: title.length);
+    setState(() {
+      _suggestions = NoteSuggestions(folder: _suggestions.folder);
+    });
+    _scheduleAutosave();
+  }
+
+  void _applyFolderSuggestion(FolderSuggestion folder) {
+    setState(() {
+      _selectedFolderId = folder.id;
+      _suggestions = NoteSuggestions(title: _suggestions.title);
+    });
+    _scheduleAutosave();
+  }
+
   @override
   void dispose() {
     _autosaveTimer?.cancel();
+    _assistTimer?.cancel();
     _titleController.dispose();
     _bodyController.dispose();
     _bodyFocusNode.dispose();
@@ -637,6 +710,35 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
           AnimatedSize(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
+            child: _suggestions.isEmpty
+                ? const SizedBox.shrink()
+                : Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        if (_suggestions.title != null)
+                          _SuggestionChip(
+                            icon: Icons.title_rounded,
+                            label: 'Title: ${_suggestions.title}',
+                            onTap: () =>
+                                _applyTitleSuggestion(_suggestions.title!),
+                          ),
+                        if (_suggestions.folder != null)
+                          _SuggestionChip(
+                            icon: Icons.folder_open_rounded,
+                            label: 'File in ${_suggestions.folder!.name}',
+                            onTap: () =>
+                                _applyFolderSuggestion(_suggestions.folder!),
+                          ),
+                      ],
+                    ),
+                  ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
             child: _showInlineSummary
                 ? Padding(
                     padding: const EdgeInsets.only(top: 12),
@@ -1075,6 +1177,57 @@ class _FolderTagButton extends StatelessWidget {
             size: 18,
             color: surfaces.onGlass,
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A tappable pill offering an on-device suggestion (title or folder). Tapping
+/// applies it; the suggestion is otherwise ignorable, keeping it non-intrusive.
+class _SuggestionChip extends StatelessWidget {
+  const _SuggestionChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final surfaces = theme.extension<AppSurfaces>()!;
+    return GlassSurface(
+      borderRadius: 999,
+      blur: false,
+      fillColor: surfaces.glassHighlight,
+      borderColor: surfaces.accent.withValues(alpha: 0.5),
+      onTap: onTap,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.auto_awesome_rounded, size: 14, color: surfaces.accent),
+          const SizedBox(width: 6),
+          Icon(icon, size: 15, color: surfaces.onGlass),
+          const SizedBox(width: 6),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 220),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: surfaces.onGlass,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Icon(Icons.add_rounded, size: 16, color: surfaces.accent),
         ],
       ),
     );
