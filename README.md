@@ -5,10 +5,11 @@ A privacy-first, offline-first note-taking app built with Flutter. Notes live on
 ## Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/01-library.png" width="23%" alt="Library" />
-  <img src="docs/screenshots/02-appearance.png" width="23%" alt="Appearance" />
-  <img src="docs/screenshots/03-ai-summary.png" width="23%" alt="AI summary" />
-  <img src="docs/screenshots/04-semantic-search.png" width="23%" alt="Semantic search" />
+  <img src="docs/screenshots/01-library.jpg" width="19%" alt="Library — recent notes over a live snow backdrop" />
+  <img src="docs/screenshots/02-editor.jpg" width="19%" alt="Rich editor — bullets, checklist, highlight and inline styles" />
+  <img src="docs/screenshots/03-ai-summary.jpg" width="19%" alt="On-device AI summary in a bottom sheet" />
+  <img src="docs/screenshots/04-appearance.jpg" width="19%" alt="Appearance — themes and animated backgrounds" />
+  <img src="docs/screenshots/05-privacy.jpg" width="19%" alt="Privacy lock — optional local PIN" />
 </p>
 
 ## Highlights
