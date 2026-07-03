@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme/app_theme.dart';
@@ -12,7 +13,6 @@ import '../domain/note_body_text.dart';
 import 'note_image_embed.dart';
 import '../../ai/domain/note_suggestions.dart';
 import '../../ai/providers/ai_actions.dart';
-import '../../ai/providers/ai_providers.dart';
 import '../../ai/providers/model_download_controller.dart';
 import '../../ai/providers/note_assistant_providers.dart';
 import '../../ai/providers/related_notes_providers.dart';
@@ -64,9 +64,8 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   bool _didLoadInitialData = false;
   bool _isLoading = false;
   bool _isSaving = false;
-  bool _isGeneratingSummary = false;
-  bool _showFormattingToolbar = false;
-  bool _showInlineSummary = false;
+  bool _showDetails = false;
+  bool _bodyHasFocus = false;
   String? _activeNoteId;
   String? _selectedFolderId;
   String? _summary;
@@ -80,8 +79,18 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     _activeNoteId = widget.noteId;
     _titleController.addListener(_onEdited);
     _bodyController.addListener(_onEdited);
+    _bodyFocusNode.addListener(_onBodyFocusChanged);
     _warmAttachments();
     _loadInitialNote();
+  }
+
+  /// The keyboard formatting toolbar only rides above the keyboard while the
+  /// body is focused; track focus so we can show/hide it.
+  void _onBodyFocusChanged() {
+    final hasFocus = _bodyFocusNode.hasFocus;
+    if (hasFocus != _bodyHasFocus) {
+      setState(() => _bodyHasFocus = hasFocus);
+    }
   }
 
   /// Prepares the attachments directory so the inline image embed builder can
@@ -290,53 +299,9 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     _assistTimer?.cancel();
     _titleController.dispose();
     _bodyController.dispose();
+    _bodyFocusNode.removeListener(_onBodyFocusChanged);
     _bodyFocusNode.dispose();
     super.dispose();
-  }
-
-  Future<void> _save() async {
-    await _persist(closeAfterSave: true);
-  }
-
-  Future<void> _generateSummary() async {
-    final body = _plainBody;
-    if (body.isEmpty || _isGeneratingSummary) {
-      return;
-    }
-
-    if (_activeNoteId == null) {
-      await _persist(closeAfterSave: false);
-    }
-
-    if (_activeNoteId == null) {
-      return;
-    }
-
-    setState(() {
-      _isGeneratingSummary = true;
-    });
-
-    try {
-      final summary = await ref.read(aiActionsProvider).generateSummary(
-            noteId: _activeNoteId!,
-            title: _titleController.text.trim().isEmpty
-                ? null
-                : _titleController.text.trim(),
-            body: body,
-          );
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _summary = summary;
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isGeneratingSummary = false;
-        });
-      }
-    }
   }
 
   Future<void> _persist({required bool closeAfterSave}) async {
@@ -601,14 +566,76 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     );
   }
 
-  Future<void> _toggleInlineSummary() async {
-    setState(() {
-      _showInlineSummary = !_showInlineSummary;
-    });
-    if (_showInlineSummary &&
-        (_summary == null || _summary!.trim().isEmpty) &&
-        !_isGeneratingSummary) {
-      await _generateSummary();
+  /// Persists the note if needed (a summary requires a saved note id), then
+  /// raises the AI summary as a draggable bottom-sheet overlay — Samsung Notes'
+  /// "Summary" pop-up, done in our glass. The sheet drives its own generation
+  /// and reports the result back so the parent stays in sync.
+  Future<void> _openSummarySheet() async {
+    if (_plainBody.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Write something to summarise first.')),
+      );
+      return;
+    }
+    if (_activeNoteId == null) {
+      await _persist(closeAfterSave: false);
+    }
+    final noteId = _activeNoteId;
+    if (noteId == null || !mounted) {
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _SummarySheet(
+        noteId: noteId,
+        title: _titleController.text.trim().isEmpty
+            ? null
+            : _titleController.text.trim(),
+        body: _plainBody,
+        initialSummary: _summary,
+        related: _related,
+        onSummaryGenerated: (value) {
+          if (mounted) {
+            setState(() => _summary = value);
+          }
+        },
+        onOpenRelated: (id) {
+          Navigator.of(context).pop();
+          _openRelated(id);
+        },
+        onInsert: _insertSummaryIntoNote,
+      ),
+    );
+  }
+
+  /// Appends the generated summary to the end of the note body as its own
+  /// paragraph — the sheet's "Add to note" action.
+  void _insertSummaryIntoNote(String summary) {
+    final text = summary.trim();
+    if (text.isEmpty) {
+      return;
+    }
+    final length = _bodyController.document.length;
+    _bodyController.replaceText(
+      length - 1,
+      0,
+      '\n$text\n',
+      TextSelection.collapsed(offset: length + text.length + 1),
+    );
+    _scheduleAutosave();
+  }
+
+  /// Saves (best-effort) and closes — used by the back affordance and the
+  /// system back gesture, so leaving the canvas never loses work.
+  Future<void> _close() async {
+    if (_plainBody.isNotEmpty) {
+      await _persist(closeAfterSave: false);
+    }
+    if (mounted) {
+      Navigator.of(context).pop(true);
     }
   }
   Future<void> _showFolderPickerSheet(List<NoteFolder> folders) async {
@@ -766,366 +793,428 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final surfaces = theme.extension<AppSurfaces>()!;
-    final isEditingExisting = _activeNoteId != null;
     final foldersAsync = ref.watch(noteFoldersProvider);
-    final aiSnapshotAsync = _activeNoteId == null
-        ? null
-        : ref.watch(noteAiSnapshotProvider(_activeNoteId!));
-    final effectiveSummary = (_summary != null && _summary!.trim().isNotEmpty)
-        ? _summary!.trim()
-        : aiSnapshotAsync?.valueOrNull?.summary;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(isEditingExisting ? 'Edit note' : 'New note'),
-        actions: [
-          IconButton(
-            onPressed: _exportMarkdown,
-            icon: const Icon(Icons.ios_share_rounded),
-            tooltip: 'Export as Markdown',
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          _close();
+        }
+      },
+      child: Scaffold(
+        resizeToAvoidBottomInset: true,
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildTopBar(theme, surfaces),
+              if (_isLoading) const LinearProgressIndicator(),
+              _buildTitleField(theme, surfaces),
+              _buildDetailsSection(theme, surfaces, foldersAsync),
+              Expanded(child: _buildCanvas()),
+              _buildKeyboardToolbar(theme, surfaces),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: FilledButton(
-              onPressed: _isSaving ? null : _save,
-              child: Text(_isSaving ? 'Saving...' : 'Save'),
+        ),
+      ),
+    );
+  }
+
+  /// Slim top strip: back (saves + closes), a subtle save indicator, the AI
+  /// summary sparkle, and an overflow menu. The canvas stays uncluttered.
+  Widget _buildTopBar(ThemeData theme, AppSurfaces surfaces) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 4, 8, 4),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: _close,
+            icon: const Icon(Icons.arrow_back_rounded),
+            tooltip: 'Back',
+          ),
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              child: _isSaving
+                  ? Row(
+                      key: const ValueKey('saving'),
+                      children: [
+                        SizedBox(
+                          width: 13,
+                          height: 13,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: surfaces.mutedText,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Saving…',
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: surfaces.mutedText),
+                        ),
+                      ],
+                    )
+                  : _activeNoteId != null
+                      ? Row(
+                          key: const ValueKey('saved'),
+                          children: [
+                            Icon(
+                              Icons.cloud_done_rounded,
+                              size: 15,
+                              color: surfaces.mutedText,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Saved',
+                              style: theme.textTheme.bodySmall
+                                  ?.copyWith(color: surfaces.mutedText),
+                            ),
+                          ],
+                        )
+                      : const SizedBox.shrink(key: ValueKey('idle')),
             ),
           ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          if (_isLoading) ...[
-            const LinearProgressIndicator(),
-            const SizedBox(height: 16),
-          ],
-          Row(
-            children: [
-              const Spacer(),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 220),
-                child: Text(
-                  _isSaving ? 'Saving...' : 'Saved',
-                  key: ValueKey(_isSaving),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: _isSaving
-                        ? theme.colorScheme.secondary
-                        : theme.colorScheme.primary,
-                    fontWeight: FontWeight.w700,
-                  ),
+          _EditorIconButton(
+            icon: Icons.auto_awesome_rounded,
+            tooltip: 'AI summary',
+            onPressed: _openSummarySheet,
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'More',
+            icon: Icon(Icons.more_vert_rounded, color: surfaces.onGlass),
+            onSelected: (value) {
+              if (value == 'export') {
+                _exportMarkdown();
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: 'export',
+                child: Row(
+                  children: [
+                    Icon(Icons.ios_share_rounded, size: 18),
+                    SizedBox(width: 10),
+                    Text('Export as Markdown'),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          TextField(
-            controller: _titleController,
-            textInputAction: TextInputAction.next,
-            style: theme.textTheme.titleLarge,
-            decoration: const InputDecoration(
-              labelText: 'Title',
-              hintText: 'Optional title',
-            ),
+        ],
+      ),
+    );
+  }
+
+  /// Borderless title — an open field at the top of the canvas, Samsung-style.
+  Widget _buildTitleField(ThemeData theme, AppSurfaces surfaces) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 2, 20, 2),
+      child: TextField(
+        controller: _titleController,
+        textInputAction: TextInputAction.next,
+        maxLines: null,
+        style: theme.textTheme.headlineSmall?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: theme.colorScheme.onSurface,
+        ),
+        decoration: InputDecoration(
+          isCollapsed: true,
+          border: InputBorder.none,
+          hintText: 'Title',
+          hintStyle: theme.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: surfaces.mutedText.withValues(alpha: 0.6),
           ),
-          const SizedBox(height: 16),
-          foldersAsync.when(
-            data: (folders) {
-              NoteFolder? selectedFolder;
-              for (final folder in folders) {
-                if (folder.id == _selectedFolderId) {
-                  selectedFolder = folder;
-                  break;
-                }
-              }
-              return Row(
+        ),
+      ),
+    );
+  }
+
+  /// A tap-to-expand strip under the title holding folder, tags and smart
+  /// suggestions — collapsed by default so the canvas breathes.
+  Widget _buildDetailsSection(
+    ThemeData theme,
+    AppSurfaces surfaces,
+    AsyncValue<List<NoteFolder>> foldersAsync,
+  ) {
+    final folders = foldersAsync.valueOrNull ?? const <NoteFolder>[];
+    NoteFolder? selectedFolder;
+    for (final folder in folders) {
+      if (folder.id == _selectedFolderId) {
+        selectedFolder = folder;
+        break;
+      }
+    }
+    final tagCount = _selectedTags.length;
+    final hasSuggestions = _suggestions.isNotEmpty;
+    final summaryLabel = StringBuffer(selectedFolder?.name ?? 'No folder');
+    if (tagCount > 0) {
+      summaryLabel.write(' · $tagCount tag${tagCount == 1 ? '' : 's'}');
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(999),
+            onTap: () => setState(() => _showDetails = !_showDetails),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
+              child: Row(
                 children: [
-                  _EditorIconButton(
-                    icon: Icons.auto_awesome_rounded,
-                    tooltip: 'AI summary',
-                    isBusy: _isGeneratingSummary,
-                    onPressed: _toggleInlineSummary,
+                  Icon(
+                    Icons.folder_open_outlined,
+                    size: 15,
+                    color: surfaces.accent,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _FolderTagButton(
-                      label: selectedFolder?.name ?? 'No folder',
-                      onTap: () => _showFolderPickerSheet(folders),
+                  const SizedBox(width: 7),
+                  Flexible(
+                    child: Text(
+                      summaryLabel.toString(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: surfaces.mutedText,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  if (hasSuggestions) ...[
+                    const SizedBox(width: 7),
+                    Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 13,
+                      color: surfaces.accent,
+                    ),
+                  ],
+                  const SizedBox(width: 6),
+                  AnimatedRotation(
+                    duration: const Duration(milliseconds: 200),
+                    turns: _showDetails ? 0.5 : 0,
+                    child: Icon(
+                      Icons.expand_more_rounded,
+                      size: 18,
+                      color: surfaces.mutedText,
                     ),
                   ),
                 ],
-              );
-            },
-            error: (_, stackTrace) => const SizedBox.shrink(),
-            loading: () => Row(
-              children: [
-                _EditorIconButton(
-                  icon: Icons.auto_awesome_rounded,
-                  tooltip: 'AI summary',
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Container(
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              for (final tag in _selectedTags)
-                _TagChip(
-                  tag: tag,
-                  onRemove: () => setState(
-                    () => _selectedTags =
-                        _selectedTags.where((t) => t.id != tag.id).toList(),
-                  ),
-                ),
-              _AddTagButton(onTap: _openTagPicker),
-            ],
-          ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            child: _suggestions.isEmpty
-                ? const SizedBox.shrink()
-                : Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          child: !_showDetails
+              ? const SizedBox(width: double.infinity)
+              : Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                  child: GlassSurface(
+                    borderRadius: 20,
+                    blur: false,
+                    fillColor: surfaces.cardFill,
+                    borderColor: surfaces.cardBorder,
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (_suggestions.title != null)
-                          _SuggestionChip(
-                            icon: Icons.title_rounded,
-                            label: 'Title: ${_suggestions.title}',
-                            onTap: () =>
-                                _applyTitleSuggestion(_suggestions.title!),
+                        _FolderTagButton(
+                          label: selectedFolder?.name ?? 'No folder',
+                          onTap: () => _showFolderPickerSheet(folders),
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            for (final tag in _selectedTags)
+                              _TagChip(
+                                tag: tag,
+                                onRemove: () => setState(
+                                  () => _selectedTags = _selectedTags
+                                      .where((t) => t.id != tag.id)
+                                      .toList(),
+                                ),
+                              ),
+                            _AddTagButton(onTap: _openTagPicker),
+                          ],
+                        ),
+                        if (hasSuggestions) ...[
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              if (_suggestions.title != null)
+                                _SuggestionChip(
+                                  icon: Icons.title_rounded,
+                                  label: 'Title: ${_suggestions.title}',
+                                  onTap: () => _applyTitleSuggestion(
+                                    _suggestions.title!,
+                                  ),
+                                ),
+                              if (_suggestions.folder != null)
+                                _SuggestionChip(
+                                  icon: Icons.folder_open_rounded,
+                                  label: 'File in ${_suggestions.folder!.name}',
+                                  onTap: () => _applyFolderSuggestion(
+                                    _suggestions.folder!,
+                                  ),
+                                ),
+                              for (final tag in _suggestions.tags)
+                                _SuggestionChip(
+                                  icon: Icons.label_rounded,
+                                  label: 'Tag: ${tag.name}',
+                                  onTap: () => _applyTagSuggestion(tag),
+                                ),
+                            ],
                           ),
-                        if (_suggestions.folder != null)
-                          _SuggestionChip(
-                            icon: Icons.folder_open_rounded,
-                            label: 'File in ${_suggestions.folder!.name}',
-                            onTap: () =>
-                                _applyFolderSuggestion(_suggestions.folder!),
-                          ),
-                        for (final tag in _suggestions.tags)
-                          _SuggestionChip(
-                            icon: Icons.label_rounded,
-                            label: 'Tag: ${tag.name}',
-                            onTap: () => _applyTagSuggestion(tag),
-                          ),
+                        ],
                       ],
                     ),
                   ),
-          ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            child: _showInlineSummary
-                ? Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: _InlineSummaryPanel(
-                      summary: effectiveSummary,
-                      isGenerating: _isGeneratingSummary,
-                      onRefresh: _generateSummary,
-                    ),
-                  )
-                : const SizedBox.shrink(),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () {
-                  setState(() {
-                    _showFormattingToolbar = !_showFormattingToolbar;
-                  });
-                },
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: theme.extension<AppSurfaces>()!.glassHighlight,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: theme.extension<AppSurfaces>()!.glassBorder,
-                    ),
-                  ),
-                  child: Icon(
-                    _showFormattingToolbar
-                        ? Icons.close_rounded
-                        : Icons.draw_rounded,
-                    size: 18,
-                    color: theme.extension<AppSurfaces>()!.accent,
-                  ),
                 ),
-              ),
-            ],
-          ),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 180),
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeOutCubic,
-            child: _showFormattingToolbar
-                ? Padding(
-                    key: const ValueKey('formatting-toolbar'),
-                    padding: const EdgeInsets.only(top: 12),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _ToolbarActionButton(
-                            icon: Icons.format_bold_rounded,
-                            tooltip: 'Bold',
-                            isSelected: _hasInlineAttribute(Attribute.bold),
-                            onTap: () => _toggleInlineAttribute(Attribute.bold),
-                          ),
-                          const SizedBox(width: 10),
-                          _ToolbarActionButton(
-                            icon: Icons.format_italic_rounded,
-                            tooltip: 'Italic',
-                            isSelected: _hasInlineAttribute(Attribute.italic),
-                            onTap: () =>
-                                _toggleInlineAttribute(Attribute.italic),
-                          ),
-                          const SizedBox(width: 10),
-                          _ToolbarActionButton(
-                            icon: Icons.format_underline_rounded,
-                            tooltip: 'Underline',
-                            isSelected:
-                                _hasInlineAttribute(Attribute.underline),
-                            onTap: () =>
-                                _toggleInlineAttribute(Attribute.underline),
-                          ),
-                          const SizedBox(width: 10),
-                          _ToolbarActionButton(
-                            icon: Icons.format_strikethrough_rounded,
-                            tooltip: 'Strikethrough',
-                            isSelected:
-                                _hasInlineAttribute(Attribute.strikeThrough),
-                            onTap: () => _toggleInlineAttribute(
-                              Attribute.strikeThrough,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          _ToolbarActionButton(
-                            icon: Icons.format_list_bulleted_rounded,
-                            tooltip: 'Bullets',
-                            isSelected: _isBulletActive,
-                            onTap: _toggleBullets,
-                          ),
-                          const SizedBox(width: 10),
-                          _ToolbarActionButton(
-                            icon: Icons.checklist_rounded,
-                            tooltip: 'Checklist',
-                            isSelected: _isChecklistActive,
-                            onTap: _toggleChecklist,
-                          ),
-                          const SizedBox(width: 10),
-                          _ToolbarActionButton(
-                            icon: Icons.image_rounded,
-                            tooltip: 'Insert image',
-                            onTap: _insertImage,
-                          ),
-                          const SizedBox(width: 10),
-                          _ToolbarActionButton(
-                            icon: Icons.palette_rounded,
-                            tooltip: 'Text color',
-                            onTap: () =>
-                                _showStyledColorPicker(_bodyController, false),
-                          ),
-                          const SizedBox(width: 10),
-                          _ToolbarActionButton(
-                            icon: Icons.format_color_fill_rounded,
-                            tooltip: 'Highlight',
-                            onTap: () =>
-                                _showStyledColorPicker(_bodyController, true),
-                          ),
-                          const SizedBox(width: 10),
-                          _ToolbarCycleButton(
-                            icon: _currentAlignmentIcon,
-                            tooltip: 'Cycle alignment',
-                            onTap: _cycleAlignment,
-                          ),
-                          const SizedBox(width: 10),
-                          _ToolbarCycleButton(
-                            icon: _currentIndentIcon,
-                            tooltip: 'Cycle indent',
-                            onTap: _cycleIndent,
-                          ),
-                          const SizedBox(width: 10),
-                          _ToolbarActionButton(
-                            icon: Icons.format_clear_rounded,
-                            tooltip: 'Clear formatting',
-                            onTap: _clearFormatting,
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                : const SizedBox.shrink(
-                    key: ValueKey('formatting-toolbar-hidden'),
-                  ),
-          ),
-          const SizedBox(height: 12),
-          GlassSurface(
-            borderRadius: 20,
-            blur: false,
-            fillColor: surfaces.cardFill,
-            borderColor: surfaces.cardBorder,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            child: QuillEditor.basic(
-              controller: _bodyController,
-              focusNode: _bodyFocusNode,
-              config: QuillEditorConfig(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                placeholder: 'Start from here',
-                autoFocus: true,
-                scrollable: false,
-                embedBuilders: [
-                  LocalImageEmbedBuilder(ref.read(attachmentStoreProvider)),
-                ],
-              ),
-            ),
-          ),
-          if (_related.isNotEmpty) ...[
-            const SizedBox(height: 26),
-            Row(
-              children: [
-                Icon(Icons.hub_outlined, size: 16, color: surfaces.accent),
-                const SizedBox(width: 8),
-                Text(
-                  'Related notes',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: surfaces.mutedText,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.4,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            for (final note in _related)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _RelatedNoteCard(
-                  note: note,
-                  onTap: () => _openRelated(note.id),
-                ),
-              ),
+        ),
+      ],
+    );
+  }
+
+  /// The infinite, borderless writing surface — fills the remaining height and
+  /// scrolls on its own, so text starts at the top and flows without a card.
+  Widget _buildCanvas() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: QuillEditor.basic(
+        controller: _bodyController,
+        focusNode: _bodyFocusNode,
+        config: QuillEditorConfig(
+          padding: const EdgeInsets.fromLTRB(4, 8, 4, 24),
+          placeholder: 'Start writing…',
+          autoFocus: true,
+          expands: true,
+          scrollable: true,
+          embedBuilders: [
+            LocalImageEmbedBuilder(ref.read(attachmentStoreProvider)),
           ],
-        ],
+        ),
       ),
+    );
+  }
+
+  /// The formatting toolbar, docked directly above the keyboard. Because the
+  /// scaffold resizes for the keyboard, placing it as the last column child
+  /// makes it ride on top of the keys — appearing only while the body is
+  /// focused, Samsung-style.
+  Widget _buildKeyboardToolbar(ThemeData theme, AppSurfaces surfaces) {
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 160),
+      curve: Curves.easeOutCubic,
+      child: !_bodyHasFocus
+          ? const SizedBox(width: double.infinity)
+          : GlassSurface(
+              borderRadius: 0,
+              blur: true,
+              shadow: false,
+              fillColor: surfaces.glassHighlight,
+              borderColor: surfaces.glassBorder,
+              child: SafeArea(
+                top: false,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    children: [
+                      _ToolbarActionButton(
+                        icon: Icons.format_bold_rounded,
+                        tooltip: 'Bold',
+                        isSelected: _hasInlineAttribute(Attribute.bold),
+                        onTap: () => _toggleInlineAttribute(Attribute.bold),
+                      ),
+                      const SizedBox(width: 10),
+                      _ToolbarActionButton(
+                        icon: Icons.format_italic_rounded,
+                        tooltip: 'Italic',
+                        isSelected: _hasInlineAttribute(Attribute.italic),
+                        onTap: () => _toggleInlineAttribute(Attribute.italic),
+                      ),
+                      const SizedBox(width: 10),
+                      _ToolbarActionButton(
+                        icon: Icons.format_underline_rounded,
+                        tooltip: 'Underline',
+                        isSelected: _hasInlineAttribute(Attribute.underline),
+                        onTap: () => _toggleInlineAttribute(Attribute.underline),
+                      ),
+                      const SizedBox(width: 10),
+                      _ToolbarActionButton(
+                        icon: Icons.format_strikethrough_rounded,
+                        tooltip: 'Strikethrough',
+                        isSelected:
+                            _hasInlineAttribute(Attribute.strikeThrough),
+                        onTap: () =>
+                            _toggleInlineAttribute(Attribute.strikeThrough),
+                      ),
+                      const SizedBox(width: 10),
+                      _ToolbarActionButton(
+                        icon: Icons.format_list_bulleted_rounded,
+                        tooltip: 'Bullets',
+                        isSelected: _isBulletActive,
+                        onTap: _toggleBullets,
+                      ),
+                      const SizedBox(width: 10),
+                      _ToolbarActionButton(
+                        icon: Icons.checklist_rounded,
+                        tooltip: 'Checklist',
+                        isSelected: _isChecklistActive,
+                        onTap: _toggleChecklist,
+                      ),
+                      const SizedBox(width: 10),
+                      _ToolbarActionButton(
+                        icon: Icons.image_rounded,
+                        tooltip: 'Insert image',
+                        onTap: _insertImage,
+                      ),
+                      const SizedBox(width: 10),
+                      _ToolbarActionButton(
+                        icon: Icons.palette_rounded,
+                        tooltip: 'Text color',
+                        onTap: () =>
+                            _showStyledColorPicker(_bodyController, false),
+                      ),
+                      const SizedBox(width: 10),
+                      _ToolbarActionButton(
+                        icon: Icons.format_color_fill_rounded,
+                        tooltip: 'Highlight',
+                        onTap: () =>
+                            _showStyledColorPicker(_bodyController, true),
+                      ),
+                      const SizedBox(width: 10),
+                      _ToolbarCycleButton(
+                        icon: _currentAlignmentIcon,
+                        tooltip: 'Cycle alignment',
+                        onTap: _cycleAlignment,
+                      ),
+                      const SizedBox(width: 10),
+                      _ToolbarCycleButton(
+                        icon: _currentIndentIcon,
+                        tooltip: 'Cycle indent',
+                        onTap: _cycleIndent,
+                      ),
+                      const SizedBox(width: 10),
+                      _ToolbarActionButton(
+                        icon: Icons.format_clear_rounded,
+                        tooltip: 'Clear formatting',
+                        onTap: _clearFormatting,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
     );
   }
 }
@@ -1264,102 +1353,40 @@ class _ToolbarActionButton extends StatelessWidget {
   }
 }
 
-class _EditorIconButton extends StatefulWidget {
+class _EditorIconButton extends StatelessWidget {
   const _EditorIconButton({
     required this.icon,
     required this.tooltip,
-    this.isBusy = false,
     this.onPressed,
   });
 
   final IconData icon;
   final String tooltip;
-  final bool isBusy;
   final VoidCallback? onPressed;
 
   @override
-  State<_EditorIconButton> createState() => _EditorIconButtonState();
-}
-
-class _EditorIconButtonState extends State<_EditorIconButton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    );
-    if (widget.isBusy) {
-      _controller.repeat(reverse: true);
-    }
-  }
-
-  @override
-  void didUpdateWidget(covariant _EditorIconButton oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.isBusy == oldWidget.isBusy) {
-      return;
-    }
-    if (widget.isBusy) {
-      _controller.repeat(reverse: true);
-    } else {
-      _controller
-        ..stop()
-        ..value = 0;
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final surfaces = theme.extension<AppSurfaces>()!;
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final t = Curves.easeInOut.transform(_controller.value);
-        final scale = widget.isBusy ? 1 + (t * 0.05) : 1.0;
-        final iconShift = widget.isBusy ? (t * 0.12) - 0.06 : 0.0;
-        final borderColor = widget.isBusy
-            ? Color.lerp(surfaces.glassBorder, surfaces.accent, 0.4 + t * 0.4)!
-            : surfaces.glassBorder;
-
-        return Transform.scale(
-          scale: scale,
-          child: Tooltip(
-            message: widget.tooltip,
-            child: GlassSurface(
-              borderRadius: 12,
-              blur: false,
-              fillColor: surfaces.glassHighlight,
-              borderColor: borderColor,
-              onTap: widget.onPressed,
-              child: SizedBox(
-                width: 38,
-                height: 38,
-                child: Center(
-                  child: Transform.rotate(
-                    angle: iconShift,
-                    child: Icon(
-                      widget.icon,
-                      size: 18,
-                      color: surfaces.accent,
-                    ),
-                  ),
-                ),
-              ),
+    final surfaces = Theme.of(context).extension<AppSurfaces>()!;
+    return Tooltip(
+      message: tooltip,
+      child: GlassSurface(
+        borderRadius: 12,
+        blur: false,
+        fillColor: surfaces.glassHighlight,
+        borderColor: surfaces.glassBorder,
+        onTap: onPressed,
+        child: SizedBox(
+          width: 38,
+          height: 38,
+          child: Center(
+            child: Icon(
+              icon,
+              size: 18,
+              color: surfaces.accent,
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
@@ -1763,68 +1790,250 @@ class _TagPickerSheetState extends ConsumerState<_TagPickerSheet> {
   }
 }
 
-class _InlineSummaryPanel extends StatelessWidget {
-  const _InlineSummaryPanel({
-    required this.summary,
-    required this.isGenerating,
-    required this.onRefresh,
+/// The AI summary as a draggable glass overlay rising from the bottom — our
+/// take on Samsung Notes' Summary pop-up. It drives its own generation (so the
+/// spinner and result update live) and reports the summary back to the editor.
+/// The related-notes list rides along at the bottom of the sheet.
+class _SummarySheet extends ConsumerStatefulWidget {
+  const _SummarySheet({
+    required this.noteId,
+    required this.title,
+    required this.body,
+    required this.initialSummary,
+    required this.related,
+    required this.onSummaryGenerated,
+    required this.onOpenRelated,
+    required this.onInsert,
   });
 
-  final String? summary;
-  final bool isGenerating;
-  final VoidCallback onRefresh;
+  final String noteId;
+  final String? title;
+  final String body;
+  final String? initialSummary;
+  final List<NotePreview> related;
+  final ValueChanged<String> onSummaryGenerated;
+  final ValueChanged<String> onOpenRelated;
+  final ValueChanged<String> onInsert;
+
+  @override
+  ConsumerState<_SummarySheet> createState() => _SummarySheetState();
+}
+
+class _SummarySheetState extends ConsumerState<_SummarySheet> {
+  String? _summary;
+  bool _isGenerating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _summary = widget.initialSummary?.trim();
+    if (_summary == null || _summary!.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _generate());
+    }
+  }
+
+  Future<void> _generate() async {
+    if (_isGenerating) {
+      return;
+    }
+    setState(() => _isGenerating = true);
+    try {
+      final summary = await ref.read(aiActionsProvider).generateSummary(
+            noteId: widget.noteId,
+            title: widget.title,
+            body: widget.body,
+          );
+      if (!mounted) {
+        return;
+      }
+      setState(() => _summary = summary);
+      widget.onSummaryGenerated(summary);
+    } finally {
+      if (mounted) {
+        setState(() => _isGenerating = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final surfaces = theme.extension<AppSurfaces>()!;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: surfaces.cardFill,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: surfaces.cardBorder,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x22000000),
-            blurRadius: 14,
-            offset: Offset(0, 6),
+    final summary = _summary?.trim() ?? '';
+    final hasSummary = summary.isNotEmpty;
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.5,
+      minChildSize: 0.3,
+      maxChildSize: 0.92,
+      expand: false,
+      builder: (context, scrollController) {
+        return GlassSurface(
+          borderRadius: 28,
+          blur: true,
+          fillColor: surfaces.cardFill,
+          borderColor: surfaces.cardBorder,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 10),
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: surfaces.glassBorder,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 12, 10, 4),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 20,
+                      color: surfaces.accent,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Summary',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        color: theme.colorScheme.onSurface,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: _isGenerating ? null : _generate,
+                      tooltip: 'Regenerate',
+                      icon: _isGenerating
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.refresh_rounded),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      tooltip: 'Close',
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(18, 4, 18, 20),
+                  children: [
+                    const _ModelDownloadPrompt(),
+                    if (_isGenerating && !hasSummary)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: surfaces.accent,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              'Summarising…',
+                              style: theme.textTheme.bodyMedium
+                                  ?.copyWith(color: surfaces.mutedText),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      SelectableText(
+                        hasSummary ? summary : 'No summary yet.',
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          height: 1.5,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                    if (hasSummary) ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                Clipboard.setData(
+                                  ClipboardData(text: summary),
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Summary copied.'),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.copy_rounded, size: 18),
+                              label: const Text('Copy'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: FilledButton.tonalIcon(
+                              onPressed: () {
+                                widget.onInsert(summary);
+                                Navigator.of(context).pop();
+                              },
+                              icon: const Icon(
+                                Icons.playlist_add_rounded,
+                                size: 18,
+                              ),
+                              label: const Text('Add to note'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (widget.related.isNotEmpty) ...[
+                      const SizedBox(height: 22),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.hub_outlined,
+                            size: 16,
+                            color: surfaces.accent,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Related notes',
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              color: surfaces.mutedText,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      for (final note in widget.related)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _RelatedNoteCard(
+                            note: note,
+                            onTap: () => widget.onOpenRelated(note.id),
+                          ),
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _ModelDownloadPrompt(),
-          Align(
-            alignment: Alignment.centerRight,
-            child: IconButton.filledTonal(
-              onPressed: isGenerating ? null : onRefresh,
-              tooltip: 'Refresh summary',
-              icon: isGenerating
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.refresh_rounded),
-            ),
-          ),
-          const SizedBox(height: 12),
-          SelectableText(
-            summary?.trim().isNotEmpty == true
-                ? summary!.trim()
-                : 'No summary yet.',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              height: 1.45,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

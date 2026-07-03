@@ -1853,6 +1853,15 @@ class _PreviewCard extends ConsumerWidget {
                       style: theme.textTheme.titleMedium,
                     ),
                   ),
+                  if (note.isPinned)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 6, top: 2),
+                      child: Icon(
+                        Icons.push_pin_rounded,
+                        size: 16,
+                        color: accent,
+                      ),
+                    ),
                   PopupMenuButton<_CardAction>(
                     itemBuilder: (context) => _buildActions(),
                     onSelected: (value) {
