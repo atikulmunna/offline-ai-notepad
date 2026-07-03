@@ -1,0 +1,31 @@
+NativeNote is a privacy-first, offline-first notepad. Your notes live entirely on your device, and the AI features run as real models on the phone, not as cloud API calls. No account, no server, no tracking. It works in airplane mode.
+
+On-device AI (Android):
+
+* Semantic search: find notes by meaning, not just keywords. "car repair" surfaces a note about "fixing the brakes." Powered by a real all-MiniLM-L6-v2 embedding model running locally.
+* Summaries: condense a long note to a couple of sentences with an on-device summarization model. No API key, no upload.
+* Ask your notes: ask a natural-language question and get an answer built from your own notes, with tap-through citations back to the source. Fully offline.
+* Voice to note: dictate a note using on-device speech recognition; the audio never leaves your phone.
+* Smart touches: a "related notes" strip and quiet title/folder/tag suggestions as you write.
+
+Everyday note-taking:
+
+* Rich text: bold, italic, underline, strikethrough, colors, highlights
+* Checklists, inline images, tags, and folders
+* Markdown import and export, no lock-in
+* Pin, archive, and trash with restore
+
+Design:
+
+* True-black AMOLED theme plus Light and System modes
+* Liquid-glass surfaces and optional animated backgrounds (particles, snow, geometric, space)
+
+Privacy by default:
+
+* Notes stored locally in an on-device database
+* Optional PIN lock
+* Passphrase-encrypted backup and restore
+
+First run: the app is small because the on-device AI models (~114 MB) are not bundled. The first time you use an AI feature, NativeNote offers to download them once; after that everything runs fully offline. Core note-taking works without them.
+
+Note: the on-device AI (real embeddings and summarizer) is Android-only today; where unavailable, the app falls back to keyword search and a simpler extractive summary rather than breaking. Voice input uses the device's speech recognizer.
