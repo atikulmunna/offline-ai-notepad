@@ -25,12 +25,12 @@ A privacy-first, offline-first note-taking app built with Flutter. Notes live on
 
 ## Download & Try It (Android)
 
-Grab the latest APK from the [**v1.2.0 release**](https://github.com/atikulmunna/offline-ai-notepad/releases/tag/v1.2.0):
+Grab the latest APK from the [**v1.3.0 release**](https://github.com/atikulmunna/offline-ai-notepad/releases/tag/v1.3.0):
 
 | Device | APK | Size |
 |---|---|---|
-| Most phones (last ~7 years, 64-bit) | [arm64-v8a](https://github.com/atikulmunna/offline-ai-notepad/releases/download/v1.2.0/offline-ai-notepad-v1.2.0-arm64-v8a.apk) | ~54 MB |
-| Older 32-bit devices | [armeabi-v7a](https://github.com/atikulmunna/offline-ai-notepad/releases/download/v1.2.0/offline-ai-notepad-v1.2.0-armeabi-v7a.apk) | ~45 MB |
+| Most phones (last ~7 years, 64-bit) | [arm64-v8a](https://github.com/atikulmunna/offline-ai-notepad/releases/download/v1.3.0/offline-ai-notepad-v1.3.0-arm64-v8a.apk) | ~53 MB |
+| Older 32-bit devices | [armeabi-v7a](https://github.com/atikulmunna/offline-ai-notepad/releases/download/v1.3.0/offline-ai-notepad-v1.3.0-armeabi-v7a.apk) | ~44 MB |
 
 **Install:** download the APK, allow "install from unknown sources" if prompted, and open it. It is signed with a debug key (a side-load/testing build), so Android may warn about an unknown developer.
 
