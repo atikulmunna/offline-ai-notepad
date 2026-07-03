@@ -26,12 +26,13 @@ A privacy-first, offline-first note-taking app built with Flutter. Notes live on
 
 ## Download & Try It (Android)
 
-Grab the latest APK from the [**v1.3.0 release**](https://github.com/atikulmunna/offline-ai-notepad/releases/tag/v1.3.0):
+Grab the latest APK from the [**v1.3.1 release**](https://github.com/atikulmunna/offline-ai-notepad/releases/tag/v1.3.1):
 
 | Device | APK | Size |
 |---|---|---|
-| Most phones (last ~7 years, 64-bit) | [arm64-v8a](https://github.com/atikulmunna/offline-ai-notepad/releases/download/v1.3.0/offline-ai-notepad-v1.3.0-arm64-v8a.apk) | ~53 MB |
-| Older 32-bit devices | [armeabi-v7a](https://github.com/atikulmunna/offline-ai-notepad/releases/download/v1.3.0/offline-ai-notepad-v1.3.0-armeabi-v7a.apk) | ~44 MB |
+| **Most phones** (last ~8 years, 64-bit) | [arm64-v8a](https://github.com/atikulmunna/offline-ai-notepad/releases/download/v1.3.1/offline-ai-notepad-v1.3.1-arm64-v8a.apk) | ~53 MB |
+| Not sure / "incompatible" error | [universal](https://github.com/atikulmunna/offline-ai-notepad/releases/download/v1.3.1/offline-ai-notepad-v1.3.1-universal.apk) — installs on any device | ~141 MB |
+| Older 32-bit devices | [armeabi-v7a](https://github.com/atikulmunna/offline-ai-notepad/releases/download/v1.3.1/offline-ai-notepad-v1.3.1-armeabi-v7a.apk) | ~44 MB |
 
 **Install:** download the APK, allow "install from unknown sources" if prompted, and open it. It is signed with the project's release key (`CN=NativeNote`), so updates install cleanly in place; Android may still warn about an unknown developer simply because it's side-loaded rather than installed from a store.
 
